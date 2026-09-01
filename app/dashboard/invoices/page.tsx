@@ -164,6 +164,15 @@ export default function InvoicesPage() {
                 "Status",
                 "",
               ]}
+              widths={[
+                "w-[15%]",
+                "w-[19%]",
+                "w-[8%]",
+                "w-[11%]",
+                "w-[11%]",
+                "w-[11%]",
+                "w-[25%]",
+              ]}
             >
               {invoices.map((invoice) => (
                 <InvoiceRow
@@ -200,16 +209,18 @@ function InvoiceRow({
 
   return (
     <tr className="align-middle">
-      <td className="px-6 py-4">
+      <td className="px-4 py-3">
         <div className="flex min-w-0 flex-col">
-          <span className="font-medium tabular-nums">{invoice.number}</span>
-          <span className="text-xs text-muted-foreground">
+          <span className="truncate font-medium tabular-nums">
+            {invoice.number}
+          </span>
+          <span className="truncate text-xs text-muted-foreground">
             Issued {date(invoice.issuedAt)}
           </span>
         </div>
       </td>
 
-      <td className="px-6 py-4">
+      <td className="px-4 py-3">
         <div className="flex min-w-0 flex-col">
           <span className="truncate font-medium">{invoice.companyName}</span>
           <span className="truncate text-xs text-muted-foreground">
@@ -218,39 +229,41 @@ function InvoiceRow({
         </div>
       </td>
 
-      <td className="px-6 py-4 tabular-nums">{coins(invoice.coins)}</td>
+      <td className="px-4 py-3 tabular-nums">{coins(invoice.coins)}</td>
 
-      <td className="px-6 py-4 font-medium tabular-nums">
+      <td className="px-4 py-3 font-medium tabular-nums">
         {money(invoice.amountCents)}
       </td>
 
-      <td className="px-6 py-4 whitespace-nowrap">
+      <td className="px-4 py-3">
         <span
           className={
-            overdue ? "font-medium text-destructive" : "text-muted-foreground"
+            overdue
+              ? "text-xs font-medium text-destructive"
+              : "text-xs text-muted-foreground"
           }
         >
           {date(invoice.dueAt)}
-          {overdue && <span className="ml-1 text-xs">overdue</span>}
+          {overdue && <span className="mt-0.5 block">overdue</span>}
         </span>
       </td>
 
-      <td className="px-6 py-4">
+      <td className="px-4 py-3">
         <div className="flex flex-col items-start gap-1">
           <StatusPill status={invoice.status} styles={INVOICE_STATUS_STYLES} />
           {invoice.paymentProofAt && invoice.status === "unpaid" && (
             <span className="text-[11px] text-muted-foreground">
-              Receipt sent {relative(invoice.paymentProofAt)}
+              Receipt {relative(invoice.paymentProofAt)}
             </span>
           )}
         </div>
       </td>
 
-      <td className="px-6 py-4">
-        <div className="flex items-center justify-end gap-2">
+      <td className="px-4 py-3">
+        <div className="flex items-center justify-end gap-1.5">
           <Button
             variant="ghost"
-            size="sm"
+            size="xs"
             disabled={!invoice.pdfUrl}
             render={
               invoice.pdfUrl ? (
@@ -270,7 +283,7 @@ function InvoiceRow({
               unpaid — what settles an invoice is the bank statement. */}
           <Button
             variant="outline"
-            size="sm"
+            size="xs"
             disabled={!invoice.paymentProofUrl}
             render={
               invoice.paymentProofUrl ? (
@@ -290,13 +303,13 @@ function InvoiceRow({
             <>
               <Button
                 variant="destructive"
-                size="sm"
+                size="xs"
                 onClick={() => onDecide("cancelled")}
               >
                 <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
                 Cancel
               </Button>
-              <Button size="sm" onClick={() => onDecide("paid")}>
+              <Button size="xs" onClick={() => onDecide("paid")}>
                 <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} />
                 Mark paid
               </Button>
