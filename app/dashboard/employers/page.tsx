@@ -148,10 +148,19 @@ export default function EmployersPage() {
                 "Person",
                 "Contact",
                 "Company",
-                "Business check",
+                "Business",
                 "Signed up",
                 "Status",
                 "",
+              ]}
+              widths={[
+                "w-[18%]",
+                "w-[19%]",
+                "w-[22%]",
+                "w-[9%]",
+                "w-[9%]",
+                "w-[8%]",
+                "w-[15%]",
               ]}
             >
               {employers.map((employer) => (
@@ -191,24 +200,26 @@ function EmployerRow({
 
   return (
     <tr className="align-top">
-      <td className="px-6 py-4">
-        <div className="flex items-center gap-3">
-          <InitialsAvatar seed={employer.userId} label={initials(name)} />
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-2.5">
+          <InitialsAvatar
+            seed={employer.userId}
+            label={initials(name)}
+            className="size-8"
+          />
           <div className="flex min-w-0 flex-col">
             <span className="truncate font-medium">{name}</span>
             <span className="truncate text-xs text-muted-foreground">
-              {employer.jobTitle ?? "No job title given"}
+              {employer.jobTitle ?? "No job title"}
             </span>
-            <span className="text-xs text-muted-foreground">
-              {employer.personVerified
-                ? "Singpass verified"
-                : "Identity not verified"}
+            <span className="truncate text-xs text-muted-foreground">
+              {employer.personVerified ? "Verified" : "Not verified"}
             </span>
           </div>
         </div>
       </td>
 
-      <td className="px-6 py-4">
+      <td className="px-4 py-3">
         <div className="flex min-w-0 flex-col gap-1 text-xs">
           <span className="inline-flex items-center gap-1.5">
             <HugeiconsIcon
@@ -232,7 +243,7 @@ function EmployerRow({
         </div>
       </td>
 
-      <td className="px-6 py-4">
+      <td className="px-4 py-3">
         <div className="flex min-w-0 flex-col">
           <span className="truncate font-medium">{employer.companyName}</span>
           <span className="truncate text-xs tabular-nums text-muted-foreground">
@@ -243,37 +254,37 @@ function EmployerRow({
           </span>
           {/* A first employee at a new business and the fourth at an
               established one are different calls. */}
-          <span className="text-xs text-muted-foreground">
+          <span className="truncate text-xs text-muted-foreground">
             {employer.companySeats} seat
             {employer.companySeats === 1 ? "" : "s"} at this UEN
           </span>
         </div>
       </td>
 
-      <td className="px-6 py-4">
+      <td className="px-4 py-3">
         <StatusPill
           status={employer.companyVerificationStatus}
           styles={COMPANY_STYLES}
         />
       </td>
 
-      <td className="px-6 py-4 whitespace-nowrap text-muted-foreground">
+      <td className="px-4 py-3 text-xs text-muted-foreground">
         {relative(employer.createdAt)}
       </td>
 
-      <td className="px-6 py-4">
+      <td className="px-4 py-3">
         <StatusPill status={employer.status} />
       </td>
 
-      <td className="px-6 py-4">
-        <div className="flex items-center justify-end gap-2">
+      <td className="px-4 py-3">
+        <div className="flex items-center justify-end gap-1.5">
           {/* Decided employers can be decided again, unlike a certificate:
               somebody approved in error has to be removable, and a manager who
               left and came back is an ordinary call. */}
           {employer.status !== "rejected" && (
             <Button
               variant="destructive"
-              size="sm"
+              size="xs"
               onClick={() => onDecide("rejected")}
             >
               <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
@@ -281,7 +292,7 @@ function EmployerRow({
             </Button>
           )}
           {employer.status !== "approved" && (
-            <Button size="sm" onClick={() => onDecide("approved")}>
+            <Button size="xs" onClick={() => onDecide("approved")}>
               <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} />
               Approve
             </Button>

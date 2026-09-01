@@ -309,21 +309,39 @@ export function EmptyState({
 
 /** The queues are wide — a certificate row carries a person, a document and two
  *  dates — so the table scrolls inside the card rather than pushing the page
- *  sideways. */
+ *  sideways.
+ *
+ *  Padding is px-4 rather than the px-6 a marketing table would use, and the
+ *  floor is 56rem rather than 48rem. Both are the same trade: these tables have
+ *  six or seven columns ending in the buttons that make the decision, and a
+ *  reviewer who has to scroll sideways to reach Verify is one who will
+ *  eventually approve the wrong row. Width spent on gutters is width taken off
+ *  the only column that does anything.
+ *
+ *  `table-fixed` so a long issuer name cannot widen its column past its share —
+ *  cells truncate instead, which is why every one of them sets a width. */
 export function TableShell({
   headers,
+  widths,
   children,
 }: {
   headers: React.ReactNode[];
+  /** A width per column, e.g. `w-[22%]`. Under `table-fixed` the first row's
+   *  widths are the whole of the column sizing — content cannot widen a column
+   *  — so this is where a table decides what it is willing to spend on each. */
+  widths?: string[];
   children: React.ReactNode;
 }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-3xl text-sm">
+      <table className="w-full min-w-3xl table-fixed text-sm">
         <thead>
           <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
             {headers.map((header, i) => (
-              <th key={i} className="px-6 py-3 font-medium">
+              <th
+                key={i}
+                className={cn("px-4 py-2.5 font-medium", widths?.[i])}
+              >
                 {header}
               </th>
             ))}

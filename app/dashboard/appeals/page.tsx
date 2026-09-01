@@ -150,6 +150,15 @@ export default function AppealsPage() {
                 "Outcome",
                 "",
               ]}
+              widths={[
+                "w-[17%]",
+                "w-[22%]",
+                "w-[18%]",
+                "w-[13%]",
+                "w-[8%]",
+                "w-[8%]",
+                "w-[14%]",
+              ]}
             >
               {appeals.map((appeal) => (
                 <AppealRow
@@ -190,67 +199,77 @@ function AppealRow({
 
   return (
     <tr className="align-top">
-      <td className="px-6 py-4">
-        <div className="flex items-center gap-3">
-          <InitialsAvatar seed={appeal.candidateId} label={initials(name)} />
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-2.5">
+          <InitialsAvatar
+            seed={appeal.candidateId}
+            label={initials(name)}
+            className="size-8"
+          />
           <div className="flex min-w-0 flex-col">
             <span className="truncate font-medium">{name}</span>
-            <span className="text-xs text-muted-foreground">
-              {appeal.candidateVerified
-                ? "Singpass verified"
-                : "Identity not verified"}
+            <span className="truncate text-xs text-muted-foreground">
+              {appeal.candidateVerified ? "Verified" : "Not verified"}
             </span>
             <span
               className={
                 repeat
-                  ? "text-xs font-medium text-amber-600 dark:text-amber-400"
-                  : "text-xs text-muted-foreground"
+                  ? "truncate text-xs font-medium text-amber-600 dark:text-amber-400"
+                  : "truncate text-xs text-muted-foreground"
               }
             >
-              {appeal.lateCancels} late cancellation
+              {appeal.lateCancels} late cancel
               {appeal.lateCancels === 1 ? "" : "s"}
             </span>
           </div>
         </div>
       </td>
 
-      <td className="px-6 py-4">
-        <div className="flex min-w-0 flex-col gap-1">
-          <span className="font-medium">{groundLabel(appeal.ground)}</span>
+      <td className="px-4 py-3">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className="truncate font-medium">
+            {groundLabel(appeal.ground)}
+          </span>
           {/* What the evidence is SUPPOSED to show. Without it "illness" is a
               word, and the check — does this MC cover that date — is the whole
-              decision. */}
-          <span className="max-w-xs text-xs text-muted-foreground">
+              decision. Clamped to two lines: it has to be readable without
+              being what sets the height of every row in the queue. */}
+          <span className="line-clamp-2 text-xs text-muted-foreground">
             {APPEAL_GROUNDS[appeal.ground]?.evidence ?? "Supporting document."}
           </span>
           {appeal.note && (
-            <span className="max-w-xs text-xs italic text-foreground/80">
+            <span className="line-clamp-2 text-xs italic text-foreground/80">
               “{appeal.note}”
             </span>
           )}
         </div>
       </td>
 
-      <td className="px-6 py-4">
+      <td className="px-4 py-3">
         <div className="flex min-w-0 flex-col">
-          <span className="font-medium">{appeal.roleName ?? "—"}</span>
+          <span className="truncate font-medium">{appeal.roleName ?? "—"}</span>
           <span className="truncate text-xs text-muted-foreground">
             {appeal.companyName ?? appeal.gigTitle ?? "Listing deleted"}
           </span>
           {/* The date the document has to cover. */}
-          <span className="mt-0.5 text-xs font-medium">
+          <span className="mt-0.5 truncate text-xs font-medium">
             {appeal.shiftOnDate ? date(appeal.shiftOnDate) : "Date unknown"}
           </span>
-          <span className="text-xs text-muted-foreground">
+          <span className="truncate text-xs text-muted-foreground">
             Dropped {relative(appeal.withdrawnAt)}
           </span>
         </div>
       </td>
 
-      <td className="px-6 py-4">
+      <td className="px-4 py-3">
         {appeal.documents.length === 0 ? (
-          <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400">
-            <HugeiconsIcon icon={Alert02Icon} size={13} strokeWidth={2} />
+          <span className="flex items-start gap-1 text-xs font-medium text-amber-600 dark:text-amber-400">
+            <HugeiconsIcon
+              icon={Alert02Icon}
+              size={13}
+              strokeWidth={2}
+              className="mt-0.5 shrink-0"
+            />
             Nothing attached
           </span>
         ) : (
@@ -272,33 +291,33 @@ function AppealRow({
                 }
               >
                 <HugeiconsIcon icon={File01Icon} strokeWidth={2} />
-                {document.kind}
+                <span className="truncate">{document.kind}</span>
               </Button>
             ))}
           </div>
         )}
       </td>
 
-      <td className="px-6 py-4 whitespace-nowrap text-muted-foreground">
+      <td className="px-4 py-3 text-xs text-muted-foreground">
         {relative(appeal.submittedAt)}
       </td>
 
-      <td className="px-6 py-4">
+      <td className="px-4 py-3">
         <StatusPill status={appeal.outcome} styles={OUTCOME_STYLES} />
       </td>
 
-      <td className="px-6 py-4">
+      <td className="px-4 py-3">
         {appeal.outcome === "pending" && (
-          <div className="flex items-center justify-end gap-2">
+          <div className="flex items-center justify-end gap-1.5">
             <Button
               variant="destructive"
-              size="sm"
+              size="xs"
               onClick={() => onDecide("upheld")}
             >
               <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
               Decline
             </Button>
-            <Button size="sm" onClick={() => onDecide("waived")}>
+            <Button size="xs" onClick={() => onDecide("waived")}>
               <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} />
               Waive
             </Button>

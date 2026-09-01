@@ -18,7 +18,13 @@ export default function DashboardLayout({
       <AuthGuard>
         <SidebarProvider>
           <AppSidebar />
-          <SidebarInset>
+          {/* min-w-0 is load-bearing. SidebarInset is a flex child, and a flex
+              child's min-width defaults to `auto` — meaning "as wide as my
+              content". A wide table therefore pushes the whole pane past the
+              viewport instead of scrolling inside its own card, and the page's
+              overflow-x-hidden then clips the last column rather than letting
+              anybody reach it. */}
+          <SidebarInset className="min-w-0">
             <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
               <SidebarTrigger className="-ml-1" />
               <Separator

@@ -142,6 +142,16 @@ export default function CertificatesPage() {
                 "Status",
                 "",
               ]}
+              // The decision buttons get the widest share. Everything left of
+              // them is context for a judgement that is made on the right.
+              widths={[
+                "w-[20%]",
+                "w-[26%]",
+                "w-[12%]",
+                "w-[10%]",
+                "w-[9%]",
+                "w-[23%]",
+              ]}
             >
               {reviews.map((review) => (
                 <CertificateRow
@@ -180,9 +190,13 @@ function CertificateRow({
 
   return (
     <tr className="align-middle">
-      <td className="px-6 py-4">
-        <div className="flex items-center gap-3">
-          <InitialsAvatar seed={review.candidateId} label={initials(name)} />
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-2.5">
+          <InitialsAvatar
+            seed={review.candidateId}
+            label={initials(name)}
+            className="size-8"
+          />
           <div className="flex min-w-0 flex-col">
             <span className="truncate font-medium">{name}</span>
             {/* Whether Singpass has confirmed the PERSON — a different question
@@ -190,67 +204,65 @@ function CertificateRow({
             <span
               className={
                 review.candidateVerified
-                  ? "text-xs text-muted-foreground"
-                  : "text-xs font-medium text-amber-600 dark:text-amber-400"
+                  ? "truncate text-xs text-muted-foreground"
+                  : "truncate text-xs font-medium text-amber-600 dark:text-amber-400"
               }
             >
-              {review.candidateVerified
-                ? "Singpass verified"
-                : "Identity not verified"}
+              {review.candidateVerified ? "Verified" : "Not verified"}
             </span>
           </div>
         </div>
       </td>
 
-      <td className="px-6 py-4">
+      <td className="px-4 py-3">
         <div className="flex min-w-0 flex-col">
-          <span className="font-medium">{certName(review.certId)}</span>
+          <span className="truncate font-medium">{certName(review.certId)}</span>
+          {/* The issuer, on one line. It runs to fifty characters for half the
+              catalogue, and letting it set the column width would push the
+              decision buttons off the screen. */}
           <span className="truncate text-xs text-muted-foreground">
             {meta?.issuer ?? review.certId}
           </span>
         </div>
       </td>
 
-      <td className="px-6 py-4 whitespace-nowrap">
+      <td className="px-4 py-3">
         {review.expiresAt ? (
           <span
             className={
-              expired ? "font-medium text-destructive" : "text-muted-foreground"
+              expired
+                ? "text-xs font-medium text-destructive"
+                : "text-xs text-muted-foreground"
             }
           >
             {date(review.expiresAt)}
             {expired && (
-              <span className="ml-1 inline-flex items-center gap-1 text-xs">
-                <HugeiconsIcon
-                  icon={Alert02Icon}
-                  size={13}
-                  strokeWidth={2}
-                  className="inline"
-                />
+              <span className="mt-0.5 flex items-center gap-1">
+                <HugeiconsIcon icon={Alert02Icon} size={12} strokeWidth={2} />
                 expired
               </span>
             )}
           </span>
         ) : (
-          <span className="text-muted-foreground">Does not lapse</span>
+          <span className="text-xs text-muted-foreground">Does not lapse</span>
         )}
       </td>
 
-      <td className="px-6 py-4 whitespace-nowrap text-muted-foreground">
+      <td className="px-4 py-3 text-xs text-muted-foreground">
         {relative(review.uploadedAt)}
       </td>
 
-      <td className="px-6 py-4">
+      <td className="px-4 py-3">
         <StatusPill status={review.status} />
       </td>
 
-      <td className="px-6 py-4">
-        <div className="flex items-center justify-end gap-2">
+      <td className="px-4 py-3">
+        <div className="flex items-center justify-end gap-1.5">
           {/* Signed and short-lived — minutes, not hours. Re-fetch the queue
               rather than keeping this link anywhere. */}
           <Button
             variant="outline"
-            size="sm"
+            size="xs"
             disabled={!review.fileUrl}
             render={
               review.fileUrl ? (
@@ -270,13 +282,13 @@ function CertificateRow({
             <>
               <Button
                 variant="destructive"
-                size="sm"
+                size="xs"
                 onClick={() => onDecide("rejected")}
               >
                 <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
                 Reject
               </Button>
-              <Button size="sm" onClick={() => onDecide("verified")}>
+              <Button size="xs" onClick={() => onDecide("verified")}>
                 <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} />
                 Verify
               </Button>
