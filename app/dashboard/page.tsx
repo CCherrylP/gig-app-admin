@@ -9,33 +9,27 @@ import {
   ReceiptIcon,
 } from "@hugeicons/core-free-icons";
 
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  EmptyState,
-  InitialsAvatar,
-  StatCard,
-  initials,
-} from "@/components/dashboard/data-views";
+import { QueuePanel, StatCard } from "@/components/dashboard/data-views";
 import { listCertificates } from "@/lib/certificates";
 import { listAppeals, groundLabel } from "@/lib/appeals";
 import { listEmployers } from "@/lib/employers";
 import { listInvoices } from "@/lib/invoices";
 import { certName } from "@/lib/certs-catalogue";
-import { date, money, relative } from "@/lib/format";
+import { date, relative } from "@/lib/format";
 
 // What needs a person today, in the order somebody would work it.
 //
-// Four queues, and the same four queries the pages themselves run — so opening
-// one from here costs nothing. Each panel shows the three that have been waiting
-// longest rather than the newest, because every one of these lists is worked
-// oldest first: the person who has been waiting longest is the one being kept
-// from something.
+// Four counts across the top and the same four queries the pages themselves run
+// — so opening one from here costs nothing. Each panel shows the three that have
+// been waiting longest rather than the newest, because every one of these lists
+// is worked oldest first: the person who has been waiting longest is the one
+// being kept from something.
+//
+// Payments appears here only as a count, because it is worked against a bank
+// statement rather than in the gaps between the other three queues. The count is
+// a link to /dashboard/payments, which carries the whole waiting list and the
+// way through to the invoice queue — the one screen that creates coins.
 
 export default function DashboardPage() {
   const certificates = useQuery({
@@ -74,7 +68,7 @@ export default function DashboardPage() {
           ))}
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
-          {Array.from({ length: 4 }).map((_, i) => (
+          {Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-56 rounded-xl" />
           ))}
         </div>
@@ -110,11 +104,16 @@ export default function DashboardPage() {
           icon={BuildingIcon}
           cls="text-amber-500"
         />
-        <StatCard
-          label="Payments to confirm"
-          count={invoices.data?.awaitingConfirmationCount ?? 0}
-          icon={ReceiptIcon}
-        />
+        <Link
+          href="/dashboard/payments"
+          className="rounded-xl transition-opacity hover:opacity-80"
+        >
+          <StatCard
+            label="Payments to confirm"
+            count={invoices.data?.awaitingConfirmationCount ?? 0}
+            icon={ReceiptIcon}
+          />
+        </Link>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -161,102 +160,7 @@ export default function DashboardPage() {
             meta: relative(employer.createdAt),
           }))}
         />
-
-        {/* Not in the sidebar, because the queues above are the day's work —
-            but this is the only place coins are created, so it belongs where
-            somebody will see the number. */}
-        <QueuePanel
-          title="Payments awaiting confirmation"
-          href="/dashboard/invoices"
-          icon={ReceiptIcon}
-          emptyMessage="No receipts waiting on staff."
-          footer={
-            invoices.data
-              ? `${money(invoices.data.outstandingCents)} outstanding across ${
-                  invoices.data.unpaidCount
-                } unpaid invoice${invoices.data.unpaidCount === 1 ? "" : "s"}`
-              : undefined
-          }
-          rows={(invoices.data?.invoices ?? [])
-            // The ones staff can act on now: unpaid AND the company has said
-            // they transferred. The rest of the pile is waiting on the employer.
-            .filter((invoice) => invoice.paymentProofAt)
-            .slice(0, 3)
-            .map((invoice) => ({
-              key: invoice.id,
-              seed: invoice.companyId,
-              title: invoice.companyName,
-              subtitle: `${invoice.number} · ${money(invoice.amountCents)}`,
-              meta: relative(invoice.paymentProofAt),
-            }))}
-        />
       </div>
     </div>
-  );
-}
-
-type QueueRow = {
-  key: string;
-  seed: string;
-  title: string;
-  subtitle: string;
-  meta: string;
-};
-
-function QueuePanel({
-  title,
-  href,
-  icon,
-  rows,
-  emptyMessage,
-  footer,
-}: {
-  title: string;
-  href: string;
-  icon: Parameters<typeof EmptyState>[0]["icon"];
-  rows: QueueRow[];
-  emptyMessage: string;
-  footer?: string;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle>{title}</CardTitle>
-          <Link href={href} className="text-xs text-primary hover:underline">
-            View all
-          </Link>
-        </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        {rows.length === 0 ? (
-          <EmptyState icon={icon} message={emptyMessage} />
-        ) : (
-          <div className="divide-y">
-            {rows.map((row) => (
-              <div key={row.key} className="flex items-center gap-3 px-6 py-3">
-                <InitialsAvatar seed={row.seed} label={initials(row.title)} />
-                <div className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate text-sm font-medium">
-                    {row.title}
-                  </span>
-                  <span className="truncate text-xs text-muted-foreground">
-                    {row.subtitle}
-                  </span>
-                </div>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {row.meta}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-        {footer && (
-          <p className="border-t px-6 py-3 text-xs text-muted-foreground">
-            {footer}
-          </p>
-        )}
-      </CardContent>
-    </Card>
   );
 }

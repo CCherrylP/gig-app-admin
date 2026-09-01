@@ -109,6 +109,14 @@ export default function CandidatesPage() {
                 "Waiting on us",
                 "Joined",
               ]}
+              widths={[
+                "w-[22%]",
+                "w-[22%]",
+                "w-[13%]",
+                "w-[18%]",
+                "w-[15%]",
+                "w-[10%]",
+              ]}
             >
               {candidates.map((candidate) => (
                 <CandidateRow key={candidate.userId} candidate={candidate} />
@@ -147,13 +155,17 @@ function CandidateRow({ candidate }: { candidate: CandidateSummary }) {
 
   return (
     <tr className="align-top">
-      <td className="px-6 py-4">
-        <div className="flex items-center gap-3">
-          <InitialsAvatar seed={candidate.userId} label={initials(name)} />
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-2.5">
+          <InitialsAvatar
+            seed={candidate.userId}
+            label={initials(name)}
+            className="size-8"
+          />
           <div className="flex min-w-0 flex-col">
             <span className="truncate font-medium">{name}</span>
-            <span className="text-xs text-muted-foreground">
-              {candidate.verified ? "Singpass verified" : "Not verified"}
+            <span className="truncate text-xs text-muted-foreground">
+              {candidate.verified ? "Verified" : "Not verified"}
             </span>
             <span className="truncate text-xs text-muted-foreground">
               {candidate.area ?? "No area given"}
@@ -162,7 +174,7 @@ function CandidateRow({ candidate }: { candidate: CandidateSummary }) {
         </div>
       </td>
 
-      <td className="px-6 py-4">
+      <td className="px-4 py-3">
         <div className="flex min-w-0 flex-col gap-1 text-xs">
           <span className="inline-flex items-center gap-1.5">
             <HugeiconsIcon
@@ -185,13 +197,13 @@ function CandidateRow({ candidate }: { candidate: CandidateSummary }) {
         </div>
       </td>
 
-      <td className="px-6 py-4 text-muted-foreground">
+      <td className="px-4 py-3 truncate text-xs text-muted-foreground">
         {/* Null means not answered, which is a different thing from not
             allowed — so it reads as a gap rather than as a refusal. */}
         {candidate.workStatus ?? "Not answered"}
       </td>
 
-      <td className="px-6 py-4">
+      <td className="px-4 py-3">
         <div className="flex min-w-0 flex-col text-xs">
           {/* 0 is NOT RATED YET, never a zero-star score — nothing in this app
               can rate somebody below 1. */}

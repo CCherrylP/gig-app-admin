@@ -23,19 +23,21 @@ import {
   BuildingIcon,
   UserGroupIcon,
   Coins01Icon,
+  ReceiptIcon,
 } from "@hugeicons/core-free-icons";
 import Logo from "./common/Logo";
 import { listCertificates } from "@/lib/certificates";
 import { listAppeals } from "@/lib/appeals";
 import { listEmployers } from "@/lib/employers";
+import { listInvoices } from "@/lib/invoices";
 import { getCachedUser } from "@/lib/auth";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [user] = React.useState(getCachedUser);
 
-  // The badges are the three queues, and they run the same queries the pages do
-  // — so opening one costs nothing, and working it updates the badge without a
-  // second round trip.
+  // The badges are the queues, and they run the same queries the pages do — so
+  // opening one costs nothing, and working it updates the badge without a second
+  // round trip.
   const { data: certs } = useQuery({
     queryKey: ["certificates", "pending"],
     queryFn: () => listCertificates("pending"),
@@ -47,6 +49,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: employers } = useQuery({
     queryKey: ["employers", "pending"],
     queryFn: () => listEmployers("pending"),
+  });
+  const { data: invoices } = useQuery({
+    queryKey: ["invoices", "unpaid"],
+    queryFn: () => listInvoices("unpaid"),
   });
 
   const nav = [
@@ -72,6 +78,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       url: "/dashboard/employers",
       icon: <HugeiconsIcon icon={BuildingIcon} strokeWidth={2} />,
       badge: employers?.pendingCount,
+    },
+    {
+      // The badge counts only the transfers a company has said it made — the
+      // rest of the unpaid pile is waiting on the employer, not on staff, and
+      // counting it here would show work nobody can do.
+      title: "Payments",
+      url: "/dashboard/payments",
+      icon: <HugeiconsIcon icon={ReceiptIcon} strokeWidth={2} />,
+      badge: invoices?.awaitingConfirmationCount,
     },
     {
       // No badge. This is a directory rather than a queue — nobody is waiting

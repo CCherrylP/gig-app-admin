@@ -1,10 +1,12 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Card,
+  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
@@ -182,6 +184,79 @@ export function StatCard({
           {count}
         </CardTitle>
       </CardHeader>
+    </Card>
+  );
+}
+
+// ─── Queue panel ──────────────────────────────────────────────────────────────
+
+export type QueueRow = {
+  key: string;
+  seed: string;
+  title: string;
+  subtitle: string;
+  meta: string;
+};
+
+/** A queue as a card: who is waiting, oldest first, with a way through to the
+ *  page that works it. The Overview shows several of these cut to three rows;
+ *  a page dedicated to one queue passes the whole list. */
+export function QueuePanel({
+  title,
+  href,
+  linkLabel = "View all",
+  icon,
+  rows,
+  emptyMessage,
+  footer,
+}: {
+  title: string;
+  href: string;
+  linkLabel?: string;
+  icon: IconType;
+  rows: QueueRow[];
+  emptyMessage: string;
+  footer?: string;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle>{title}</CardTitle>
+          <Link href={href} className="text-xs text-primary hover:underline">
+            {linkLabel}
+          </Link>
+        </div>
+      </CardHeader>
+      <CardContent className="p-0">
+        {rows.length === 0 ? (
+          <EmptyState icon={icon} message={emptyMessage} />
+        ) : (
+          <div className="divide-y">
+            {rows.map((row) => (
+              <div key={row.key} className="flex items-center gap-3 px-6 py-3">
+                <InitialsAvatar seed={row.seed} label={initials(row.title)} />
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate text-sm font-medium">
+                    {row.title}
+                  </span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    {row.subtitle}
+                  </span>
+                </div>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {row.meta}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+        {footer && (
+          <p className="border-t px-6 py-3 text-xs text-muted-foreground">
+            {footer}
+          </p>
+        )}
+      </CardContent>
     </Card>
   );
 }
