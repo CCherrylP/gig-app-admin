@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -10,6 +11,7 @@ import {
   CheckmarkCircle02Icon,
   CallIcon,
   Mail01Icon,
+  ArrowRight01Icon,
 } from "@hugeicons/core-free-icons";
 
 import { Button } from "@/components/ui/button";
@@ -151,16 +153,19 @@ export default function EmployersPage() {
                 "Business",
                 "Signed up",
                 "Status",
-                "",
+                "Actions",
               ]}
+              // The actions get a fifth of the table. Three buttons at ~80px
+              // plus their gaps is ~250px, and anything less makes them spill
+              // over the status pill — which is exactly what it looked like.
               widths={[
-                "w-[18%]",
-                "w-[19%]",
-                "w-[22%]",
+                "w-[16%]",
+                "w-[17%]",
+                "w-[20%]",
                 "w-[9%]",
                 "w-[9%]",
-                "w-[8%]",
-                "w-[15%]",
+                "w-[9%]",
+                "w-[20%]",
               ]}
             >
               {employers.map((employer) => (
@@ -208,7 +213,15 @@ function EmployerRow({
             className="size-8"
           />
           <div className="flex min-w-0 flex-col">
-            <span className="truncate font-medium">{name}</span>
+            {/* The name is the way in. A queue row is decidable from the table
+                for the ordinary call; the page behind this is for the one where
+                the address is wrong or somebody wants the company's invoices. */}
+            <Link
+              href={`/dashboard/employers/${employer.userId}`}
+              className="truncate font-medium hover:text-primary hover:underline"
+            >
+              {name}
+            </Link>
             <span className="truncate text-xs text-muted-foreground">
               {employer.jobTitle ?? "No job title"}
             </span>
@@ -277,7 +290,7 @@ function EmployerRow({
       </td>
 
       <td className="px-4 py-3">
-        <div className="flex items-center justify-end gap-1.5">
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
           {/* Decided employers can be decided again, unlike a certificate:
               somebody approved in error has to be removable, and a manager who
               left and came back is an ordinary call. */}
@@ -297,6 +310,14 @@ function EmployerRow({
               Approve
             </Button>
           )}
+          <Button
+            variant="ghost"
+            size="xs"
+            render={<Link href={`/dashboard/employers/${employer.userId}`} />}
+          >
+            Details
+            <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={2} />
+          </Button>
         </div>
       </td>
     </tr>

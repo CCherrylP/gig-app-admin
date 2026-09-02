@@ -39,6 +39,7 @@ import {
   type CertificateReview,
 } from "@/lib/certificates";
 import { certById, certName } from "@/lib/certs-catalogue";
+import { openFreshDocument } from "@/lib/documents";
 import { date, isExpired, relative } from "@/lib/format";
 
 const FILTERS: { value: CertFilter; label: string }[] = [
@@ -83,6 +84,24 @@ export default function CertificatesPage() {
       queryClient.invalidateQueries({ queryKey: ["certificates"] });
     },
   });
+
+  // Re-signed at click time rather than read off the row — the link drawn with
+  // the page lives ten minutes, and a lapsed one shows the reviewer a raw
+  // Supabase `InvalidJWT` page. Keyed by the pair that identifies the row, since
+  // the queue re-sorts server-side.
+  function openDocument(candidateId: string, certId: string) {
+    void openFreshDocument({
+      queryClient,
+      queryKey: ["certificates", filter],
+      queryFn: () => listCertificates(filter),
+      select: (fresh) =>
+        fresh.reviews.find(
+          (r) => r.candidateId === candidateId && r.certId === certId,
+        )?.fileUrl,
+      onMissing: () =>
+        toast.error("That document could not be opened. Try again."),
+    });
+  }
 
   const reviews = useMemo(() => {
     const all = data?.reviews ?? [];
@@ -140,7 +159,7 @@ export default function CertificatesPage() {
                 "Expires",
                 "Uploaded",
                 "Status",
-                "",
+                "Actions",
               ]}
               // The decision buttons get the widest share. Everything left of
               // them is context for a judgement that is made on the right.
@@ -158,6 +177,7 @@ export default function CertificatesPage() {
                   key={`${review.candidateId}-${review.certId}`}
                   review={review}
                   onDecide={(status) => setDecision({ review, status })}
+                  onOpen={() => openDocument(review.candidateId, review.certId)}
                 />
               ))}
             </TableShell>
@@ -180,9 +200,12 @@ export default function CertificatesPage() {
 function CertificateRow({
   review,
   onDecide,
+  onOpen,
 }: {
   review: CertificateReview;
   onDecide: (status: "verified" | "rejected") => void;
+  /** Opens the document on a link re-signed at click time. */
+  onOpen: () => void;
 }) {
   const meta = certById(review.certId);
   const expired = isExpired(review.expiresAt);
@@ -264,15 +287,10 @@ function CertificateRow({
             variant="outline"
             size="xs"
             disabled={!review.fileUrl}
-            render={
-              review.fileUrl ? (
-                <a
-                  href={review.fileUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                />
-              ) : undefined
-            }
+            // NOT an <a href>. The URL on this row was signed when the queue
+            // loaded and lives ten minutes; clicking it later hands the browser
+            // a dead token and Supabase answers with a raw InvalidJWT page.
+            onClick={onOpen}
           >
             <HugeiconsIcon icon={File01Icon} strokeWidth={2} />
             {review.fileUrl ? "Document" : "No file"}

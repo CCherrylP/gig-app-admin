@@ -25,20 +25,84 @@ export async function getAccessToken(): Promise<string | null> {
   return data.session?.access_token ?? null;
 }
 
-/** Ask the API who this token belongs to. Throws when the session is gone or
- *  the account is not staff — callers decide what to do about it. */
+/** Why the account check failed. The distinction is not pedantry — it is the
+ *  difference between "your account may not do this" and "the server is not
+ *  answering", and a screen that says the first when the second is true sends
+ *  somebody looking for a permissions problem that does not exist.
+ *
+ *  That is not hypothetical: this file used to throw one error for everything,
+ *  so an API pointed at a dead cloudflare tunnel produced "You are not
+ *  authorised to access this dashboard" on a perfectly good admin account. */
+export type AuthFailure =
+  /** Reached the API; it says this account is not staff. */
+  | "not-staff"
+  /** The token was refused. The session is over rather than the account wrong. */
+  | "session"
+  /** No answer at all — API down, wrong NEXT_PUBLIC_API_URL, no network. */
+  | "unreachable"
+  /** Reached it and it broke. Their problem, not the reviewer's. */
+  | "server";
+
+export class AuthCheckError extends Error {
+  constructor(readonly reason: AuthFailure) {
+    super(reason);
+    this.name = "AuthCheckError";
+  }
+}
+
+/** Ask the API who this token belongs to.
+ *
+ *  Throws an AuthCheckError carrying WHICH of the four things went wrong, so
+ *  the caller can say something true. */
 export async function fetchMe(token: string): Promise<Me> {
-  const res = await fetch(`${API_BASE}/profile`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  let res: Response;
 
-  if (!res.ok) throw new Error("Could not read the signed-in account");
+  try {
+    res = await fetch(`${API_BASE}/profile`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  } catch {
+    // fetch only rejects when the request never got an answer: DNS failure, a
+    // refused connection, CORS. Never a 4xx or 5xx — those resolve normally.
+    throw new AuthCheckError("unreachable");
+  }
 
-  const me = (await res.json()) as Me;
+  if (res.status === 401) throw new AuthCheckError("session");
+  // 403 from /profile means authenticated but refused. Not the admin gate —
+  // /profile has none — so it is the API declining the account itself.
+  if (res.status === 403) throw new AuthCheckError("not-staff");
+  if (!res.ok) throw new AuthCheckError("server");
 
-  if (me.role !== "admin") throw new Error("Not staff");
+  let me: Me;
+  try {
+    me = (await res.json()) as Me;
+  } catch {
+    // A 200 that is not JSON is a proxy or a tunnel error page, not the API.
+    throw new AuthCheckError("unreachable");
+  }
+
+  // The actual gate, and the only one of the four that is about permissions.
+  if (me.role !== "admin") throw new AuthCheckError("not-staff");
 
   return me;
+}
+
+/** What to put in front of the person. Deliberately says what to DO about it,
+ *  because three of the four are not the reviewer's fault. */
+export function authFailureMessage(error: unknown): string {
+  const reason =
+    error instanceof AuthCheckError ? error.reason : ("server" as AuthFailure);
+
+  switch (reason) {
+    case "not-staff":
+      return "You are not authorised to access this dashboard";
+    case "session":
+      return "Your session has expired. Sign in again.";
+    case "unreachable":
+      return "Cannot reach the server. Check that gig-app-api is running and that NEXT_PUBLIC_API_URL points at it.";
+    default:
+      return "The server could not answer just now. Try again in a moment.";
+  }
 }
 
 const USER_KEY = "adhoc_admin_user";

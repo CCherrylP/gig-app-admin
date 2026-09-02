@@ -407,15 +407,34 @@ export function TableShell({
   widths?: string[];
   children: React.ReactNode;
 }) {
+  const last = headers.length - 1;
+
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-3xl table-fixed text-sm">
+      {/*
+        min-w-5xl, not 3xl. Under `table-fixed` a cell whose content is wider
+        than its column does not wrap the column — it SPILLS OVER the next one,
+        which is how a status pill ended up underneath a Reject button. The
+        percentages are only as good as the width they divide up, so the floor
+        has to be wide enough for the narrowest real column (the buttons) to fit
+        at its share of it. Below that the table scrolls, which is the honest
+        outcome — a queue nobody can read is worse than one that scrolls.
+      */}
+      <table className="w-full min-w-5xl table-fixed text-sm">
         <thead>
           <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
             {headers.map((header, i) => (
               <th
                 key={i}
-                className={cn("px-4 py-2.5 font-medium", widths?.[i])}
+                className={cn(
+                  "px-4 py-2.5 font-medium",
+                  // The last column is always the actions on every one of these
+                  // queues, and it is right-aligned to match the buttons under
+                  // it — a header sitting left of the thing it labels reads as
+                  // belonging to the column before it.
+                  i === last && "text-right",
+                  widths?.[i],
+                )}
               >
                 {header}
               </th>

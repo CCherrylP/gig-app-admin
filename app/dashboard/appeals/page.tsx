@@ -40,6 +40,7 @@ import {
   type AppealFilter,
   type AppealReview,
 } from "@/lib/appeals";
+import { openFreshDocument } from "@/lib/documents";
 import { date, relative } from "@/lib/format";
 
 const FILTERS: { value: AppealFilter; label: string }[] = [
@@ -87,6 +88,28 @@ export default function AppealsPage() {
       queryClient.invalidateQueries({ queryKey: ["appeals"] });
     },
   });
+
+  // Evidence is opened by RE-FETCHING the queue and taking the URL off the
+  // fresh response, never off the row on screen. The signed link lives ten
+  // minutes, so the one drawn with the page is dead by the time a reviewer has
+  // read three appeals — and what Supabase returns for a lapsed token is a raw
+  // `InvalidJWT` page that reads as the dashboard being broken.
+  //
+  // Found by withdrawalId rather than by row position, because the queue is
+  // sorted server-side and a decision made in another tab can have moved it.
+  function openEvidence(withdrawalId: string, index: number) {
+    void openFreshDocument({
+      queryClient,
+      queryKey: ["appeals", filter],
+      queryFn: () => listAppeals(filter),
+      select: (fresh) =>
+        fresh.appeals.find((a) => a.withdrawalId === withdrawalId)?.documents[
+          index
+        ]?.url,
+      onMissing: () =>
+        toast.error("That document could not be opened. Try again."),
+    });
+  }
 
   const appeals = useMemo(() => {
     const all = data?.appeals ?? [];
@@ -148,16 +171,20 @@ export default function AppealsPage() {
                 "Evidence",
                 "Filed",
                 "Outcome",
-                "",
+                "Decision",
               ]}
+              // Outcome (what it IS) and Decision (what you can DO) are kept
+              // apart and the buttons get real room. Sat side by side at the
+              // old widths, a Pending pill and a Decline button read as three
+              // states of one thing rather than a state and two actions.
               widths={[
-                "w-[17%]",
-                "w-[22%]",
+                "w-[16%]",
+                "w-[20%]",
+                "w-[16%]",
+                "w-[12%]",
+                "w-[8%]",
+                "w-[10%]",
                 "w-[18%]",
-                "w-[13%]",
-                "w-[8%]",
-                "w-[8%]",
-                "w-[14%]",
               ]}
             >
               {appeals.map((appeal) => (
@@ -165,6 +192,7 @@ export default function AppealsPage() {
                   key={appeal.withdrawalId}
                   appeal={appeal}
                   onDecide={(outcome) => setDecision({ appeal, outcome })}
+                  onOpen={(index) => openEvidence(appeal.withdrawalId, index)}
                 />
               ))}
             </TableShell>
@@ -187,9 +215,12 @@ export default function AppealsPage() {
 function AppealRow({
   appeal,
   onDecide,
+  onOpen,
 }: {
   appeal: AppealReview;
   onDecide: (outcome: "waived" | "upheld") => void;
+  /** Opens evidence by INDEX, re-signed at click time — see lib/documents. */
+  onOpen: (index: number) => void;
 }) {
   const name = appeal.candidateName ?? "Unnamed candidate";
   // A repeat late-canceller is not a reason to refuse on its own, but it is the
@@ -280,15 +311,11 @@ function AppealRow({
                 variant="outline"
                 size="xs"
                 disabled={!document.url}
-                render={
-                  document.url ? (
-                    <a
-                      href={document.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    />
-                  ) : undefined
-                }
+                // NOT an <a href>. The URL on this row was signed when the queue
+                // loaded and lives ten minutes; clicking it later hands the
+                // browser a dead token and Supabase answers with a raw
+                // InvalidJWT page. onOpen re-fetches and opens the fresh one.
+                onClick={() => onOpen(i)}
               >
                 <HugeiconsIcon icon={File01Icon} strokeWidth={2} />
                 <span className="truncate">{document.kind}</span>

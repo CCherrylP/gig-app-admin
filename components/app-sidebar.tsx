@@ -23,12 +23,14 @@ import {
   BuildingIcon,
   UserGroupIcon,
   Coins01Icon,
+  Clock01Icon,
   ReceiptIcon,
 } from "@hugeicons/core-free-icons";
 import Logo from "./common/Logo";
 import { listCertificates } from "@/lib/certificates";
 import { listAppeals } from "@/lib/appeals";
 import { listEmployers } from "@/lib/employers";
+import { listAttendance } from "@/lib/attendance";
 import { listInvoices } from "@/lib/invoices";
 import { getCachedUser } from "@/lib/auth";
 
@@ -50,17 +52,31 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     queryKey: ["employers", "pending"],
     queryFn: () => listEmployers("pending"),
   });
+  const { data: attendance } = useQuery({
+    queryKey: ["attendance", "attention"],
+    queryFn: () => listAttendance("attention"),
+  });
   const { data: invoices } = useQuery({
     queryKey: ["invoices", "unpaid"],
     queryFn: () => listInvoices("unpaid"),
   });
 
-  const nav = [
+  // Grouped by WHOSE SIDE the work is on, not by what kind of thing it is.
+  //
+  // That is the split staff actually work to: a shift over a certificate, an
+  // appeal and a clock-in is one person's morning, and it has nothing to do
+  // with chasing a business for a bank transfer. Sorting them by "queues" and
+  // "settings" instead would put the coin price next to the certificate queue
+  // and separate two screens that are about the same candidate.
+  const overview = [
     {
       title: "Overview",
       url: "/dashboard",
       icon: <HugeiconsIcon icon={HomeIcon} strokeWidth={2} />,
     },
+  ];
+
+  const candidateNav = [
     {
       title: "Certifications",
       url: "/dashboard/certificates",
@@ -73,6 +89,30 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       icon: <HugeiconsIcon icon={Legal01Icon} strokeWidth={2} />,
       badge: appeals?.pendingCount,
     },
+    {
+      title: "Clock In / Out",
+      url: "/dashboard/attendance",
+      icon: <HugeiconsIcon icon={Clock01Icon} strokeWidth={2} />,
+      // Two different piles of work, and the badge is their sum: selfies with
+      // nobody vouching for them, plus shifts whose clock missed an end and
+      // whose wages are stuck until somebody releases them. Both are somebody
+      // waiting on staff, which is what a badge should count.
+      badge:
+        attendance === undefined
+          ? undefined
+          : attendance.attentionCount + attendance.missingCount,
+    },
+    {
+      // No badge. This is a directory rather than a queue — nobody is waiting
+      // on staff to work through it, and a count of every candidate on the
+      // platform would read as a pile of work that does not exist.
+      title: "All Candidates",
+      url: "/dashboard/candidates",
+      icon: <HugeiconsIcon icon={UserGroupIcon} strokeWidth={2} />,
+    },
+  ];
+
+  const employerNav = [
     {
       title: "Employers",
       url: "/dashboard/employers",
@@ -89,14 +129,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       badge: invoices?.awaitingConfirmationCount,
     },
     {
-      // No badge. This is a directory rather than a queue — nobody is waiting
-      // on staff to work through it, and a count of every candidate on the
-      // platform would read as a pile of work that does not exist.
-      title: "All Candidates",
-      url: "/dashboard/candidates",
-      icon: <HugeiconsIcon icon={UserGroupIcon} strokeWidth={2} />,
-    },
-    {
+      // Under Employers because that is who pays it: the coin price and the
+      // placement fee are what a business is charged. A candidate never sees a
+      // coin.
       title: "Placement Config",
       url: "/dashboard/config",
       icon: <HugeiconsIcon icon={Coins01Icon} strokeWidth={2} />,
@@ -115,7 +150,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={nav} label="Admin Portal" />
+        <NavMain items={overview} label="Admin Portal" />
+        <NavMain items={candidateNav} label="Candidates" />
+        <NavMain items={employerNav} label="Employers" />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={user} />

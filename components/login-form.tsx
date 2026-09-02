@@ -22,7 +22,13 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { EyeIcon, ViewOffSlashIcon } from "@hugeicons/core-free-icons";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
-import { cacheUser, fetchMe, signOut } from "@/lib/auth";
+import {
+  AuthCheckError,
+  authFailureMessage,
+  cacheUser,
+  fetchMe,
+  signOut,
+} from "@/lib/auth";
 
 export function LoginForm({
   className,
@@ -61,11 +67,17 @@ export function LoginForm({
       cacheUser(me);
       toast.success(`Welcome back${me.name ? `, ${me.name}` : ""}!`);
       router.replace("/dashboard");
-    } catch {
-      // Authenticated, but not staff — end the session rather than leaving a
-      // signed-in candidate sitting on the login screen of an admin tool.
-      await signOut();
-      toast.error("You are not authorised to access this dashboard");
+    } catch (error) {
+      // WHICH failure decides both the sentence and what happens to the
+      // session. Only "not staff" is a reason to sign somebody out — an API
+      // that is down says nothing about whether this account is allowed in, and
+      // throwing away a good session over it means they have to type their
+      // password again for a problem on the other end of the wire.
+      const reason = error instanceof AuthCheckError ? error.reason : "server";
+
+      if (reason === "not-staff" || reason === "session") await signOut();
+
+      toast.error(authFailureMessage(error));
     } finally {
       setIsLoading(false);
     }

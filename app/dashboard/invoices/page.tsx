@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -55,11 +56,60 @@ const INVOICE_STATUS_STYLES: Record<string, string> = {
 
 type Decision = { invoice: AdminInvoice; status: "paid" | "cancelled" };
 
+const isFilter = (value: string | null): value is InvoiceFilter =>
+  FILTERS.some((f) => f.value === value);
+
+/** Suspense is not optional here: a static page that reads `useSearchParams`
+ *  from a Client Component fails the production build without one. It renders in
+ *  development either way, which is exactly what makes it easy to miss. */
 export default function InvoicesPage() {
+  return (
+    <Suspense fallback={<QueueFallback />}>
+      <InvoiceQueue />
+    </Suspense>
+  );
+}
+
+function QueueFallback() {
+  return (
+    <div className="p-6">
+      <Card>
+        <CardContent className="p-0">
+          <TableSkeleton />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function InvoiceQueue() {
   const queryClient = useQueryClient();
-  const [filter, setFilter] = useState<InvoiceFilter>("unpaid");
-  const [search, setSearch] = useState("");
+
+  // Arriving from an employer's page, which links here with the company's UEN
+  // and usually `status=all`. Seeded into the ordinary search box rather than
+  // held as a separate hidden filter, so the narrowing is visible and can be
+  // cleared by deleting it — a list quietly filtered by something off-screen is
+  // how somebody concludes an invoice has vanished.
+  const params = useSearchParams();
+  const fromUrl = params.get("company") ?? "";
+  const statusFromUrl = params.get("status");
+
+  const [filter, setFilter] = useState<InvoiceFilter>(
+    isFilter(statusFromUrl) ? statusFromUrl : "unpaid",
+  );
+  const [search, setSearch] = useState(fromUrl);
   const [decision, setDecision] = useState<Decision | null>(null);
+
+  // Re-seed when the URL changes under a mounted page — going straight from one
+  // employer's invoices to another's is the same route with a different query,
+  // so React keeps this component and its state. Adjusted during render rather
+  // than in an effect, the same pattern the employers dialog uses.
+  const [seeded, setSeeded] = useState(fromUrl);
+  if (fromUrl !== seeded) {
+    setSeeded(fromUrl);
+    setSearch(fromUrl);
+    if (isFilter(statusFromUrl)) setFilter(statusFromUrl);
+  }
 
   const { data, isLoading } = useQuery({
     queryKey: ["invoices", filter],
@@ -162,7 +212,7 @@ export default function InvoicesPage() {
                 "Amount",
                 "Due",
                 "Status",
-                "",
+                "Actions",
               ]}
               widths={[
                 "w-[15%]",
