@@ -30,11 +30,14 @@ import {
 } from "@/components/dashboard/data-views";
 import {
   createTopUp,
+  setCoinPrice,
   decideEmployer,
   listEmployers,
   updateEmployerDetails,
   MAX_TOPUP_COINS,
   MIN_TOPUP_COINS,
+  QUICK_TOPUP_COINS,
+  COIN_PRICE_BOUNDS,
   type EmployerReview,
 } from "@/lib/employers";
 import { getSettings } from "@/lib/settings";
@@ -136,10 +139,25 @@ function Detail({
   const [jobTitle, setJobTitle] = useState(employer.jobTitle ?? "");
   const [industry, setIndustry] = useState(employer.companyIndustry ?? "");
   const [address, setAddress] = useState(employer.companyAddress ?? "");
+  // Two pieces of state for one column, because the tick and the text are not
+  // derivable from each other. "Same as the outlet address" saves null, and null
+  // and "" both render as an empty box — so a single string could not tell a
+  // freshly unticked field from a ticked one, and unticking would immediately
+  // re-tick itself. Keeping the text alive behind the tick also means ticking by
+  // accident does not throw away what somebody just typed.
+  const [sameAsOutlet, setSameAsOutlet] = useState(
+    !employer.companyBillingAddress,
+  );
+  const [billing, setBilling] = useState(employer.companyBillingAddress ?? "");
 
-  // Only what actually moved. Sending all three every time would write null over
-  // a field a colleague filled in between this page loading and Save being
-  // pressed, which is the quiet kind of data loss nobody reports.
+  // What actually gets sent. Empty is stored as null by the API, which is the
+  // fallback — see the note on the section below for why that is not a copy of
+  // the outlet address.
+  const effectiveBilling = sameAsOutlet ? "" : billing;
+
+  // Only what actually moved. Sending every field each time would write null over
+  // one a colleague filled in between this page loading and Save being pressed,
+  // which is the quiet kind of data loss nobody reports.
   const changed = {
     ...(jobTitle !== (employer.jobTitle ?? "") ? { jobTitle } : {}),
     ...(industry !== (employer.companyIndustry ?? "")
@@ -147,6 +165,9 @@ function Detail({
       : {}),
     ...(address !== (employer.companyAddress ?? "")
       ? { companyAddress: address }
+      : {}),
+    ...(effectiveBilling !== (employer.companyBillingAddress ?? "")
+      ? { companyBillingAddress: effectiveBilling }
       : {}),
   };
   const dirty = Object.keys(changed).length > 0;
@@ -303,11 +324,70 @@ function Detail({
             />
             <TextField
               id="address"
-              label="Address"
+              label="Outlet address"
               value={address}
               onChange={setAddress}
               placeholder="12 River Road #02-14, Singapore 179024"
+              hint="Where the work is. Autofilled from ACRA and shown to candidates judging the commute."
             />
+
+            {/* Its own section, because it answers a different question from the
+                address above and only matches it for a business with one
+                location.
+
+                THE TICK IS THE DEFAULT, and it saves NULL rather than a copy of
+                the outlet address. Those are different states: a company on the
+                fallback follows an outlet move, while a copy would silently go
+                on billing a shop they have left. It also means the ordinary case
+                — nothing collects this at sign-up — reads as a deliberate answer
+                rather than a blank box somebody takes for "the invoices were
+                going nowhere". */}
+            <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted/30 p-3">
+              <Label>Billing address</Label>
+
+              <label className="flex cursor-pointer items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={sameAsOutlet}
+                  onChange={(e) => setSameAsOutlet(e.target.checked)}
+                  className="mt-0.5 size-4 rounded border-border accent-primary"
+                />
+                <span>Same as the outlet address</span>
+              </label>
+
+              {sameAsOutlet ? (
+                <p className="text-xs text-muted-foreground">
+                  {employer.companyAddress ? (
+                    <>
+                      Invoices for {employer.companyName} go to{" "}
+                      <span className="font-medium text-foreground">
+                        {employer.companyAddress}
+                      </span>
+                      , and follow it if the outlet ever moves.
+                    </>
+                  ) : (
+                    <>
+                      There is no outlet address either, so invoices for{" "}
+                      {employer.companyName} print with no address on them at
+                      all. Untick this to give the bill somewhere to go.
+                    </>
+                  )}
+                </p>
+              ) : (
+                <>
+                  <Input
+                    id="billing"
+                    value={billing}
+                    onChange={(e) => setBilling(e.target.value)}
+                    placeholder="Head office, where the bill goes"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Where invoices are addressed when the finance office is not
+                    the outlet — a chain bills a head office, not a shop floor.
+                  </p>
+                </>
+              )}
+            </div>
 
             <div className="flex items-center justify-between gap-3 border-t pt-3">
               <p className="text-xs text-muted-foreground">
@@ -369,11 +449,50 @@ function CoinsAndPayments({ employer }: { employer: EmployerReview }) {
     parsed >= MIN_TOPUP_COINS &&
     parsed <= MAX_TOPUP_COINS;
 
-  // Priced from the live setting, not a constant — the same number the API will
-  // write onto the row a moment later. Shown rather than left to the invoice, so
-  // nobody raises a $100,000 bill from a trailing zero they could not see.
+  // ONE rate, and it is the company's. There is no per-bill override: a price
+  // with two homes is two answers to what a customer pays, and the agreed rate
+  // below already prices their own top-ups in the app as well as this one.
+  const listPrice = settings?.coinPriceCents ?? null;
+  const standing = employer.companyCoinPriceCents;
+  const priceCents = standing ?? listPrice;
+  const isDiscounted =
+    priceCents !== null && listPrice !== null && priceCents !== listPrice;
+
+  // Priced from the rate actually being used, not a constant. Shown rather than
+  // left to the invoice, so nobody raises a $100,000 bill from a trailing zero
+  // they could not see.
   const preview =
-    valid && settings ? money(parsed * settings.coinPriceCents) : null;
+    valid && priceCents !== null ? money(parsed * priceCents) : null;
+
+  // The standing rate, edited separately from the bill. Seeded from the company
+  // and reset whenever the server answers, so two admins editing do not leave a
+  // stale number in the box.
+  const [standingDraft, setStandingDraft] = useState(
+    standing === null ? "" : String(standing),
+  );
+  const standingParsed = standingDraft.trim() === "" ? null : Number(standingDraft);
+  const standingValid =
+    standingParsed === null ||
+    (Number.isInteger(standingParsed) &&
+      standingParsed >= COIN_PRICE_BOUNDS.min &&
+      standingParsed <= COIN_PRICE_BOUNDS.max);
+  const standingDirty = standingParsed !== standing;
+
+  const queryClient = useQueryClient();
+
+  const price = useMutation({
+    mutationFn: (cents: number | null) => setCoinPrice(employer.userId, cents),
+    onSuccess: (_r, cents) => {
+      queryClient.invalidateQueries({ queryKey: ["employers"] });
+      toast.success(
+        cents === null
+          ? `${employer.companyName} is back on the list price`
+          : `${employer.companyName} now pays ${money(cents)} a coin`,
+      );
+    },
+    onError: (error: Error) =>
+      toast.error(error.message || "Could not save that rate"),
+  });
 
   const raise = useMutation({
     mutationFn: () => createTopUp(employer.userId, parsed),
@@ -398,22 +517,58 @@ function CoinsAndPayments({ employer }: { employer: EmployerReview }) {
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="coins">Preset a top-up</Label>
+
+          {/* The same four shortcuts the app's own top-up sheet offers, so staff
+              on the phone and the employer in the app are looking at the same
+              numbers. They are amounts, not packs — 10,000 is ten times 1,000
+              and buys nothing extra. */}
+          <div className="flex flex-wrap gap-1.5">
+            {QUICK_TOPUP_COINS.map((amount) => (
+              <Button
+                key={amount}
+                type="button"
+                variant={parsed === amount ? "default" : "outline"}
+                size="sm"
+                onClick={() => setCoins(String(amount))}
+                className="tabular-nums"
+              >
+                {amount.toLocaleString("en-SG")}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        {/* "Other" on its own line under the shortcuts, rather than a fifth box
+            in the row pretending to be one of them. The presets are the common
+            amounts; this is the one somebody types. */}
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="coins">Preset a top-up</Label>
-            <Input
-              id="coins"
-              inputMode="numeric"
-              value={coins}
-              onChange={(e) => setCoins(e.target.value)}
-              disabled={!canBill}
-              className="w-40 tabular-nums"
-            />
+            <Label htmlFor="coins">Other — how much</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="coins"
+                inputMode="numeric"
+                value={coins}
+                onChange={(e) => setCoins(e.target.value)}
+                aria-invalid={!valid}
+                className="h-8 w-32 tabular-nums"
+              />
+              <span className="text-xs text-muted-foreground">coins</span>
+            </div>
           </div>
+
+          {/* Only the AMOUNT is gated now, not the business's state. Raising the
+              bill is staff's own work, and the finance call and the ACRA check
+              are very often the same phone call — see the API, which no longer
+              refuses an unverified company either. What that refusal protected
+              is protected downstream: this creates no coins, and the float
+              appears only when somebody confirms the transfer landed. */}
           <Button
             size="sm"
             onClick={() => raise.mutate()}
-            disabled={!canBill || !valid || raise.isPending}
+            disabled={!valid || raise.isPending}
           >
             <HugeiconsIcon icon={Invoice01Icon} strokeWidth={2} />
             {raise.isPending ? "Raising…" : "Raise invoice"}
@@ -421,15 +576,7 @@ function CoinsAndPayments({ employer }: { employer: EmployerReview }) {
         </div>
 
         <p className="max-w-prose text-xs text-muted-foreground">
-          {!canBill ? (
-            <>
-              <span className="font-medium text-foreground">
-                The business is {employer.companyVerificationStatus}.
-              </span>{" "}
-              An invoice is a demand for money sent to a real company — verify it
-              below before billing it.
-            </>
-          ) : !valid ? (
+          {!valid ? (
             <>
               Between {MIN_TOPUP_COINS.toLocaleString("en-SG")} and{" "}
               {MAX_TOPUP_COINS.toLocaleString("en-SG")} whole coins. Anything less
@@ -442,8 +589,9 @@ function CoinsAndPayments({ employer }: { employer: EmployerReview }) {
                   <span className="font-medium text-foreground">
                     {preview}
                   </span>{" "}
-                  at {settings ? money(settings.coinPriceCents) : "—"} a coin,
-                  due in {settings?.invoiceTermsDays ?? "—"} days.{" "}
+                  at {priceCents !== null ? money(priceCents) : "—"} a coin
+                  {isDiscounted ? " (agreed rate)" : ""}, due in{" "}
+                  {settings?.invoiceTermsDays ?? "—"} days.{" "}
                 </>
               ) : null}
               Raises the bill for {employer.companyName} and emails it. It creates
@@ -452,6 +600,91 @@ function CoinsAndPayments({ employer }: { employer: EmployerReview }) {
             </>
           )}
         </p>
+
+        {/* Said, not enforced. Billing an unverified business is allowed — it is
+            staff's own work, and the finance call and the ACRA check are usually
+            the same conversation — but whoever presses the button should know
+            which of the two they have actually done. */}
+        {!canBill && (
+          <p className="max-w-prose rounded-lg border border-amber-500/30 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-900/15 dark:text-amber-200">
+            <span className="font-medium">
+              This business is {employer.companyVerificationStatus}.
+            </span>{" "}
+            The invoice will still go out. Nobody here can post a job or spend
+            coins until it is verified, though — so a paid top-up would sit
+            unusable.
+          </p>
+        )}
+
+        {/* The STANDING rate, as opposed to the one-off above. This is the
+            agreement: it prices every future bill including the ones the
+            employer raises for themselves in the app, which is the half a
+            per-invoice discount could never cover. */}
+        <div className="flex flex-col gap-2 border-t pt-3">
+          <Label htmlFor="standing">
+            Agreed rate for {employer.companyName}
+            {/* Said out loud, because the rate is the BUSINESS's and this page
+                is one person's. Setting it here changes what every manager at
+                this UEN pays, and somebody editing from a colleague's page
+                should not have to infer that. */}
+            <span className="ml-1 font-normal text-muted-foreground">
+              · UEN {employer.companyUen}
+              {employer.companySeats > 1 &&
+                ` · all ${employer.companySeats} managers`}
+            </span>
+          </Label>
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              id="standing"
+              inputMode="numeric"
+              value={standingDraft}
+              onChange={(e) => setStandingDraft(e.target.value)}
+              placeholder={`${listPrice ?? 100} (list price)`}
+              aria-invalid={!standingValid}
+              className="h-8 w-40 tabular-nums"
+            />
+            <span className="text-xs text-muted-foreground">cents a coin</span>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!standingValid || !standingDirty || price.isPending}
+              onClick={() => price.mutate(standingParsed)}
+            >
+              {price.isPending ? "Saving…" : "Save rate"}
+            </Button>
+            {standing !== null && (
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={price.isPending}
+                onClick={() => {
+                  setStandingDraft("");
+                  price.mutate(null);
+                }}
+              >
+                Back to list price
+              </Button>
+            )}
+          </div>
+          <p className="max-w-prose text-xs text-muted-foreground">
+            {standing === null ? (
+              <>
+                On the list price, so they follow it when it changes. Set a rate
+                only when one has actually been agreed — it belongs to the
+                business, so it applies to everyone who hires under this UEN.
+              </>
+            ) : (
+              <>
+                <span className="font-medium text-foreground">
+                  {money(standing)} a coin
+                </span>{" "}
+                — agreed, so it does not move when the list price does. This
+                prices their own top-ups in the app too, not just bills raised
+                here. Nothing already invoiced changes.
+              </>
+            )}
+          </p>
+        </div>
 
         <div className="flex flex-wrap gap-2 border-t pt-3">
           <Button
@@ -602,12 +835,14 @@ function TextField({
   value,
   onChange,
   placeholder,
+  hint,
 }: {
   id: string;
   label: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  hint?: string;
 }) {
   return (
     <div className="flex flex-col gap-1.5">
@@ -618,6 +853,7 @@ function TextField({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
       />
+      {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
     </div>
   );
 }

@@ -28,11 +28,25 @@ export interface EmployerReview {
   companyName: string;
   companyUen: string;
   companyIndustry: string | null;
+  /** Where the WORK is — autofilled from ACRA at sign-up, read by candidates
+   *  judging a commute. Not necessarily where a bill should go. */
   companyAddress: string | null;
+  /** Where invoices are addressed. NULL MEANS "use companyAddress", which is
+   *  what every invoice did before this field existed — not "nowhere to send
+   *  it". Nothing collects it at sign-up, so it is null on most rows; show the
+   *  fallback rather than an empty box. */
+  companyBillingAddress: string | null;
   /** The BUSINESS's own check. Both halves gate posting, and they can disagree. */
   companyVerificationStatus: VerificationStatus;
   /** How many people already hold a seat at this UEN. */
   companySeats: number;
+  /** What this company pays per coin, in cents, or NULL for the platform price.
+   *
+   *  Null is not 100: it means "the list price, whatever it is today", so a
+   *  standard-rate company follows a platform price change while a negotiated
+   *  rate stays put. It prices the employer's own top-up as well as the one
+   *  staff raise. */
+  companyCoinPriceCents: number | null;
 }
 
 export interface EmployersResponse {
@@ -71,6 +85,11 @@ export interface EmployerDetailsPatch {
   jobTitle?: string | null;
   companyIndustry?: string | null;
   companyAddress?: string | null;
+  /** Null (or an empty string) puts the company back on the companyAddress
+   *  fallback — a real state, and not the same as copying the outlet address
+   *  in: a company on the fallback follows an outlet move, one with its own
+   *  billing address deliberately does not. */
+  companyBillingAddress?: string | null;
 }
 
 /** Answers with the `all` list rather than the pending queue, because the
@@ -92,6 +111,23 @@ export function updateEmployerDetails(
 export const MIN_TOPUP_COINS = 1000;
 export const MAX_TOPUP_COINS = 1_000_000;
 
+/** The round amounts offered as one tap, copied from QUICK_AMOUNTS in the app's
+ *  data/coins so staff and employers are working from the same shortcuts.
+ *
+ *  They are the numbers people actually type, NOT products: there are no packs
+ *  and no bonus coins, so 10,000 is ten times 1,000 and nothing else. A pack
+ *  that paid a bonus would make the price of a shift depend on how the wallet
+ *  was topped up. */
+export const QUICK_TOPUP_COINS = [1000, 2000, 5000, 10000];
+
+/** What a negotiated coin price may be, in cents. The API enforces these; they
+ *  are mirrored so the form can refuse before a round trip.
+ *
+ *  A range at all because a rate outside it is not a deal, it is a typo — 10
+ *  instead of 100 is a tenth of the price and looks perfectly reasonable in a
+ *  form field. */
+export const COIN_PRICE_BOUNDS = { min: 50, max: 200 } as const;
+
 /** The invoice a preset top-up raises. Shapes copied from gig-app-api's
  *  contract/admin.ts — keep them in step. */
 export interface AdminTopUp {
@@ -99,6 +135,9 @@ export interface AdminTopUp {
   number: string;
   coins: number;
   amountCents: number;
+  /** What each coin was billed at — not always the platform price, since staff
+   *  can negotiate a rate per bill. */
+  coinPriceCents: number;
   issuedAt: string;
   dueAt: string;
   /** Null when the account has no address, which is how staff know they still
@@ -112,6 +151,19 @@ export interface AdminTopUp {
  *  confirms the transfer against a bank statement on the payments screen — the
  *  one check that keeps whoever raises a bill from also crediting it. Refused
  *  with 409 COMPANY_NOT_VERIFIED for a business nobody has confirmed exists. */
+/** Set the company's standing rate, or pass null to put them back on the list
+ *  price. Those are different states: null follows a platform price change,
+ *  100 is frozen at a dollar. */
+export function setCoinPrice(userId: string, coinPriceCents: number | null) {
+  return fetchWithAuth<EmployersResponse>(
+    `/admin/employers/${userId}/coin-price`,
+    { method: "PATCH", body: JSON.stringify({ coinPriceCents }) },
+  );
+}
+
+/** Raise the bill for a company. The AMOUNT only — the rate is the company's
+ *  agreed one, or the list price when they are on it. There is no per-bill
+ *  override: a price with two homes is two answers to what a customer pays. */
 export function createTopUp(userId: string, coins: number) {
   return fetchWithAuth<AdminTopUp>(`/admin/employers/${userId}/top-up`, {
     method: "POST",

@@ -40,7 +40,7 @@ import {
   type EmployerFilter,
   type EmployerReview,
 } from "@/lib/employers";
-import { relative } from "@/lib/format";
+import { money, relative } from "@/lib/format";
 
 const FILTERS: { value: EmployerFilter; label: string }[] = [
   { value: "pending", label: "Pending" },
@@ -151,6 +151,8 @@ export default function EmployersPage() {
                 "Contact",
                 "Company",
                 "Business",
+                "Billed to",
+                "Per coin",
                 "Signed up",
                 "Status",
                 "Actions",
@@ -159,13 +161,15 @@ export default function EmployersPage() {
               // plus their gaps is ~250px, and anything less makes them spill
               // over the status pill — which is exactly what it looked like.
               widths={[
+                "w-[13%]",
+                "w-[14%]",
                 "w-[16%]",
-                "w-[17%]",
-                "w-[20%]",
-                "w-[9%]",
-                "w-[9%]",
-                "w-[9%]",
-                "w-[20%]",
+                "w-[15%]",
+                "w-[7%]",
+                "w-[8%]",
+                "w-[7%]",
+                "w-[7%]",
+                "w-[13%]",
               ]}
             >
               {employers.map((employer) => (
@@ -279,6 +283,54 @@ function EmployerRow({
           status={employer.companyVerificationStatus}
           styles={COMPANY_STYLES}
         />
+      </td>
+
+      {/* Where the BILL goes, which is not where the work is.
+          Null does not mean "nowhere to send it" — it means the invoice is
+          addressed to the outlet address, which is what every bill did before
+          the column existed. Saying that in words stops somebody filling one in
+          because they think the invoices were going nowhere. */}
+      <td className="px-4 py-3">
+        {employer.companyBillingAddress ? (
+          <span
+            className="line-clamp-2 text-xs"
+            title={employer.companyBillingAddress}
+          >
+            {employer.companyBillingAddress}
+          </span>
+        ) : employer.companyAddress ? (
+          <span
+            className="line-clamp-2 text-xs text-muted-foreground"
+            title={employer.companyAddress}
+          >
+            Outlet address
+          </span>
+        ) : (
+          // Neither one. The bill would print no address at all, which is worth
+          // flagging on a row somebody might be about to invoice.
+          <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
+            No address
+          </span>
+        )}
+      </td>
+
+      {/* What this business pays for a coin. Null is the LIST PRICE and is said
+          in words rather than shown as a number, because "100" and "on the list
+          price" are different agreements: the second follows a platform price
+          change, the first is frozen at a dollar. */}
+      <td className="px-4 py-3">
+        {employer.companyCoinPriceCents === null ? (
+          <span className="text-xs text-muted-foreground">List price</span>
+        ) : (
+          <div className="flex min-w-0 flex-col">
+            <span className="text-sm font-medium tabular-nums">
+              {money(employer.companyCoinPriceCents)}
+            </span>
+            <span className="truncate text-[11px] font-medium text-amber-600 dark:text-amber-400">
+              Negotiated
+            </span>
+          </div>
+        )}
       </td>
 
       <td className="px-4 py-3 text-xs text-muted-foreground">
