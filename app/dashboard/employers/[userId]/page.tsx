@@ -20,9 +20,17 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ApiError } from "@/lib/api";
 import {
   InitialsAvatar,
   StatusPill,
@@ -494,9 +502,16 @@ function CoinsAndPayments({ employer }: { employer: EmployerReview }) {
       toast.error(error.message || "Could not save that rate"),
   });
 
+  // The bill the API refused to duplicate. Held so the dialog can name it —
+  // "raise another anyway" is not a question anybody can answer without being
+  // told which one already exists.
+  const [duplicate, setDuplicate] = useState<string | null>(null);
+
   const raise = useMutation({
-    mutationFn: () => createTopUp(employer.userId, parsed),
+    mutationFn: (allowDuplicate: boolean) =>
+      createTopUp(employer.userId, parsed, allowDuplicate),
     onSuccess: (invoice) => {
+      setDuplicate(null);
       toast.success(
         invoice.emailedTo
           ? `${invoice.number} raised and emailed to ${invoice.emailedTo}`
@@ -504,8 +519,15 @@ function CoinsAndPayments({ employer }: { employer: EmployerReview }) {
       );
       setCoins(String(MIN_TOPUP_COINS));
     },
-    onError: (error: Error) =>
-      toast.error(error.message || "Could not raise that top-up"),
+    onError: (error: Error) => {
+      // Matched on the CODE, not the wording — see ApiError. A 409 here is the
+      // duplicate guard asking a question, not a failure to report.
+      if (error instanceof ApiError && error.code === "DUPLICATE_TOPUP") {
+        setDuplicate(error.message);
+        return;
+      }
+      toast.error(error.message || "Could not raise that top-up");
+    },
   });
 
   return (
@@ -567,7 +589,7 @@ function CoinsAndPayments({ employer }: { employer: EmployerReview }) {
               appears only when somebody confirms the transfer landed. */}
           <Button
             size="sm"
-            onClick={() => raise.mutate()}
+            onClick={() => raise.mutate(false)}
             disabled={!valid || raise.isPending}
           >
             <HugeiconsIcon icon={Invoice01Icon} strokeWidth={2} />
@@ -600,6 +622,42 @@ function CoinsAndPayments({ employer }: { employer: EmployerReview }) {
             </>
           )}
         </p>
+
+        {/* The duplicate guard, asking rather than refusing. The API returns a
+            409 naming the unpaid bill that already exists; raising a second one
+            is occasionally right, so there is a way through — but it takes
+            reading which bill it is and saying so. */}
+        <Dialog
+          open={!!duplicate}
+          onOpenChange={(open) => {
+            if (!open) setDuplicate(null);
+          }}
+        >
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>That top-up already exists</DialogTitle>
+              <DialogDescription>{duplicate}</DialogDescription>
+            </DialogHeader>
+            <div className="flex items-center justify-end gap-2 border-t px-6 py-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setDuplicate(null)}
+                disabled={raise.isPending}
+              >
+                Keep the one bill
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => raise.mutate(true)}
+                disabled={raise.isPending}
+              >
+                {raise.isPending ? "Raising…" : "Raise a second one"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Said, not enforced. Billing an unverified business is allowed — it is
             staff's own work, and the finance call and the ACRA check are usually

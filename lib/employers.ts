@@ -164,9 +164,17 @@ export function setCoinPrice(userId: string, coinPriceCents: number | null) {
 /** Raise the bill for a company. The AMOUNT only — the rate is the company's
  *  agreed one, or the list price when they are on it. There is no per-bill
  *  override: a price with two homes is two answers to what a customer pays. */
-export function createTopUp(userId: string, coins: number) {
+export function createTopUp(
+  userId: string,
+  coins: number,
+  /** Past the duplicate guard. Only ever sent after the screen has shown which
+   *  unpaid bill already exists and somebody has said to raise another. */
+  allowDuplicate = false,
+) {
   return fetchWithAuth<AdminTopUp>(`/admin/employers/${userId}/top-up`, {
     method: "POST",
-    body: JSON.stringify({ coins }),
+    body: JSON.stringify(
+      allowDuplicate ? { coins, allowDuplicate: true } : { coins },
+    ),
   });
 }

@@ -16,14 +16,35 @@ async function endSession(): Promise<never> {
   throw new Error("Session ended");
 }
 
+/** An API refusal, carrying the machine-readable half.
+ *
+ *  `message` is for the person; `code` is for the caller. A screen that has to
+ *  match on wording to tell DUPLICATE_TOPUP from any other 409 breaks the moment
+ *  somebody improves the sentence — so the code travels rather than being
+ *  discarded and re-derived. */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly code: string | null,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 /** The API's error bodies are `{ error, code }`. Anything else — a proxy page,
  *  an empty 502 — falls back to the status line. */
-async function messageFor(res: Response) {
+async function errorFrom(res: Response) {
   try {
-    const body = (await res.json()) as { error?: string };
-    return body.error ?? `Request failed (${res.status})`;
+    const body = (await res.json()) as { error?: string; code?: string };
+    return new ApiError(
+      body.error ?? `Request failed (${res.status})`,
+      body.code ?? null,
+      res.status,
+    );
   } catch {
-    return `Request failed (${res.status})`;
+    return new ApiError(`Request failed (${res.status})`, null, res.status);
   }
 }
 
@@ -46,7 +67,7 @@ export async function fetchWithAuth<T>(
   // read-the-role-off-the-row rule exists to make immediate. Both end here.
   if (res.status === 401 || res.status === 403) return endSession();
 
-  if (!res.ok) throw new Error(await messageFor(res));
+  if (!res.ok) throw await errorFrom(res);
 
   return (await res.json()) as T;
 }
