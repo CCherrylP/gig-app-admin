@@ -68,9 +68,16 @@ import { dateTime, money, relative } from "@/lib/format";
 //     stranger and a company's float.
 //
 // The fields that are NOT inputs are the load-bearing part. Name and phone come
-// from Singpass, email from Supabase auth, company name and UEN from ACRA — an
-// admin retyping any of them would leave a "verified" tick standing over a value
-// nobody checked. See UpdateEmployerDetailsBody in the API's contract.
+// from the account, email from Supabase auth, company name and UEN from ACRA —
+// an admin retyping any of them would leave a checked value standing over
+// something nobody checked. See UpdateEmployerDetailsBody in the API's contract.
+//
+// AN EMPLOYER IS NOT VERIFIED PERSONALLY. There is no Singpass step on this
+// side: what stands behind the person is the phone call confirming they work for
+// the business, which is the decision at the bottom of this page. The API still
+// carries `personVerified`, because the column is on the shared users table and
+// is real for candidates — it is simply not a fact about an employer worth
+// printing, and showing "Not verified" on every one implied a missing step.
 
 const COMPANY_STYLES: Record<string, string> = {
   VERIFIED: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
@@ -237,13 +244,21 @@ function Detail({
             </div>
           </div>
 
+          {/* One badge on the ordinary row. The person's approval and the
+              business's check are set by the same phone call and agree almost
+              always, so two pills side by side read as the same fact twice.
+              The second appears only when they DISAGREE — an approved person at
+              an unverified business still cannot post, and losing that would be
+              losing the only case worth a second badge. */}
           <div className="flex items-center gap-2">
             <StatusPill status={employer.status} />
-            <StatusPill
-              status={employer.companyVerificationStatus}
-              styles={COMPANY_STYLES}
-              label={`Business ${employer.companyVerificationStatus}`}
-            />
+            {employer.companyVerificationStatus !== "verified" && (
+              <StatusPill
+                status={employer.companyVerificationStatus}
+                styles={COMPANY_STYLES}
+                label={`Business ${employer.companyVerificationStatus}`}
+              />
+            )}
           </div>
         </div>
 
@@ -287,14 +302,16 @@ function Detail({
               icon={CallIcon}
               hint="The number to ring — this queue IS a phone call."
             />
-            <ReadOnly
-              label="Singpass"
-              value={employer.personVerified ? "Verified" : "Not verified"}
-            />
+            {/* No Singpass row. An employer is not asked to verify personally:
+                what stands behind them is the phone call confirming they work
+                for the business, and that is the decision at the bottom of this
+                page. A "Not verified" line on every employer implied a step
+                nobody is meant to take, and made an ordinary account look
+                half-finished. */}
             <p className="text-xs text-muted-foreground">
-              Read-only. Name and phone come from Singpass and the email from the
-              sign-in account — editing one here would leave the verified tick
-              standing over a value nobody checked.
+              Read-only. Name and phone come from the account and the email from
+              the sign-in — editing one here would leave a checked value standing
+              over something nobody checked.
             </p>
           </CardContent>
         </Card>
@@ -702,14 +719,15 @@ function CoinsAndPayments({ employer }: { employer: EmployerReview }) {
               className="h-8 w-40 tabular-nums"
             />
             <span className="text-xs text-muted-foreground">cents a coin</span>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={!standingValid || !standingDirty || price.isPending}
-              onClick={() => price.mutate(standingParsed)}
-            >
-              {price.isPending ? "Saving…" : "Save rate"}
-            </Button>
+            {/* Out of range is said HERE, next to the box, rather than only by a
+                disabled button. A greyed Save with no reason beside it is how
+                somebody types 40, sees nothing happen, and concludes the page is
+                broken — which is exactly what it looks like. */}
+            {!standingValid && (
+              <span className="text-xs font-medium text-destructive">
+                Between {COIN_PRICE_BOUNDS.min} and {COIN_PRICE_BOUNDS.max} cents
+              </span>
+            )}
             {standing !== null && (
               <Button
                 size="sm"
@@ -744,15 +762,11 @@ function CoinsAndPayments({ employer }: { employer: EmployerReview }) {
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-2 border-t pt-3">
-          <Button
-            variant="outline"
-            size="sm"
-            render={<Link href={`/dashboard/payments${filter}`} />}
-          >
-            <HugeiconsIcon icon={ReceiptIcon} strokeWidth={2} />
-            Awaiting confirmation
-          </Button>
+        {/* Save sits at the bottom right, matching the details card above, so
+            the two cards on this page are saved the same way. The rate is the
+            only thing here that PERSISTS — raising an invoice is its own act
+            with its own button — so this saves that and says so. */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3">
           <Button
             variant="outline"
             size="sm"
@@ -761,6 +775,31 @@ function CoinsAndPayments({ employer }: { employer: EmployerReview }) {
             <HugeiconsIcon icon={Invoice01Icon} strokeWidth={2} />
             All invoices
           </Button>
+
+          <div className="flex items-center gap-2">
+            {standingDirty && standingValid && (
+              <span className="text-xs text-muted-foreground">
+                Unsaved rate change
+              </span>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!standingDirty || price.isPending}
+              onClick={() =>
+                setStandingDraft(standing === null ? "" : String(standing))
+              }
+            >
+              Discard
+            </Button>
+            <Button
+              size="sm"
+              disabled={!standingValid || !standingDirty || price.isPending}
+              onClick={() => price.mutate(standingParsed)}
+            >
+              {price.isPending ? "Saving…" : "Save changes"}
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -787,6 +826,17 @@ function DecisionBand({
 }) {
   const approved = employer.status === "approved";
   const companyBlocked = employer.companyVerificationStatus !== "verified";
+
+  // NO APPROVAL WITHOUT AN AGREED RATE, matching the API — see decideEmployer.
+  // Approving is what lets somebody spend the company's coins, and every one of
+  // those spends is priced; letting them in with no rate means the first thing
+  // they do is charged at whatever the list price is that day, which nobody
+  // agreed with them.
+  //
+  // The rate is the COMPANY's, so the second manager at a priced business is not
+  // stopped by this. Rejecting never is: turning somebody down is not a
+  // commercial decision.
+  const noRate = employer.companyCoinPriceCents === null;
 
   // Offered here as well as in the queue's dialog, because both halves gate
   // posting and approving only the person would leave them exactly as blocked as
@@ -832,14 +882,35 @@ function DecisionBand({
                   companyVerified: alsoVerifyCompany ? true : undefined,
                 })
               }
-              disabled={decide.isPending}
+              disabled={decide.isPending || noRate}
+              title={
+                noRate
+                  ? `Agree what ${employer.companyName} pays for a coin first`
+                  : undefined
+              }
             >
               <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} />
-              {decide.isPending ? "Saving…" : "Approve"}
+              {decide.isPending
+                ? "Saving…"
+                : noRate
+                  ? "Agree a rate first"
+                  : "Approve"}
             </Button>
           )}
         </div>
       </div>
+
+      {/* Said where the blocked button is, not left to a tooltip. The fix is one
+          card up on this same page, so it names it. */}
+      {!approved && noRate && (
+        <p className="rounded-lg border border-amber-500/30 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-900/15 dark:text-amber-200">
+          <span className="font-medium">
+            {employer.companyName} has no agreed coin rate.
+          </span>{" "}
+          Approving lets them spend the company&apos;s coins, and every spend is
+          priced — set the rate in Coins &amp; payments above, then approve.
+        </p>
+      )}
 
       {!approved && (
         <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border bg-background/60 p-3 text-sm">

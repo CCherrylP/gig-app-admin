@@ -51,11 +51,13 @@ import {
 import { openFreshDocument } from "@/lib/documents";
 import { date, money, relative } from "@/lib/format";
 
+// All first and default — see the note on the employers page. The two work
+// piles keep their counts, so they still announce themselves.
 const FILTERS: { value: AttendanceFilter; label: string }[] = [
+  { value: "all", label: "All" },
   { value: "attention", label: "Needs a look" },
   { value: "missing", label: "Missing clock in/out" },
   { value: "reviewed", label: "Reviewed" },
-  { value: "all", label: "All" },
 ];
 
 const REVIEW_STYLES: Record<string, string> = {
@@ -66,7 +68,7 @@ const REVIEW_STYLES: Record<string, string> = {
 
 export default function AttendancePage() {
   const queryClient = useQueryClient();
-  const [filter, setFilter] = useState<AttendanceFilter>("attention");
+  const [filter, setFilter] = useState<AttendanceFilter>("all");
   const [search, setSearch] = useState("");
   const [releasing, setReleasing] = useState<AttendanceRecord | null>(null);
 

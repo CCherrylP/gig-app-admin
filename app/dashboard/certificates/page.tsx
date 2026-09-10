@@ -42,18 +42,21 @@ import { certById, certName } from "@/lib/certs-catalogue";
 import { openFreshDocument } from "@/lib/documents";
 import { date, isExpired, relative } from "@/lib/format";
 
+// All first and default — see the note on the employers page. Pending keeps its
+// count, so work still announces itself without an empty queue being the first
+// thing anybody sees.
 const FILTERS: { value: CertFilter; label: string }[] = [
+  { value: "all", label: "All" },
   { value: "pending", label: "Pending" },
   { value: "verified", label: "Verified" },
   { value: "rejected", label: "Rejected" },
-  { value: "all", label: "All" },
 ];
 
 type Decision = { review: CertificateReview; status: "verified" | "rejected" };
 
 export default function CertificatesPage() {
   const queryClient = useQueryClient();
-  const [filter, setFilter] = useState<CertFilter>("pending");
+  const [filter, setFilter] = useState<CertFilter>("all");
   const [search, setSearch] = useState("");
   const [decision, setDecision] = useState<Decision | null>(null);
 

@@ -1,9 +1,10 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Cancel01Icon,
@@ -12,14 +13,27 @@ import {
   ReceiptIcon,
 } from "@hugeicons/core-free-icons";
 
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   PageHeader,
   QueuePanel,
   StatCard,
 } from "@/components/dashboard/data-views";
-import { listInvoices } from "@/lib/invoices";
-import { money, relative } from "@/lib/format";
+import {
+  decideInvoice,
+  listInvoices,
+  type AdminInvoice,
+} from "@/lib/invoices";
+import { openFreshDocument } from "@/lib/documents";
+import { coins as formatCoins, date, money, relative } from "@/lib/format";
 
 // The payments queue, on its own page.
 //
@@ -49,6 +63,7 @@ export default function PaymentsPage() {
 
 function PaymentsQueue() {
   const company = useSearchParams().get("company")?.trim() ?? "";
+  const [open, setOpen] = useState<AdminInvoice | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["invoices", "unpaid"],
@@ -153,6 +168,12 @@ function PaymentsQueue() {
                 }`
               : undefined
           }
+          // The row IS the invoice somebody came to look at, so it opens right
+          // here. Sending them to "all invoices" and asking them to find the
+          // same row again in a longer list was a hop for nothing.
+          onRowClick={(id) =>
+            setOpen(awaiting.find((invoice) => invoice.id === id) ?? null)
+          }
           rows={awaiting.map((invoice) => ({
             key: invoice.id,
             seed: invoice.companyId,
@@ -162,7 +183,195 @@ function PaymentsQueue() {
           }))}
         />
       )}
+
+      <InvoiceDialog
+        invoice={open}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setOpen(null);
+        }}
+      />
     </div>
+  );
+}
+
+/** One invoice, opened from the queue.
+ *
+ *  It carries the DECISION as well as the detail, which is the whole point of
+ *  opening it here: this page exists to find transfers waiting on staff, and
+ *  making somebody navigate elsewhere to act on the one they just found is the
+ *  hop that was being complained about.
+ *
+ *  Both documents are re-signed at click time — the links minted when the queue
+ *  loaded expire in ten minutes, and a lapsed one shows a raw Supabase error
+ *  page. See lib/documents. */
+function InvoiceDialog({
+  invoice,
+  onOpenChange,
+}: {
+  invoice: AdminInvoice | null;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const queryClient = useQueryClient();
+  const [confirming, setConfirming] = useState(false);
+
+  const decide = useMutation({
+    mutationFn: (status: "paid" | "cancelled") =>
+      decideInvoice(invoice!.id, status),
+    onSuccess: (_r, status) => {
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      setConfirming(false);
+      onOpenChange(false);
+      toast.success(
+        status === "paid"
+          ? "Payment confirmed — coins credited"
+          : "Invoice cancelled",
+      );
+    },
+    onError: (error: Error) => {
+      // ALREADY_DECIDED is the one that matters: two admins confirming the same
+      // transfer is the race that would double a company's float.
+      toast.error(error.message || "Could not record that decision");
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+    },
+  });
+
+  function openDoc(which: "pdf" | "proof") {
+    if (!invoice) return;
+    void openFreshDocument({
+      queryClient,
+      queryKey: ["invoices", "unpaid"],
+      queryFn: () => listInvoices("unpaid"),
+      select: (fresh) => {
+        const row = fresh.invoices.find((i) => i.id === invoice.id);
+        return which === "pdf" ? row?.pdfUrl : row?.paymentProofUrl;
+      },
+      onMissing: () => toast.error("That document could not be opened."),
+    });
+  }
+
+  return (
+    <Dialog
+      open={!!invoice}
+      onOpenChange={(open) => {
+        if (!open) setConfirming(false);
+        onOpenChange(open);
+      }}
+    >
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{invoice?.number}</DialogTitle>
+          <DialogDescription>
+            {invoice && (
+              <>
+                {invoice.companyName}
+                {invoice.companyUen ? ` · UEN ${invoice.companyUen}` : ""}
+              </>
+            )}
+          </DialogDescription>
+        </DialogHeader>
+
+        {invoice && (
+          <div className="flex flex-col gap-3 px-6 pb-4">
+            <dl className="grid grid-cols-2 gap-y-2 text-sm">
+              <dt className="text-muted-foreground">Amount</dt>
+              <dd className="text-right font-medium tabular-nums">
+                {money(invoice.amountCents)}
+              </dd>
+              <dt className="text-muted-foreground">Coins</dt>
+              <dd className="text-right tabular-nums">
+                {formatCoins(invoice.coins)}
+              </dd>
+              <dt className="text-muted-foreground">Issued</dt>
+              <dd className="text-right">{date(invoice.issuedAt)}</dd>
+              <dt className="text-muted-foreground">Due</dt>
+              <dd className="text-right">{date(invoice.dueAt)}</dd>
+              {invoice.paymentProofAt && (
+                <>
+                  <dt className="text-muted-foreground">Receipt sent</dt>
+                  <dd className="text-right">
+                    {relative(invoice.paymentProofAt)}
+                  </dd>
+                </>
+              )}
+            </dl>
+
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!invoice.pdfUrl}
+                onClick={() => openDoc("pdf")}
+              >
+                <HugeiconsIcon icon={Invoice01Icon} strokeWidth={2} />
+                Invoice
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!invoice.paymentProofUrl}
+                onClick={() => openDoc("proof")}
+              >
+                <HugeiconsIcon icon={ReceiptIcon} strokeWidth={2} />
+                {invoice.paymentProofUrl ? "Receipt" : "No receipt"}
+              </Button>
+            </div>
+
+            {/* Evidence, not a decision. What settles an invoice is the transfer
+                on the bank statement — a screenshot is the easiest artefact
+                here to fake, and confirming is what creates the coins. */}
+            <p className="rounded-lg border border-amber-500/30 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-900/15 dark:text-amber-200">
+              Confirm against the transfer on the bank statement, not against the
+              uploaded receipt. This is the only thing in the system that creates
+              coins, and it cannot be undone.
+            </p>
+          </div>
+        )}
+
+        <div className="flex items-center justify-end gap-2 border-t px-6 py-4">
+          {confirming ? (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setConfirming(false)}
+                disabled={decide.isPending}
+              >
+                Back
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => decide.mutate("paid")}
+                disabled={decide.isPending}
+              >
+                {decide.isPending
+                  ? "Confirming…"
+                  : `Yes — credit ${invoice ? formatCoins(invoice.coins) : ""} coins`}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => decide.mutate("cancelled")}
+                disabled={decide.isPending}
+              >
+                <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
+                Cancel invoice
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => setConfirming(true)}
+                disabled={decide.isPending}
+              >
+                <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} />
+                Mark paid
+              </Button>
+            </>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

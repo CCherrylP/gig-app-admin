@@ -55,12 +55,12 @@ const FIELDS: {
   },
   {
     key: "placementCoinsPerHour",
-    label: "Placement fee",
+    label: "Platform fee",
     help: "Coins charged per hour of every shift created, flat. Flat rather than a percentage of wages on purpose: a percentage would earn more when an employer pays better.",
     unit: "coins / hour",
     format: (value) =>
       value === 0
-        ? "No placement fee — free to post"
+        ? "No platform fee — free to post"
         : `${value} coin${value === 1 ? "" : "s"} per hour of shift`,
   },
   {
@@ -123,8 +123,8 @@ export default function ConfigPage() {
   return (
     <div className="flex flex-col gap-6 p-6">
       <PageHeader
-        title="Placement config"
-        description="What a coin costs, what a placement costs, and how long a company has to pay."
+        title="Platform config"
+        description="What a coin costs, what the platform fee costs, and how long a company has to pay."
       />
 
       {/* The one thing a reviewer has to understand before touching this page. */}

@@ -40,11 +40,16 @@ import {
 } from "@/lib/invoices";
 import { coins, date, isPast, money, relative } from "@/lib/format";
 
+// All first and default — see the note on the employers page. Unpaid keeps its
+// count, so money still owed announces itself without being the only view.
+//
+// A `?status=` in the URL still wins: arriving from a link that asked for one
+// view is not the same as opening the page cold.
 const FILTERS: { value: InvoiceFilter; label: string }[] = [
+  { value: "all", label: "All" },
   { value: "unpaid", label: "Unpaid" },
   { value: "paid", label: "Paid" },
   { value: "cancelled", label: "Cancelled" },
-  { value: "all", label: "All" },
 ];
 
 // The API's own vocabulary, which the shared pill does not know by default.
@@ -95,7 +100,7 @@ function InvoiceQueue() {
   const statusFromUrl = params.get("status");
 
   const [filter, setFilter] = useState<InvoiceFilter>(
-    isFilter(statusFromUrl) ? statusFromUrl : "unpaid",
+    isFilter(statusFromUrl) ? statusFromUrl : "all",
   );
   const [search, setSearch] = useState(fromUrl);
   const [decision, setDecision] = useState<Decision | null>(null);

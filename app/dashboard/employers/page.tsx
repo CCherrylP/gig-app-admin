@@ -42,19 +42,20 @@ import {
 } from "@/lib/employers";
 import { money, relative } from "@/lib/format";
 
+// ALL FIRST, and it is the default.
+//
+// Opening on Pending meant a screen that said "Nothing in this queue" whenever
+// there was nothing to decide — on a page listing every employer on the
+// platform. That reads as an empty database rather than as an empty queue, and
+// it is the wrong first impression of a page whose main job is looking people
+// up. The work still announces itself: Pending carries a count, so an empty
+// queue is visible without being the only thing on offer.
 const FILTERS: { value: EmployerFilter; label: string }[] = [
+  { value: "all", label: "All" },
   { value: "pending", label: "Pending" },
   { value: "approved", label: "Approved" },
   { value: "rejected", label: "Rejected" },
-  { value: "all", label: "All" },
 ];
-
-const COMPANY_STYLES: Record<string, string> = {
-  VERIFIED: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-  PENDING: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-  UNVERIFIED: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
-  REJECTED: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-};
 
 type Decision = {
   employer: EmployerReview;
@@ -63,7 +64,7 @@ type Decision = {
 
 export default function EmployersPage() {
   const queryClient = useQueryClient();
-  const [filter, setFilter] = useState<EmployerFilter>("pending");
+  const [filter, setFilter] = useState<EmployerFilter>("all");
   const [search, setSearch] = useState("");
   const [decision, setDecision] = useState<Decision | null>(null);
 
@@ -141,7 +142,11 @@ export default function EmployersPage() {
             <EmptyState
               icon={BuildingIcon}
               message={
-                search ? "Nothing matches that search." : "Nothing in this queue."
+                search
+                  ? "Nothing matches that search."
+                  : filter === "all"
+                    ? "No employers have signed up yet."
+                    : "Nothing in this queue."
               }
             />
           ) : (
@@ -150,7 +155,6 @@ export default function EmployersPage() {
                 "Person",
                 "Contact",
                 "Company",
-                "Business",
                 "Billed to",
                 "Per coin",
                 "Signed up",
@@ -161,15 +165,14 @@ export default function EmployersPage() {
               // plus their gaps is ~250px, and anything less makes them spill
               // over the status pill — which is exactly what it looked like.
               widths={[
-                "w-[13%]",
-                "w-[14%]",
-                "w-[16%]",
                 "w-[15%]",
-                "w-[7%]",
+                "w-[16%]",
+                "w-[18%]",
+                "w-[14%]",
                 "w-[8%]",
-                "w-[7%]",
-                "w-[7%]",
-                "w-[13%]",
+                "w-[8%]",
+                "w-[10%]",
+                "w-[11%]",
               ]}
             >
               {employers.map((employer) => (
@@ -229,9 +232,11 @@ function EmployerRow({
             <span className="truncate text-xs text-muted-foreground">
               {employer.jobTitle ?? "No job title"}
             </span>
-            <span className="truncate text-xs text-muted-foreground">
-              {employer.personVerified ? "Verified" : "Not verified"}
-            </span>
+            {/* No Singpass line. An employer is not asked to verify personally —
+                what makes them trustworthy here is the call confirming they work
+                for the business, which is the Status column. Printing "Not
+                verified" against every employer implied a missing step that does
+                not exist, and made a normal account look like a problem. */}
           </div>
         </div>
       </td>
@@ -276,13 +281,6 @@ function EmployerRow({
             {employer.companySeats === 1 ? "" : "s"} at this UEN
           </span>
         </div>
-      </td>
-
-      <td className="px-4 py-3">
-        <StatusPill
-          status={employer.companyVerificationStatus}
-          styles={COMPANY_STYLES}
-        />
       </td>
 
       {/* Where the BILL goes, which is not where the work is.
@@ -337,8 +335,22 @@ function EmployerRow({
         {relative(employer.createdAt)}
       </td>
 
+      {/* ONE status column, not two.
+          The person's approval and the business's check are separate fields and
+          are set by the same phone call, so they agree on almost every row and
+          two pills side by side just read as the same fact twice. What is NOT
+          redundant is the case where they disagree — an approved person at an
+          unverified business still cannot post, and that would be invisible if
+          the second column simply went away. So it is shown only then. */}
       <td className="px-4 py-3">
-        <StatusPill status={employer.status} />
+        <div className="flex min-w-0 flex-col gap-1">
+          <StatusPill status={employer.status} />
+          {employer.companyVerificationStatus !== "verified" && (
+            <span className="truncate text-[11px] font-medium text-amber-600 dark:text-amber-400">
+              Business {employer.companyVerificationStatus}
+            </span>
+          )}
+        </div>
       </td>
 
       <td className="px-4 py-3">

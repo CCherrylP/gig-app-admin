@@ -43,11 +43,12 @@ import {
 import { openFreshDocument } from "@/lib/documents";
 import { date, relative } from "@/lib/format";
 
+// All first and default — see the note on the employers page.
 const FILTERS: { value: AppealFilter; label: string }[] = [
+  { value: "all", label: "All" },
   { value: "pending", label: "Pending" },
   { value: "waived", label: "Waived" },
   { value: "upheld", label: "Upheld" },
-  { value: "all", label: "All" },
 ];
 
 // `waived` is the good outcome for the candidate and `upheld` is the penalty
@@ -63,7 +64,7 @@ type Decision = { appeal: AppealReview; outcome: "waived" | "upheld" };
 
 export default function AppealsPage() {
   const queryClient = useQueryClient();
-  const [filter, setFilter] = useState<AppealFilter>("pending");
+  const [filter, setFilter] = useState<AppealFilter>("all");
   const [search, setSearch] = useState("");
   const [decision, setDecision] = useState<Decision | null>(null);
 

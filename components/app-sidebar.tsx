@@ -132,7 +132,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       // Under Employers because that is who pays it: the coin price and the
       // placement fee are what a business is charged. A candidate never sees a
       // coin.
-      title: "Placement Config",
+      title: "Platform Config",
       url: "/dashboard/config",
       icon: <HugeiconsIcon icon={Coins01Icon} strokeWidth={2} />,
     },

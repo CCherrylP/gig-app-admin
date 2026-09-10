@@ -209,6 +209,7 @@ export function QueuePanel({
   rows,
   emptyMessage,
   footer,
+  onRowClick,
 }: {
   title: string;
   href: string;
@@ -217,6 +218,10 @@ export function QueuePanel({
   rows: QueueRow[];
   emptyMessage: string;
   footer?: string;
+  /** When given, each row becomes a button. The row IS the thing somebody came
+   *  to look at, so opening it should not mean finding a link somewhere else on
+   *  the card and then finding the row again in a longer list. */
+  onRowClick?: (key: string) => void;
 }) {
   return (
     <Card>
@@ -233,22 +238,39 @@ export function QueuePanel({
           <EmptyState icon={icon} message={emptyMessage} />
         ) : (
           <div className="divide-y">
-            {rows.map((row) => (
-              <div key={row.key} className="flex items-center gap-3 px-6 py-3">
-                <InitialsAvatar seed={row.seed} label={initials(row.title)} />
-                <div className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate text-sm font-medium">
-                    {row.title}
+            {rows.map((row) => {
+              const body = (
+                <>
+                  <InitialsAvatar seed={row.seed} label={initials(row.title)} />
+                  <div className="flex min-w-0 flex-1 flex-col text-left">
+                    <span className="truncate text-sm font-medium">
+                      {row.title}
+                    </span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {row.subtitle}
+                    </span>
+                  </div>
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {row.meta}
                   </span>
-                  <span className="truncate text-xs text-muted-foreground">
-                    {row.subtitle}
-                  </span>
+                </>
+              );
+
+              return onRowClick ? (
+                <button
+                  key={row.key}
+                  type="button"
+                  onClick={() => onRowClick(row.key)}
+                  className="flex w-full items-center gap-3 px-6 py-3 text-left transition-colors hover:bg-muted/60"
+                >
+                  {body}
+                </button>
+              ) : (
+                <div key={row.key} className="flex items-center gap-3 px-6 py-3">
+                  {body}
                 </div>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {row.meta}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
         {footer && (
