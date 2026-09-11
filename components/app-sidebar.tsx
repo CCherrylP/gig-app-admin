@@ -25,6 +25,9 @@ import {
   Coins01Icon,
   Clock01Icon,
   ReceiptIcon,
+  InboxIcon,
+  MoneyBag02Icon,
+  ChartLineData01Icon,
 } from "@hugeicons/core-free-icons";
 import Logo from "./common/Logo";
 import { listCertificates } from "@/lib/certificates";
@@ -32,6 +35,7 @@ import { listAppeals } from "@/lib/appeals";
 import { listEmployers } from "@/lib/employers";
 import { listAttendance } from "@/lib/attendance";
 import { listInvoices } from "@/lib/invoices";
+import { listSupportThreads } from "@/lib/inbox";
 import { getCachedUser } from "@/lib/auth";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -60,6 +64,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     queryKey: ["invoices", "unpaid"],
     queryFn: () => listInvoices("unpaid"),
   });
+  // BOTH inboxes in one request — no role. The badge is one number and does not
+  // care which side the question came from; the split is inside the screen.
+  const { data: inbox } = useQuery({
+    queryKey: ["inbox", "open"],
+    queryFn: () => listSupportThreads(undefined, "open"),
+  });
 
   // Grouped by WHOSE SIDE the work is on, not by what kind of thing it is.
   //
@@ -73,6 +83,47 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       title: "Overview",
       url: "/dashboard",
       icon: <HugeiconsIcon icon={HomeIcon} strokeWidth={2} />,
+    },
+    {
+      // Up here rather than under Candidates or Employers because it is the one
+      // thing that is BOTH — filing it on one side would hide half the messages
+      // from whoever is looking. The split lives inside it instead, so staff can
+      // see at a glance which side a question came from before opening it.
+      //
+      // The parent row is a collapsible trigger, not a link, so this `url` is
+      // never navigated to from here — but /dashboard/inbox exists anyway and
+      // redirects to the candidate queue, for the address typed by hand.
+      title: "Inbox",
+      url: "/dashboard/inbox",
+      icon: <HugeiconsIcon icon={InboxIcon} strokeWidth={2} />,
+      // Threads still OPEN, which is the work — not the total, and not the
+      // unread count. `answered` is waiting on them, and a badge counting that
+      // would never reach zero.
+      badge: inbox?.openCount,
+      children: [
+        { title: "Candidate questions", url: "/dashboard/inbox/candidates" },
+        { title: "Employer questions", url: "/dashboard/inbox/employers" },
+      ],
+    },
+    {
+      // THE TWO REPORTS SIT HERE, beside Overview, for the same reason Inbox
+      // does: each spans both sides of the platform. Payroll is money owed to
+      // candidates, earned on work employers booked; Money is what employers
+      // paid, against fees the platform charged. Filing either under
+      // Candidates or Employers would hide half of what it is about.
+      //
+      // NO BADGE on either. What matters is an AMOUNT rather than a number of
+      // rows, and payroll's largest pile — shifts waiting on an employer's
+      // sign-off — is not work staff can act on. A badge counting it would
+      // never reach zero.
+      title: "Payroll",
+      url: "/dashboard/payroll",
+      icon: <HugeiconsIcon icon={MoneyBag02Icon} strokeWidth={2} />,
+    },
+    {
+      title: "Money",
+      url: "/dashboard/money",
+      icon: <HugeiconsIcon icon={ChartLineData01Icon} strokeWidth={2} />,
     },
   ];
 

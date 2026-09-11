@@ -838,12 +838,21 @@ function DecisionBand({
   // commercial decision.
   const noRate = employer.companyCoinPriceCents === null;
 
-  // Offered here as well as in the queue's dialog, because both halves gate
-  // posting and approving only the person would leave them exactly as blocked as
-  // before — a decision that looks like it worked and did nothing. Defaulted on
-  // only while the business is still unverified: confirming that somebody works
-  // at an already-checked cafe should not re-open a decision about the cafe.
-  const [alsoVerifyCompany, setAlsoVerifyCompany] = useState(companyBlocked);
+  // NOT A CHOICE ANY MORE. This used to be a tick — "also mark the business
+  // verified" — defaulted on, on every approval.
+  //
+  // It had no useful off. Both halves gate posting, so approving the person and
+  // leaving the business unverified produces somebody who is approved and still
+  // cannot do anything: a decision that looks like it worked and did nothing.
+  // And the two are settled by the SAME phone call — the one that establishes
+  // the business is real and that this person works there. Asking twice invited
+  // the answer that breaks it.
+  //
+  // Still nothing when the business is already verified: confirming that
+  // somebody works at an already-checked cafe should not re-open a decision
+  // about the cafe. So `undefined` there, `true` only where there is something
+  // to change.
+  const verifyCompanyToo = companyBlocked ? true : undefined;
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-primary/40 bg-primary/5 px-4 py-4">
@@ -879,7 +888,7 @@ function DecisionBand({
               onClick={() =>
                 decide.mutate({
                   status: "approved",
-                  companyVerified: alsoVerifyCompany ? true : undefined,
+                  companyVerified: verifyCompanyToo,
                 })
               }
               disabled={decide.isPending || noRate}
@@ -890,11 +899,13 @@ function DecisionBand({
               }
             >
               <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} />
-              {decide.isPending
-                ? "Saving…"
-                : noRate
-                  ? "Agree a rate first"
-                  : "Approve"}
+              {/* The button says what it DOES, in both states. It used to
+                  relabel itself "Agree a rate first" when blocked, which read
+                  as a different button rather than as this one being unavailable
+                  — and it left no words anywhere for the thing it actually does.
+                  The reason lives in the amber note directly below, where there
+                  is room to name the fix. */}
+              {decide.isPending ? "Saving…" : "Approve employer"}
             </Button>
           )}
         </div>
@@ -912,25 +923,19 @@ function DecisionBand({
         </p>
       )}
 
-      {!approved && (
-        <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border bg-background/60 p-3 text-sm">
-          <input
-            type="checkbox"
-            checked={alsoVerifyCompany}
-            onChange={(e) => setAlsoVerifyCompany(e.target.checked)}
-            className="mt-0.5 size-4 rounded border-border accent-primary"
-          />
-          <span>
-            <span className="font-medium">
-              Also mark {employer.companyName} verified
-            </span>
-            <span className="mt-0.5 block text-xs text-muted-foreground">
-              {companyBlocked
-                ? `Both halves have to pass before anyone at this UEN can post, and the business is currently ${employer.companyVerificationStatus}. Approving the person alone leaves them blocked.`
-                : "This business is already verified — leave unticked to change nothing about it."}
-            </span>
-          </span>
-        </label>
+      {/* TOLD, not asked. The business half comes with the approval now, so what
+          is left to say is what the button is about to do — and only where it
+          does something. On an already-verified business this line would be
+          noise about a decision nobody is making. */}
+      {!approved && companyBlocked && (
+        <p className="rounded-lg border border-border bg-background/60 px-3 py-2 text-xs text-muted-foreground">
+          Approving also marks{" "}
+          <span className="font-medium text-foreground">
+            {employer.companyName}
+          </span>{" "}
+          verified — it is currently {employer.companyVerificationStatus}, and
+          both halves have to pass before anyone at this UEN can post.
+        </p>
       )}
     </div>
   );

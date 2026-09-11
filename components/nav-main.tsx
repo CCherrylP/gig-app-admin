@@ -97,11 +97,23 @@ function NavCollapsible({
             <SidebarMenuButton isActive={childActive} tooltip={item.title}>
               {item.icon}
               <span>{item.title}</span>
+              {/* The badge sits INSIDE the trigger here, unlike the plain menu
+                  item above where it is a SidebarMenuBadge sibling. A collapsible
+                  row already owns its right-hand edge for the chevron, and a
+                  positioned badge would land underneath it.
+                  `ml-auto` moves to the badge so the chevron stays last. */}
+              {item.badge != null && item.badge > 0 && (
+                <span className="ml-auto inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-sidebar-primary px-1.5 py-0.5 text-xs font-medium text-sidebar-primary-foreground tabular-nums">
+                  {item.badge}
+                </span>
+              )}
               <HugeiconsIcon
                 icon={ArrowRight01Icon}
                 strokeWidth={2}
                 className={cn(
-                  "ml-auto size-4 shrink-0 transition-transform duration-200",
+                  "size-4 shrink-0 transition-transform duration-200",
+                  // Only claims the gap when no badge has already taken it.
+                  item.badge != null && item.badge > 0 ? "ml-1.5" : "ml-auto",
                   open && "rotate-90",
                 )}
               />
