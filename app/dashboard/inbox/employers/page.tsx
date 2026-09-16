@@ -16,7 +16,7 @@ export default function EmployerInboxPage() {
     <SupportInbox
       role="employer"
       title="Employer questions"
-      description="Messages from businesses — invoices, coin top-ups, and shifts nobody turned up for. Only questions the FAQ could not answer reach here."
+      description="Messages from businesses. Invoices, coin top-ups, and shifts nobody turned up for. Only questions the FAQ could not answer reach here."
     />
   );
 }

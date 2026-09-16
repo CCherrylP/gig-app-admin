@@ -49,24 +49,24 @@ const FIELDS: {
   {
     key: "coinPriceCents",
     label: "Coin price",
-    help: "What one coin costs, in cents. 100 is the one-coin-to-one-dollar model the app is built around — there are no packs and no bonus coins, so this is the whole of the pricing.",
+    help: "What one coin costs, in cents. The same for every company. There are no packs, no bonus coins and no negotiated rates. It is also what a coin buys: a shift's wages are converted into coins through this number, so changing it changes both at once, and balances companies have already paid for do not move with it.",
     unit: "cents",
     format: (value) => `${money(value)} per coin`,
   },
   {
-    key: "placementCoinsPerHour",
+    key: "placementFeeCents",
     label: "Platform fee",
-    help: "Coins charged per hour of every shift created, flat. Flat rather than a percentage of wages on purpose: a percentage would earn more when an employer pays better.",
-    unit: "coins / hour",
+    help: "Charged per hour of every shift created, flat. In money rather than coins, so it stays the same price when the coin price moves. Flat rather than a percentage of wages on purpose: a percentage would earn more when an employer pays better.",
+    unit: "cents / hour",
     format: (value) =>
       value === 0
-        ? "No platform fee — free to post"
-        : `${value} coin${value === 1 ? "" : "s"} per hour of shift`,
+        ? "No platform fee, free to post"
+        : `${money(value)} per hour of shift`,
   },
   {
     key: "invoiceTermsDays",
     label: "Invoice terms",
-    help: "Days a company has to settle an invoiced top-up. Not credit — the coins wait for the payment, so this is the date they are asked to pay by.",
+    help: "Days a company has to settle an invoiced top-up. Not credit, the coins wait for the payment, so this is the date they are asked to pay by.",
     unit: "days",
     format: (value) => `Due ${value} day${value === 1 ? "" : "s"} after issue`,
   },

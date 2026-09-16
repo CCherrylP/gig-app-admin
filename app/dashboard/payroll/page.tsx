@@ -32,6 +32,7 @@ import {
   listPayroll,
   markPayrollPaid,
   monthLabel,
+  monthRange,
   payableCsv,
   payoutLabel,
   recentMonths,
@@ -88,7 +89,7 @@ export default function PayrollPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["payroll", month, company],
-    queryFn: () => listPayroll(month, company || undefined),
+    queryFn: () => listPayroll(monthRange(month), company || undefined),
   });
 
   const rows = data?.rows ?? [];
@@ -152,7 +153,7 @@ export default function PayrollPage() {
   // working: the workbook is built server-side and a big month is not
   // instant, and a button that looks idle gets pressed twice.
   const exportXlsx = useMutation({
-    mutationFn: () => downloadPayrollXlsx(month, company || undefined),
+    mutationFn: () => downloadPayrollXlsx(monthRange(month), company || undefined),
     onError: (error) =>
       toast.error(
         error instanceof Error ? error.message : "Could not build the spreadsheet",
@@ -165,7 +166,7 @@ export default function PayrollPage() {
     <div className="flex flex-col gap-6 p-6">
       <PageHeader
         title="Payroll"
-        description="Finished shifts and what is owed. Transfers are made in your bank — this is where you tick them off."
+        description="Finished shifts and what is owed. Transfers are made in your bank, this is where you tick them off."
       >
         <div className="flex flex-wrap items-center gap-2">
           <select

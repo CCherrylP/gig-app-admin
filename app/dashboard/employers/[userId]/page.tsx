@@ -38,14 +38,13 @@ import {
 } from "@/components/dashboard/data-views";
 import {
   createTopUp,
-  setCoinPrice,
   decideEmployer,
   listEmployers,
   updateEmployerDetails,
   MAX_TOPUP_COINS,
   MIN_TOPUP_COINS,
   QUICK_TOPUP_COINS,
-  COIN_PRICE_BOUNDS,
+  GST_BASIS_POINTS,
   type EmployerReview,
 } from "@/lib/employers";
 import { getSettings } from "@/lib/settings";
@@ -300,7 +299,7 @@ function Detail({
               label="Phone"
               value={employer.phone}
               icon={CallIcon}
-              hint="The number to ring — this queue IS a phone call."
+              hint="The number to ring, this queue IS a phone call."
             />
             {/* No Singpass row. An employer is not asked to verify personally:
                 what stands behind them is the phone call confirming they work
@@ -418,7 +417,7 @@ function Detail({
               <p className="text-xs text-muted-foreground">
                 {dirty
                   ? "Unsaved changes."
-                  : "Descriptive fields only — saving changes nothing about what anyone may do."}
+                  : "Descriptive fields only. Saving changes nothing about what anyone may do."}
               </p>
               <Button
                 size="sm"
@@ -474,50 +473,22 @@ function CoinsAndPayments({ employer }: { employer: EmployerReview }) {
     parsed >= MIN_TOPUP_COINS &&
     parsed <= MAX_TOPUP_COINS;
 
-  // ONE rate, and it is the company's. There is no per-bill override: a price
-  // with two homes is two answers to what a customer pays, and the agreed rate
-  // below already prices their own top-ups in the app as well as this one.
-  const listPrice = settings?.coinPriceCents ?? null;
-  const standing = employer.companyCoinPriceCents;
-  const priceCents = standing ?? listPrice;
-  const isDiscounted =
-    priceCents !== null && listPrice !== null && priceCents !== listPrice;
+  // ONE PRICE, the platform's. The agreed-rate box that used to sit at the
+  // bottom of this card is gone with the per-company rate behind it — the price
+  // lives on the Config screen and applies to every business.
+  const priceCents = settings?.coinPriceCents ?? null;
 
-  // Priced from the rate actually being used, not a constant. Shown rather than
-  // left to the invoice, so nobody raises a $100,000 bill from a trailing zero
-  // they could not see.
+  // Priced from the rate actually being used, not a constant, and WITH THE TAX,
+  // because the figure staff read out on the phone has to be the one the company
+  // transfers. Shown rather than left to the invoice, so nobody raises a
+  // $100,000 bill from a trailing zero they could not see.
+  const subtotalCents = valid && priceCents !== null ? parsed * priceCents : null;
+  const gstCents =
+    subtotalCents === null ? null : Math.round((subtotalCents * GST_BASIS_POINTS) / 10_000);
   const preview =
-    valid && priceCents !== null ? money(parsed * priceCents) : null;
-
-  // The standing rate, edited separately from the bill. Seeded from the company
-  // and reset whenever the server answers, so two admins editing do not leave a
-  // stale number in the box.
-  const [standingDraft, setStandingDraft] = useState(
-    standing === null ? "" : String(standing),
-  );
-  const standingParsed = standingDraft.trim() === "" ? null : Number(standingDraft);
-  const standingValid =
-    standingParsed === null ||
-    (Number.isInteger(standingParsed) &&
-      standingParsed >= COIN_PRICE_BOUNDS.min &&
-      standingParsed <= COIN_PRICE_BOUNDS.max);
-  const standingDirty = standingParsed !== standing;
-
-  const queryClient = useQueryClient();
-
-  const price = useMutation({
-    mutationFn: (cents: number | null) => setCoinPrice(employer.userId, cents),
-    onSuccess: (_r, cents) => {
-      queryClient.invalidateQueries({ queryKey: ["employers"] });
-      toast.success(
-        cents === null
-          ? `${employer.companyName} is back on the list price`
-          : `${employer.companyName} now pays ${money(cents)} a coin`,
-      );
-    },
-    onError: (error: Error) =>
-      toast.error(error.message || "Could not save that rate"),
-  });
+    subtotalCents === null || gstCents === null
+      ? null
+      : money(subtotalCents + gstCents);
 
   // The bill the API refused to duplicate. Held so the dialog can name it —
   // "raise another anyway" is not a question anybody can answer without being
@@ -532,7 +503,7 @@ function CoinsAndPayments({ employer }: { employer: EmployerReview }) {
       toast.success(
         invoice.emailedTo
           ? `${invoice.number} raised and emailed to ${invoice.emailedTo}`
-          : `${invoice.number} raised — no email on this account, so send it yourself`,
+          : `${invoice.number} raised, no email on this account, so send it yourself`,
       );
       setCoins(String(MIN_TOPUP_COINS));
     },
@@ -628,9 +599,10 @@ function CoinsAndPayments({ employer }: { employer: EmployerReview }) {
                   <span className="font-medium text-foreground">
                     {preview}
                   </span>{" "}
-                  at {priceCents !== null ? money(priceCents) : "—"} a coin
-                  {isDiscounted ? " (agreed rate)" : ""}, due in{" "}
-                  {settings?.invoiceTermsDays ?? "—"} days.{" "}
+                  at {priceCents !== null ? money(priceCents) : "—"} a coin,
+                  including {gstCents !== null ? money(gstCents) : "—"} GST, due
+                  in {settings?.invoiceTermsDays ?? "—"} days. The coins expire a
+                  year from the invoice date.{" "}
                 </>
               ) : null}
               Raises the bill for {employer.companyName} and emails it. It creates
@@ -691,81 +663,10 @@ function CoinsAndPayments({ employer }: { employer: EmployerReview }) {
           </p>
         )}
 
-        {/* The STANDING rate, as opposed to the one-off above. This is the
-            agreement: it prices every future bill including the ones the
-            employer raises for themselves in the app, which is the half a
-            per-invoice discount could never cover. */}
-        <div className="flex flex-col gap-2 border-t pt-3">
-          <Label htmlFor="standing">
-            Agreed rate for {employer.companyName}
-            {/* Said out loud, because the rate is the BUSINESS's and this page
-                is one person's. Setting it here changes what every manager at
-                this UEN pays, and somebody editing from a colleague's page
-                should not have to infer that. */}
-            <span className="ml-1 font-normal text-muted-foreground">
-              · UEN {employer.companyUen}
-              {employer.companySeats > 1 &&
-                ` · all ${employer.companySeats} managers`}
-            </span>
-          </Label>
-          <div className="flex flex-wrap items-center gap-2">
-            <Input
-              id="standing"
-              inputMode="numeric"
-              value={standingDraft}
-              onChange={(e) => setStandingDraft(e.target.value)}
-              placeholder={`${listPrice ?? 100} (list price)`}
-              aria-invalid={!standingValid}
-              className="h-8 w-40 tabular-nums"
-            />
-            <span className="text-xs text-muted-foreground">cents a coin</span>
-            {/* Out of range is said HERE, next to the box, rather than only by a
-                disabled button. A greyed Save with no reason beside it is how
-                somebody types 40, sees nothing happen, and concludes the page is
-                broken — which is exactly what it looks like. */}
-            {!standingValid && (
-              <span className="text-xs font-medium text-destructive">
-                Between {COIN_PRICE_BOUNDS.min} and {COIN_PRICE_BOUNDS.max} cents
-              </span>
-            )}
-            {standing !== null && (
-              <Button
-                size="sm"
-                variant="ghost"
-                disabled={price.isPending}
-                onClick={() => {
-                  setStandingDraft("");
-                  price.mutate(null);
-                }}
-              >
-                Back to list price
-              </Button>
-            )}
-          </div>
-          <p className="max-w-prose text-xs text-muted-foreground">
-            {standing === null ? (
-              <>
-                On the list price, so they follow it when it changes. Set a rate
-                only when one has actually been agreed — it belongs to the
-                business, so it applies to everyone who hires under this UEN.
-              </>
-            ) : (
-              <>
-                <span className="font-medium text-foreground">
-                  {money(standing)} a coin
-                </span>{" "}
-                — agreed, so it does not move when the list price does. This
-                prices their own top-ups in the app too, not just bills raised
-                here. Nothing already invoiced changes.
-              </>
-            )}
-          </p>
-        </div>
-
-        {/* Save sits at the bottom right, matching the details card above, so
-            the two cards on this page are saved the same way. The rate is the
-            only thing here that PERSISTS — raising an invoice is its own act
-            with its own button — so this saves that and says so. */}
+        {/* The agreed-rate box that used to close this card is gone. There is
+            nothing on this page that persists any more — raising an invoice is
+            its own act with its own button — so the footer is just the way
+            through to the bills. */}
         <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3">
           <Button
             variant="outline"
@@ -775,31 +676,6 @@ function CoinsAndPayments({ employer }: { employer: EmployerReview }) {
             <HugeiconsIcon icon={Invoice01Icon} strokeWidth={2} />
             All invoices
           </Button>
-
-          <div className="flex items-center gap-2">
-            {standingDirty && standingValid && (
-              <span className="text-xs text-muted-foreground">
-                Unsaved rate change
-              </span>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!standingDirty || price.isPending}
-              onClick={() =>
-                setStandingDraft(standing === null ? "" : String(standing))
-              }
-            >
-              Discard
-            </Button>
-            <Button
-              size="sm"
-              disabled={!standingValid || !standingDirty || price.isPending}
-              onClick={() => price.mutate(standingParsed)}
-            >
-              {price.isPending ? "Saving…" : "Save changes"}
-            </Button>
-          </div>
         </div>
       </CardContent>
     </Card>
@@ -827,16 +703,10 @@ function DecisionBand({
   const approved = employer.status === "approved";
   const companyBlocked = employer.companyVerificationStatus !== "verified";
 
-  // NO APPROVAL WITHOUT AN AGREED RATE, matching the API — see decideEmployer.
-  // Approving is what lets somebody spend the company's coins, and every one of
-  // those spends is priced; letting them in with no rate means the first thing
-  // they do is charged at whatever the list price is that day, which nobody
-  // agreed with them.
-  //
-  // The rate is the COMPANY's, so the second manager at a priced business is not
-  // stopped by this. Rejecting never is: turning somebody down is not a
-  // commercial decision.
-  const noRate = employer.companyCoinPriceCents === null;
+  // The "no approval without an agreed rate" gate is gone, here and in the API.
+  // It existed because somebody approved with no rate was charged whatever the
+  // list price happened to be that day, which nobody had agreed with them. The
+  // list price IS the agreement now, and it is published.
 
   // NOT A CHOICE ANY MORE. This used to be a tick — "also mark the business
   // verified" — defaulted on, on every approval.
@@ -865,7 +735,7 @@ function DecisionBand({
           </p>
           <p className="max-w-prose text-xs text-muted-foreground">
             {approved
-              ? "They can post jobs and spend the company's coins. Rejecting takes that away immediately — the gate reads this on every request."
+              ? "They can post jobs and spend the company's coins. Rejecting takes that away immediately, the gate reads this on every request."
               : "They can do nothing in the company's name until this is approved."}
           </p>
         </div>
@@ -891,37 +761,14 @@ function DecisionBand({
                   companyVerified: verifyCompanyToo,
                 })
               }
-              disabled={decide.isPending || noRate}
-              title={
-                noRate
-                  ? `Agree what ${employer.companyName} pays for a coin first`
-                  : undefined
-              }
+              disabled={decide.isPending}
             >
               <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} />
-              {/* The button says what it DOES, in both states. It used to
-                  relabel itself "Agree a rate first" when blocked, which read
-                  as a different button rather than as this one being unavailable
-                  — and it left no words anywhere for the thing it actually does.
-                  The reason lives in the amber note directly below, where there
-                  is room to name the fix. */}
               {decide.isPending ? "Saving…" : "Approve employer"}
             </Button>
           )}
         </div>
       </div>
-
-      {/* Said where the blocked button is, not left to a tooltip. The fix is one
-          card up on this same page, so it names it. */}
-      {!approved && noRate && (
-        <p className="rounded-lg border border-amber-500/30 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-900/15 dark:text-amber-200">
-          <span className="font-medium">
-            {employer.companyName} has no agreed coin rate.
-          </span>{" "}
-          Approving lets them spend the company&apos;s coins, and every spend is
-          priced — set the rate in Coins &amp; payments above, then approve.
-        </p>
-      )}
 
       {/* TOLD, not asked. The business half comes with the approval now, so what
           is left to say is what the button is about to do — and only where it

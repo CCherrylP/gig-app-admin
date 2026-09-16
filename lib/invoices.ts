@@ -11,8 +11,16 @@ export interface AdminInvoice {
   id: string;
   number: string;
   status: InvoiceStatus;
+  /** The QUANTITY of coins. 10,000 coins is 10,000, not a pack. */
   coins: number;
+  /** Coins times the unit price, BEFORE tax. */
   amountCents: number;
+  /** GST in cents, at the rate stored on the row. 0 on bills raised before we
+   *  charged it, which is the truth about them. */
+  gstCents: number;
+  /** amountCents + gstCents — THE FIGURE TO MATCH ON A BANK STATEMENT. Use this
+   *  rather than amountCents anywhere staff are reconciling a transfer. */
+  totalCents: number;
   /** Signed, short-lived, and null when the object has gone. */
   pdfUrl: string | null;
   /** The employer's own receipt for the transfer. EVIDENCE, NOT A DECISION —

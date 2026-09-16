@@ -13,7 +13,7 @@ export default function CandidateInboxPage() {
     <SupportInbox
       role="candidate"
       title="Candidate questions"
-      description="Messages from people looking for shifts — account problems, certificate rejections, pay that has not landed. Only questions the FAQ could not answer reach here."
+      description="Messages from people looking for shifts. Account problems, certificate rejections, pay that has not landed. Only questions the FAQ could not answer reach here."
     />
   );
 }

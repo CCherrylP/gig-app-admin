@@ -113,7 +113,7 @@ export default function AttendancePage() {
       queryClient.invalidateQueries({ queryKey: ["attendance"] });
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       setReleasing(null);
-      toast.success("Hours signed off — the candidate has been told");
+      toast.success("Hours signed off, the candidate has been told");
     },
     onError: (error: Error) => {
       // ALREADY_APPROVED is the one that matters: two admins on the same row,
@@ -154,7 +154,7 @@ export default function AttendancePage() {
     <div className="flex flex-col gap-6 p-6">
       <PageHeader
         title="Clock in / clock out"
-        description="A scanned code is a supervisor vouching on the spot. A selfie is a photo and a location fix with nobody behind it — those are the ones worth reading."
+        description="A scanned code is a supervisor vouching on the spot. A selfie is a photo and a location fix with nobody behind it, those are the ones worth reading."
       >
         <SearchInput
           value={search}
@@ -188,7 +188,7 @@ export default function AttendancePage() {
               message={
                 search
                   ? "Nothing matches that search."
-                  : "Nothing here — every check-in was a scanned code inside the fence."
+                  : "Nothing here. Every check-in was a scanned code inside the fence."
               }
             />
           ) : (

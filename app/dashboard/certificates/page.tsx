@@ -122,7 +122,7 @@ export default function CertificatesPage() {
     <div className="flex flex-col gap-6 p-6">
       <PageHeader
         title="Certificate reviews"
-        description="Oldest first — the person waiting longest is the one being kept from applying for work."
+        description="Oldest first, the person waiting longest is the one being kept from applying for work."
       >
         <SearchInput
           value={search}
@@ -350,7 +350,7 @@ function DecisionDialog({
                 </span>
                 .{" "}
                 {verifying
-                  ? "Employers will treat it as checked, and it cannot be set back to pending — only the candidate re-uploading returns it to this queue."
+                  ? "Employers will treat it as checked, and it cannot be set back to pending, only the candidate re-uploading returns it to this queue."
                   : "The candidate can upload a replacement, which returns it to this queue."}
               </>
             )}

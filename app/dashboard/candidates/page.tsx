@@ -97,8 +97,8 @@ export default function CandidatesPage() {
       setTarget(null);
       toast.success(
         suspended
-          ? "Candidate suspended — they have been told why"
-          : "Suspension lifted — they can book again",
+          ? "Candidate suspended, they have been told why"
+          : "Suspension lifted, they can book again",
       );
     },
     onError: (error: Error) => {
@@ -122,7 +122,7 @@ export default function CandidatesPage() {
     <div className="flex flex-col gap-6 p-6">
       <PageHeader
         title="Candidates"
-        description="For support — finding the person who wrote in, and seeing what is keeping them from applying."
+        description="For support. Finding the person who wrote in, and seeing what is keeping them from applying."
       >
         <SearchInput
           value={search}

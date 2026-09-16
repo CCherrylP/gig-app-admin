@@ -40,13 +40,8 @@ export interface EmployerReview {
   companyVerificationStatus: VerificationStatus;
   /** How many people already hold a seat at this UEN. */
   companySeats: number;
-  /** What this company pays per coin, in cents, or NULL for the platform price.
-   *
-   *  Null is not 100: it means "the list price, whatever it is today", so a
-   *  standard-rate company follows a platform price change while a negotiated
-   *  rate stays put. It prices the employer's own top-up as well as the one
-   *  staff raise. */
-  companyCoinPriceCents: number | null;
+  /** `companyCoinPriceCents` is GONE, with the per-company rate behind it. One
+   *  published price now, on the Config screen, the same for everybody. */
 }
 
 export interface EmployersResponse {
@@ -120,26 +115,33 @@ export const MAX_TOPUP_COINS = 1_000_000;
  *  was topped up. */
 export const QUICK_TOPUP_COINS = [1000, 2000, 5000, 10000];
 
-/** What a negotiated coin price may be, in cents. The API enforces these; they
- *  are mirrored so the form can refuse before a round trip.
+/** Singapore's GST, in basis points. 900 = 9%.
  *
- *  A range at all because a rate outside it is not a deal, it is a typo — 10
- *  instead of 100 is a tenth of the price and looks perfectly reasonable in a
- *  form field. */
-export const COIN_PRICE_BOUNDS = { min: 50, max: 200 } as const;
+ *  Mirrored from the API's invoice controller so the preview on the top-up form
+ *  can say the total a company will actually transfer. The API is what bills;
+ *  this only explains it, and the figure it prints is re-derived server-side
+ *  before any bill exists. */
+export const GST_BASIS_POINTS = 900;
 
 /** The invoice a preset top-up raises. Shapes copied from gig-app-api's
  *  contract/admin.ts — keep them in step. */
 export interface AdminTopUp {
   id: string;
   number: string;
+  /** The QUANTITY of coins. 10,000 coins is 10,000, not a pack. */
   coins: number;
+  /** Coins times the unit price, BEFORE tax. */
   amountCents: number;
-  /** What each coin was billed at — not always the platform price, since staff
-   *  can negotiate a rate per bill. */
+  /** GST in cents. */
+  gstCents: number;
+  /** amountCents + gstCents — what the company actually transfers. */
+  totalCents: number;
+  /** What each coin was billed at. The published price, the same for everybody. */
   coinPriceCents: number;
   issuedAt: string;
   dueAt: string;
+  /** Last day the coins on this bill can be spent — the issue date plus a year. */
+  coinsValidUntil: string;
   /** Null when the account has no address, which is how staff know they still
    *  have to send the bill themselves. */
   emailedTo: string | null;
@@ -151,19 +153,12 @@ export interface AdminTopUp {
  *  confirms the transfer against a bank statement on the payments screen — the
  *  one check that keeps whoever raises a bill from also crediting it. Refused
  *  with 409 COMPANY_NOT_VERIFIED for a business nobody has confirmed exists. */
-/** Set the company's standing rate, or pass null to put them back on the list
- *  price. Those are different states: null follows a platform price change,
- *  100 is frozen at a dollar. */
-export function setCoinPrice(userId: string, coinPriceCents: number | null) {
-  return fetchWithAuth<EmployersResponse>(
-    `/admin/employers/${userId}/coin-price`,
-    { method: "PATCH", body: JSON.stringify({ coinPriceCents }) },
-  );
-}
+/** `setCoinPrice` is GONE. There is no per-company rate to set — the price lives
+ *  on the Config screen and applies to everybody. */
 
-/** Raise the bill for a company. The AMOUNT only — the rate is the company's
- *  agreed one, or the list price when they are on it. There is no per-bill
- *  override: a price with two homes is two answers to what a customer pays. */
+/** Raise the bill for a company. The AMOUNT only — the rate is the published
+ *  price. There is no per-bill override: a price with two homes is two answers
+ *  to what a customer pays. */
 export function createTopUp(
   userId: string,
   coins: number,

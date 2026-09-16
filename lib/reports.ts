@@ -34,6 +34,12 @@ export interface PayrollRow {
 
   minutes: number | null;
   amountCents: number | null;
+  /** The role's posted rate. CONTEXT, NOT THE FIGURE — `amountCents` is what
+   *  settlement wrote down and the only number anybody transfers. This is here
+   *  so a sheet can show "8h × $13.50" beside the total without dividing one by
+   *  the other, which disagrees by a cent on awkward durations and disagrees
+   *  entirely on a shift paid by a manual release. */
+  payPerHourCents: number;
   /** True while the employer has not signed off and the amount can still move.
    *  Never present an estimate as a figure somebody can transfer. */
   estimated: boolean;
@@ -67,7 +73,13 @@ export interface UnpayableCandidate {
 }
 
 export interface PayrollResponse {
+  /** The month `from` falls in — a LABEL, not the range. A week crossing the
+   *  1st has to report one of the two months it touches. Read `from`/`to`. */
   month: string;
+  /** The range actually read, 'YYYY-MM-DD', inclusive at both ends. Always
+   *  present, including on a month request. */
+  from: string;
+  to: string;
   rows: PayrollRow[];
   totals: PayrollTotals;
   unpayable: UnpayableCandidate[];
@@ -80,8 +92,15 @@ export interface MarkPaidResponse {
   totals: PayrollTotals;
 }
 
-export function listPayroll(month: string, company?: string) {
-  const query = new URLSearchParams({ month });
+/** A period somebody picked, 'YYYY-MM-DD', INCLUSIVE at both ends — which is
+ *  what a date picker means and what the API takes. */
+export interface DateRange {
+  from: string;
+  to: string;
+}
+
+export function listPayroll(range: DateRange, company?: string) {
+  const query = new URLSearchParams({ from: range.from, to: range.to });
   if (company) query.set("company", company);
 
   return fetchWithAuth<PayrollResponse>(`/admin/reports/payroll?${query}`);
@@ -163,6 +182,83 @@ export function recentMonths(count = 12) {
   });
 }
 
+// --- picking a period ---------------------------------------------------------------
+//
+// Wages are chased daily and transferred weekly, so a month is the wrong unit
+// for the person doing the work. These build the three ranges worth a button,
+// all of them in SINGAPORE time — a browser open at 1am on the 1st must not
+// offer yesterday's week because UTC has not caught up.
+
+/** Today in Singapore, 'YYYY-MM-DD'. 'en-CA' because it formats as ISO. */
+export function today() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Singapore" });
+}
+
+/** 'YYYY-MM-DD' shifted by whole days. Built from UTC parts, so it cannot pick
+ *  up the reader's timezone or a daylight-saving hour on the way through. */
+export function addDays(day: string, delta: number) {
+  const [year, month, date] = day.split("-").map(Number);
+  const at = new Date(Date.UTC(year, month - 1, date + delta));
+  return at.toISOString().slice(0, 10);
+}
+
+/** The one day, as a range. */
+export const dayRange = (day: string): DateRange => ({ from: day, to: day });
+
+/** The MONDAY-to-SUNDAY week a day falls in.
+ *
+ *  Monday rather than Sunday because that is the week a Singapore roster is
+ *  written to, and a week boundary that splits a weekend would cut most of the
+ *  shifts on this platform in half. */
+export function weekRange(day: string): DateRange {
+  const [year, month, date] = day.split("-").map(Number);
+  // getUTCDay: 0 is Sunday, so Sunday is 6 days into a Monday-led week.
+  const weekday = new Date(Date.UTC(year, month - 1, date)).getUTCDay();
+  const from = addDays(day, -((weekday + 6) % 7));
+  return { from, to: addDays(from, 6) };
+}
+
+/** A whole calendar month, from 'YYYY-MM'. */
+export function monthRange(month: string): DateRange {
+  const [year, m] = month.split("-").map(Number);
+  const from = `${month}-01`;
+  // Day 0 of the next month is the last day of this one, so February needs no
+  // special case and neither does a leap year.
+  const last = new Date(Date.UTC(year, m, 0)).getUTCDate();
+  return { from, to: `${month}-${String(last).padStart(2, "0")}` };
+}
+
+/** What to call a range in a filename: the month's short name when it is
+ *  exactly a month, the two days otherwise. A file called 'september' holding
+ *  one week is how the wrong week gets paid. */
+export function rangeLabel(range: DateRange) {
+  const asMonth = monthRange(range.from.slice(0, 7));
+  const whole = range.from === asMonth.from && range.to === asMonth.to;
+  return whole ? range.from.slice(0, 7) : `${range.from}_${range.to}`;
+}
+
+/** The same range in a sentence. */
+export function rangeText(range: DateRange) {
+  const asMonth = monthRange(range.from.slice(0, 7));
+  if (range.from === asMonth.from && range.to === asMonth.to) {
+    return monthLabel(range.from.slice(0, 7));
+  }
+  if (range.from === range.to) return dateOf(range.from);
+  return `${dateOf(range.from)} – ${dateOf(range.to)}`;
+}
+
+/** '12 Sep 2026' from a plain calendar day. Read rather than converted — parsed
+ *  as UTC a 'YYYY-MM-DD' slides a day backwards west of London. */
+function dateOf(day: string) {
+  const [y, m, d] = day.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-SG", {
+    timeZone: "UTC",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 /** '2026-09' -> 'September 2026'. */
 export function monthLabel(month: string) {
   const [year, m] = month.split("-").map(Number);
@@ -189,6 +285,163 @@ export function payoutLabel(row: PayrollRow) {
   if (!row.payoutKind) return null;
   if (row.payoutKind === "paynow") return `PayNow ·${row.payoutNumberLast4 ?? "????"}`;
   return `${row.payoutBank ?? "Bank"} ·${row.payoutNumberLast4 ?? "????"}`;
+}
+
+// --- the attendance sheet -----------------------------------------------------------
+
+/** One person, every shift behind them, and the three totals kept apart. */
+export interface CandidateSheet {
+  candidateId: string;
+  name: string;
+  phone: string | null;
+  payTo: string | null;
+  hasAccount: boolean;
+  shifts: PayrollRow[];
+  minutes: number;
+  /** Signed off and not yet sent. THE ONLY ONE THAT IS MONEY TO TRANSFER. */
+  readyCents: number;
+  /** Gone already. */
+  paidCents: number;
+  /** An estimate against hours no employer has confirmed. */
+  awaitingCents: number;
+}
+
+/**
+ * Every candidate with a shift in the range, and what makes up their total.
+ *
+ * DISTINCT PER PERSON, because that is what a transfer is: somebody who worked
+ * four shifts is one payment, not four. The shifts travel with them rather than
+ * being summed away, so "why is this the figure" is answerable on the spot.
+ *
+ * THE THREE TOTALS ARE NEVER ADDED TOGETHER. Only `readyCents` is money to
+ * send — `paidCents` has gone and `awaitingCents` is an estimate that can still
+ * move. A single "total owed" column would be the number somebody types into a
+ * bank, and it would be wrong twice over.
+ */
+export function byCandidate(rows: PayrollRow[]): CandidateSheet[] {
+  const people = new Map<string, CandidateSheet>();
+
+  for (const row of rows) {
+    let person = people.get(row.candidateId);
+
+    if (!person) {
+      person = {
+        candidateId: row.candidateId,
+        name: row.candidateName ?? "Unnamed candidate",
+        phone: row.candidatePhone,
+        payTo: payoutLabel(row),
+        hasAccount: row.payoutKind !== null,
+        shifts: [],
+        minutes: 0,
+        readyCents: 0,
+        paidCents: 0,
+        awaitingCents: 0,
+      };
+      people.set(row.candidateId, person);
+    }
+
+    person.shifts.push(row);
+    person.minutes += row.minutes ?? 0;
+
+    const cents = row.amountCents ?? 0;
+
+    if (row.status === "ready") person.readyCents += cents;
+    else if (row.status === "paid") person.paidCents += cents;
+    else person.awaitingCents += cents;
+  }
+
+  for (const person of people.values()) {
+    person.shifts.sort((a, b) => a.shiftOnDate.localeCompare(b.shiftOnDate));
+  }
+
+  // Most owed first. The sheet is worked top-down and the biggest transfer is
+  // the one worth getting right while somebody is still paying attention.
+  return [...people.values()].sort(
+    (a, b) => b.readyCents - a.readyCents || a.name.localeCompare(b.name),
+  );
+}
+
+/** The sheet as a CSV: a line per person, then a line per shift beneath them.
+ *
+ *  Same shape as the screen rather than a flat table, because this is the file
+ *  that gets sent to whoever is making the transfers — the question it answers
+ *  is "what is this person owed and why", and the answer should survive being
+ *  opened in Excel without anybody sorting it first. */
+export function sheetCsv(people: CandidateSheet[], range: DateRange) {
+  const cell = (value: string | number | null) =>
+    `"${String(value ?? "").replace(/"/g, '""')}"`;
+
+  const amount = (cents: number) => (cents / 100).toFixed(2);
+
+  const lines = [
+    [`Attendance and payout sheet — ${rangeText(range)}`].map(cell).join(","),
+    [
+      "Candidate / shift",
+      "Phone / role",
+      "Pay to",
+      "Date",
+      "Hours",
+      "Rate SGD",
+      "Ready SGD",
+      "Paid SGD",
+      "Waiting SGD",
+    ]
+      .map(cell)
+      .join(","),
+  ];
+
+  for (const person of people) {
+    lines.push(
+      [
+        cell(person.name),
+        cell(person.phone),
+        cell(person.payTo ?? "NO ACCOUNT"),
+        cell(`${person.shifts.length} shifts`),
+        cell(hours(person.minutes)),
+        cell(""),
+        cell(amount(person.readyCents)),
+        cell(amount(person.paidCents)),
+        cell(amount(person.awaitingCents)),
+      ].join(","),
+    );
+
+    for (const shift of person.shifts) {
+      const cents = shift.amountCents ?? 0;
+
+      lines.push(
+        [
+          cell(`    ${shift.companyName}`),
+          cell(shift.roleName),
+          cell(""),
+          cell(shift.shiftOnDate),
+          cell(hours(shift.minutes)),
+          cell(amount(shift.payPerHourCents)),
+          cell(shift.status === "ready" ? amount(cents) : ""),
+          cell(shift.status === "paid" ? amount(cents) : ""),
+          cell(shift.status === "awaiting_signoff" ? amount(cents) : ""),
+        ].join(","),
+      );
+    }
+  }
+
+  const sum = (pick: (person: CandidateSheet) => number) =>
+    people.reduce((total, person) => total + pick(person), 0);
+
+  lines.push(
+    [
+      cell(`TOTAL — ${people.length} candidates`),
+      cell(""),
+      cell(""),
+      cell(`${people.reduce((n, p) => n + p.shifts.length, 0)} shifts`),
+      cell(hours(sum((person) => person.minutes))),
+      cell(""),
+      cell(amount(sum((person) => person.readyCents))),
+      cell(amount(sum((person) => person.paidCents))),
+      cell(amount(sum((person) => person.awaitingCents))),
+    ].join(","),
+  );
+
+  return lines.join("\r\n");
 }
 
 /**
@@ -267,12 +520,12 @@ export function payableCsv(rows: PayrollRow[], month: string) {
  * exceljs for the job-import template — the alternative was shipping a
  * spreadsheet library to every admin for one button.
  */
-export async function downloadPayrollXlsx(month: string, company?: string) {
+export async function downloadPayrollXlsx(range: DateRange, company?: string) {
   const token = await getAccessToken();
 
   if (!token) throw new Error("Session ended");
 
-  const query = new URLSearchParams({ month });
+  const query = new URLSearchParams({ from: range.from, to: range.to });
   if (company) query.set("company", company);
 
   const res = await fetch(
@@ -282,7 +535,7 @@ export async function downloadPayrollXlsx(month: string, company?: string) {
 
   if (!res.ok) throw new Error("Could not build the spreadsheet");
 
-  saveBlob(`adhoc-payroll-${month}.xlsx`, await res.blob());
+  saveBlob(`adhoc-payroll-${rangeLabel(range)}.xlsx`, await res.blob());
 }
 
 /** Hand the browser a file it already holds. */

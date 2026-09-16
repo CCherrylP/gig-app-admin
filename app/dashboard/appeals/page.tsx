@@ -230,7 +230,7 @@ export default function AppealsPage() {
         description={
           queue === "incident"
             ? "Somebody dropped one confirmed shift and says it should not count. Read the document against the date of that shift."
-            : "Somebody is blocked from booking at all and is asking to be let back. There is no single date to check — weigh the pattern and what they say has changed."
+            : "Somebody is blocked from booking at all and is asking to be let back. There is no single date to check. Weigh the pattern and what they say has changed."
         }
       >
         <SearchInput

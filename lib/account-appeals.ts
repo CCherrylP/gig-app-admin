@@ -105,7 +105,7 @@ export function blockState(appeal: AccountAppealReview): {
   if (appeal.suspendedAt) {
     return {
       label: "Suspended",
-      detail: appeal.suspensionReason ?? "No end date — waiting on a decision",
+      detail: appeal.suspensionReason ?? "No end date, waiting on a decision",
     };
   }
 

@@ -8,10 +8,20 @@ import { fetchWithAuth } from "./api";
 // configuration screen.
 
 export interface PlatformSettings {
-  /** What one coin costs, in cents. 100 is one coin to one dollar. */
+  /** What one coin costs, in cents. 50, and the same for every company.
+   *
+   *  IT IS ALSO THE DIVISOR a shift's wages are converted through, so changing
+   *  it changes what a coin BUYS as well as what it costs — and balances people
+   *  have already paid for do not follow. See the redenomination note in the
+   *  API's prisma/migrations/fixed_coin_price.sql. */
   coinPriceCents: number;
-  /** Coins charged per hour of every shift created, flat. */
-  placementCoinsPerHour: number;
+  /** The placement fee in CENTS per hour of shift, flat. 200 — two dollars.
+   *
+   *  MONEY, NOT COINS, and the field name matters: this used to be
+   *  `placementCoinsPerHour`, which is what the API's DTO stopped calling it
+   *  when the fee moved to money. The PATCH body is strict, so the old name was
+   *  silently rejected and the fee could not be edited from this screen at all. */
+  placementFeeCents: number;
   /** Days an invoiced top-up has to be settled in. */
   invoiceTermsDays: number;
   updatedAt: string;
@@ -21,7 +31,7 @@ export interface PlatformSettings {
 export type PlatformSettingsPatch = Partial<
   Pick<
     PlatformSettings,
-    "coinPriceCents" | "placementCoinsPerHour" | "invoiceTermsDays"
+    "coinPriceCents" | "placementFeeCents" | "invoiceTermsDays"
   >
 >;
 
@@ -43,7 +53,7 @@ export function updateSettings(patch: PlatformSettingsPatch) {
 // before a round trip rather than after one. The API is the authority — these
 // exist to explain the rule, not to be it.
 export const BOUNDS = {
-  coinPriceCents: { min: 50, max: 200 },
-  placementCoinsPerHour: { min: 0, max: 50 },
+  coinPriceCents: { min: 10, max: 200 },
+  placementFeeCents: { min: 0, max: 5000 },
   invoiceTermsDays: { min: 1, max: 90 },
 } as const;

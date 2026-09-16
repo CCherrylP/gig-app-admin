@@ -380,7 +380,7 @@ export function SupportInbox({
       applyThread(result);
       // Says what the reply DID, not that a request succeeded. The push is the
       // reason this feature exists, and staff should know it went out.
-      toast.success("Reply sent — they have been notified");
+      toast.success("Reply sent, they have been notified");
     },
 
     onError: (error: Error, body, context) => {

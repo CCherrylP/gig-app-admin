@@ -76,7 +76,7 @@ export const CERTIFICATIONS: CertMeta[] = [
     id: "healthcare-support",
     name: "Healthcare support certification",
     issuer: "ITE, WSQ providers, healthcare institutions",
-    note: "Requirements vary by institution — some train on the job, others require it up front.",
+    note: "Requirements vary by institution. Some train on the job, others require it up front.",
   },
   {
     id: "cleanroom-gowning",

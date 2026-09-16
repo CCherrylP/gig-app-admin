@@ -116,9 +116,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       // rows, and payroll's largest pile — shifts waiting on an employer's
       // sign-off — is not work staff can act on. A badge counting it would
       // never reach zero.
+      //
+      // PAYROLL OPENS, because it is two readings of one set of shifts and they
+      // belong together rather than apart in the list. By shift is for settling
+      // a row; the attendance sheet is for paying a PERSON, which is what a
+      // transfer actually is — somebody who worked four shifts is one payment.
       title: "Payroll",
       url: "/dashboard/payroll",
       icon: <HugeiconsIcon icon={MoneyBag02Icon} strokeWidth={2} />,
+      children: [
+        { title: "By shift", url: "/dashboard/payroll" },
+        { title: "Attendance sheet", url: "/dashboard/payroll/sheet" },
+      ],
     },
     {
       title: "Money",

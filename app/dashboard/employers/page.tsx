@@ -37,13 +37,10 @@ import {
 import {
   decideEmployer,
   listEmployers,
-  setCoinPrice,
-  COIN_PRICE_BOUNDS,
   type EmployerFilter,
   type EmployerReview,
 } from "@/lib/employers";
-import { getSettings } from "@/lib/settings";
-import { money, relative } from "@/lib/format";
+import { relative } from "@/lib/format";
 
 // ALL FIRST, and it is the default.
 //
@@ -76,54 +73,26 @@ export default function EmployersPage() {
     queryFn: () => listEmployers(filter),
   });
 
-  // The platform price, so the dialog can say what "list price" is worth today
-  // rather than asking somebody to approve a rate they cannot see.
-  const { data: settings } = useQuery({
-    queryKey: ["settings"],
-    queryFn: getSettings,
-  });
-
   const mutation = useMutation({
+    // ONE CALL AGAIN. This used to save a negotiated rate first and approve
+    // second, so that a refused rate left the employer pending rather than live
+    // on a price nobody had agreed. There is no rate to agree any more — one
+    // published price, the same for everybody — so the decision is the whole
+    // request.
     mutationFn: async ({
       employer,
       status,
       companyVerified,
-      coinPriceCents,
-    }: Decision & {
-      companyVerified?: boolean;
-      /** What the call settled on, in cents, or null for the list price.
-       *  Undefined on a rejection — price is not a question there. */
-      coinPriceCents?: number | null;
-    }) => {
-      // THE RATE GOES FIRST, and the approval is what depends on it.
-      //
-      // The other order is the bug this whole change exists to stop: approve,
-      // then fail to save the rate, and the employer is live on the list price
-      // with nobody aware of it. This way a refused rate leaves them pending,
-      // which is a state somebody comes back to.
-      if (
-        status === "approved" &&
-        coinPriceCents !== undefined &&
-        coinPriceCents !== employer.companyCoinPriceCents
-      ) {
-        await setCoinPrice(employer.userId, coinPriceCents);
-      }
-
-      return decideEmployer(employer.userId, status, companyVerified);
-    },
-    onSuccess: (_result, { status, employer, coinPriceCents }) => {
+    }: Decision & { companyVerified?: boolean }) =>
+      decideEmployer(employer.userId, status, companyVerified),
+    onSuccess: (_result, { status, employer }) => {
       queryClient.invalidateQueries({ queryKey: ["employers"] });
       setDecision(null);
 
-      // The rate is named on the way out. A price agreed on a phone call and
-      // typed into a dialog is worth reading back once — it is the number the
-      // company's every bill is struck at.
       toast.success(
         status !== "approved"
           ? "Employer rejected"
-          : coinPriceCents == null
-            ? `${employer.companyName} approved on the list price`
-            : `${employer.companyName} approved at ${money(coinPriceCents)} a coin`,
+          : `${employer.companyName} approved`,
       );
     },
     onError: (error: Error) => {
@@ -195,7 +164,6 @@ export default function EmployersPage() {
                 "Contact",
                 "Company",
                 "Billed to",
-                "Per coin",
                 "Signed up",
                 "Status",
                 "Actions",
@@ -203,12 +171,15 @@ export default function EmployersPage() {
               // The actions get a fifth of the table. Three buttons at ~80px
               // plus their gaps is ~250px, and anything less makes them spill
               // over the status pill — which is exactly what it looked like.
+              //
+              // The "Per coin" column went with the negotiated rate. Its 8% is
+              // spread over Company and Billed to, which are the two that were
+              // truncating.
               widths={[
                 "w-[15%]",
                 "w-[16%]",
+                "w-[22%]",
                 "w-[18%]",
-                "w-[14%]",
-                "w-[8%]",
                 "w-[8%]",
                 "w-[10%]",
                 "w-[11%]",
@@ -228,13 +199,11 @@ export default function EmployersPage() {
 
       <DecisionDialog
         decision={decision}
-        listPriceCents={settings?.coinPriceCents ?? null}
         onOpenChange={(open) => {
           if (!open) setDecision(null);
         }}
-        onConfirm={(companyVerified, coinPriceCents) =>
-          decision &&
-          mutation.mutate({ ...decision, companyVerified, coinPriceCents })
+        onConfirm={(companyVerified) =>
+          decision && mutation.mutate({ ...decision, companyVerified })
         }
         isPending={mutation.isPending}
       />
@@ -353,24 +322,9 @@ function EmployerRow({
         )}
       </td>
 
-      {/* What this business pays for a coin. Null is the LIST PRICE and is said
-          in words rather than shown as a number, because "100" and "on the list
-          price" are different agreements: the second follows a platform price
-          change, the first is frozen at a dollar. */}
-      <td className="px-4 py-3">
-        {employer.companyCoinPriceCents === null ? (
-          <span className="text-xs text-muted-foreground">List price</span>
-        ) : (
-          <div className="flex min-w-0 flex-col">
-            <span className="text-sm font-medium tabular-nums">
-              {money(employer.companyCoinPriceCents)}
-            </span>
-            <span className="truncate text-[11px] font-medium text-amber-600 dark:text-amber-400">
-              Negotiated
-            </span>
-          </div>
-        )}
-      </td>
+      {/* The "Per coin" column is gone. Every company is on the one published
+          price, so a column that said the same thing on every row was carrying
+          no information. The price itself is on the Config screen. */}
 
       <td className="px-4 py-3 text-xs text-muted-foreground">
         {relative(employer.createdAt)}
@@ -429,62 +383,22 @@ function EmployerRow({
   );
 }
 
-/** What the call settled about money. Null until somebody says — there is no
- *  default, which is the point: "on the list price" has to be chosen, not
- *  arrived at by not choosing. */
-type PriceChoice = "keep" | "list" | "negotiated";
-
-/** One radio in that group. A real `<input type="radio">` rather than a styled
- *  div, so the arrow keys, the label click and the screen reader all work
- *  without being re-implemented. */
-function PriceOption({
-  checked,
-  onSelect,
-  label,
-  hint,
-  children,
-}: {
-  checked: boolean;
-  onSelect: () => void;
-  label: string;
-  hint: string;
-  children?: React.ReactNode;
-}) {
-  return (
-    <label
-      className={`flex cursor-pointer items-start gap-2 rounded-lg border p-3 text-sm transition-colors ${
-        checked ? "border-primary bg-primary/5" : "border-border bg-muted/40"
-      }`}
-    >
-      <input
-        type="radio"
-        name="coin-price"
-        checked={checked}
-        onChange={onSelect}
-        className="mt-0.5 size-4 shrink-0 border-border accent-primary"
-      />
-      <span className="min-w-0 flex-1">
-        <span className="font-medium">{label}</span>
-        <span className="mt-0.5 block text-xs text-muted-foreground">
-          {hint}
-        </span>
-        {children}
-      </span>
-    </label>
-  );
-}
+// THE RATE QUESTION IS GONE FROM THIS DIALOG, along with the radio group and
+// the cents box that went with it. Approving used to ask what the company paid
+// per coin, because a business that went live with nobody having discussed money
+// was indistinguishable from one where the list price was agreed on the call.
+// There is one published price now — see the Config screen — so there is nothing
+// to settle and nothing to get wrong.
 
 function DecisionDialog({
   decision,
-  listPriceCents,
   onOpenChange,
   onConfirm,
   isPending,
 }: {
   decision: Decision | null;
-  listPriceCents: number | null;
   onOpenChange: (open: boolean) => void;
-  onConfirm: (companyVerified?: boolean, coinPriceCents?: number | null) => void;
+  onConfirm: (companyVerified?: boolean) => void;
   isPending: boolean;
 }) {
   const approving = decision?.status === "approved";
@@ -502,55 +416,6 @@ function DecisionDialog({
   // at a checked cafe should not re-open a decision about the cafe.
   const companyDecided = employer?.companyVerificationStatus === "verified";
   const verifyCompanyToo = companyDecided ? undefined : true;
-  const [prevKey, setPrevKey] = useState<string | null>(null);
-
-  // THE RATE, and it starts unanswered on purpose.
-  //
-  // Approving used to be one button, and a company nobody discussed money for
-  // went live on the list price — indistinguishable, afterwards, from one where
-  // staff agreed the list price on the call. Same row, same null, two different
-  // conversations. So the dialog asks, and Approve stays dead until it is told.
-  const standing = employer?.companyCoinPriceCents ?? null;
-  const [priceChoice, setPriceChoice] = useState<PriceChoice | null>(null);
-  const [rateDraft, setRateDraft] = useState("");
-
-  // Reset the tick each time a different row opens the dialog, adjusted during
-  // render rather than in an effect to avoid a cascading render.
-  const key = employer ? `${employer.userId}-${decision?.status}` : null;
-  if (key !== prevKey) {
-    setPrevKey(key);
-    setPriceChoice(null);
-    // Seeded with the standing rate so "negotiated" opens on the number being
-    // changed FROM rather than an empty box — but seeding the text is not
-    // choosing the option, and nothing is submitted until one is picked.
-    setRateDraft(standing === null ? "" : String(standing));
-  }
-
-  // Mirrors the detail page's rule: whole cents, inside the bounds the API
-  // enforces. A rate outside them is not a deal, it is a typo.
-  const rateParsed = rateDraft.trim() === "" ? null : Number(rateDraft);
-  const rateValid =
-    rateParsed !== null &&
-    Number.isInteger(rateParsed) &&
-    rateParsed >= COIN_PRICE_BOUNDS.min &&
-    rateParsed <= COIN_PRICE_BOUNDS.max;
-
-  // What would actually be sent. Undefined on a rejection — the price is not a
-  // question there, and sending one would rewrite a rate while turning somebody
-  // down.
-  const resolvedCents: number | null | undefined = !approving
-    ? undefined
-    : priceChoice === "keep"
-      ? standing
-      : priceChoice === "list"
-        ? null
-        : priceChoice === "negotiated" && rateValid
-          ? rateParsed
-          : undefined;
-
-  // Approve is dead until the money question has an answer. Reject never waits
-  // on it.
-  const blocked = approving && resolvedCents === undefined;
 
   return (
     <Dialog open={!!decision} onOpenChange={onOpenChange}>
@@ -575,10 +440,7 @@ function DecisionDialog({
         </DialogHeader>
 
         {employer && (
-          // Scrolls rather than pushing the buttons off a laptop screen — the
-          // rate group made this dialog roughly twice as tall, and the footer
-          // is the part that must never be the thing that goes missing.
-          <div className="flex max-h-[60vh] flex-col gap-3 overflow-y-auto px-6 pb-4">
+          <div className="flex flex-col gap-3 px-6 pb-4">
             {/* TOLD, not asked — and only where it changes something. */}
             {approving && !companyDecided && (
               <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
@@ -591,93 +453,10 @@ function DecisionDialog({
                 pass before anyone at this UEN can post.
               </p>
             )}
-
-            {/* THE MONEY, asked on the way through rather than left to the
-                detail page. This dialog is the end of the phone call where the
-                rate was agreed, and it is the last moment anybody is thinking
-                about it. */}
-            {approving && (
-              <fieldset className="flex flex-col gap-2 rounded-lg border border-border p-3">
-                <legend className="px-1 text-sm font-medium">
-                  What does {employer.companyName} pay per coin?
-                </legend>
-
-                {/* Only when there IS one to keep. Offered first because the
-                    second manager at a company that already negotiated is the
-                    common case, and re-typing a rate that is not changing is
-                    how a typo gets in. */}
-                {standing !== null && (
-                  <PriceOption
-                    checked={priceChoice === "keep"}
-                    onSelect={() => setPriceChoice("keep")}
-                    label={`Keep ${money(standing)} a coin`}
-                    hint="The rate this company already has. Nothing changes."
-                  />
-                )}
-
-                <PriceOption
-                  checked={priceChoice === "list"}
-                  onSelect={() => setPriceChoice("list")}
-                  label={
-                    listPriceCents === null
-                      ? "List price"
-                      : `List price — ${money(listPriceCents)} a coin today`
-                  }
-                  hint="Follows the platform price. It moves when that moves."
-                />
-
-                <PriceOption
-                  checked={priceChoice === "negotiated"}
-                  onSelect={() => setPriceChoice("negotiated")}
-                  label="A negotiated rate"
-                  hint="Frozen at what was agreed. A platform price change leaves it alone."
-                >
-                  <div className="mt-2 flex items-center gap-2">
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      value={rateDraft}
-                      onFocus={() => setPriceChoice("negotiated")}
-                      onChange={(e) => setRateDraft(e.target.value)}
-                      placeholder={String(listPriceCents ?? 100)}
-                      min={COIN_PRICE_BOUNDS.min}
-                      max={COIN_PRICE_BOUNDS.max}
-                      className="w-24 rounded-md border border-border bg-background px-2 py-1 text-sm tabular-nums"
-                    />
-                    <span className="text-xs text-muted-foreground">
-                      cents a coin
-                    </span>
-                    {/* Read back in dollars beside the cents box, because 850
-                        and 85 look equally plausible typed and do not look
-                        alike at all once they are money. */}
-                    {rateValid && (
-                      <span className="text-xs font-medium tabular-nums">
-                        = {money(rateParsed!)}
-                      </span>
-                    )}
-                  </div>
-
-                  {priceChoice === "negotiated" && !rateValid && (
-                    <span className="mt-1 block text-xs font-medium text-destructive">
-                      Between {COIN_PRICE_BOUNDS.min} and{" "}
-                      {COIN_PRICE_BOUNDS.max} cents, in whole cents.
-                    </span>
-                  )}
-                </PriceOption>
-              </fieldset>
-            )}
           </div>
         )}
 
         <div className="flex items-center justify-end gap-2 border-t px-6 py-4">
-          {/* Says WHY the button is dead. A disabled control with no reason
-              beside it reads as the page being broken, and this one is dead on
-              purpose for a reason nobody can guess from looking at it. */}
-          {blocked && (
-            <span className="mr-auto text-xs text-muted-foreground">
-              Settle the rate to approve.
-            </span>
-          )}
           <Button
             variant="outline"
             size="sm"
@@ -692,9 +471,9 @@ function DecisionDialog({
             onClick={() =>
               // Only on an approval: a rejection must not quietly verify the
               // business it is turning somebody down at.
-              onConfirm(approving ? verifyCompanyToo : undefined, resolvedCents)
+              onConfirm(approving ? verifyCompanyToo : undefined)
             }
-            disabled={isPending || blocked}
+            disabled={isPending}
           >
             {isPending ? "Saving…" : approving ? "Approve" : "Reject"}
           </Button>
