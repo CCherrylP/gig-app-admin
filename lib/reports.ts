@@ -44,10 +44,19 @@ export interface PayrollRow {
    *  Never present an estimate as a figure somebody can transfer. */
   estimated: boolean;
 
+  /** PayNow or a bank transfer. Both are paid by hand out of a bank app, and
+   *  they need different things typed in — PayNow wants the mobile, a bank
+   *  wants bank + account + the name on it. */
   payoutKind: "paynow" | "bank" | null;
-  /** Masked at the API. The full number never reaches this screen. */
-  payoutNumberLast4: string | null;
+  /** THE FULL NUMBER — the mobile on PayNow, the account number on a bank
+   *  transfer. Not masked: this screen exists so somebody can make the
+   *  transfer, and nobody can pay `·4821`. See the note in the API contract. */
+  payoutNumber: string | null;
+  /** Bank transfers only. Null on PayNow, where the bank is looked up from the
+   *  number rather than chosen. */
   payoutBank: string | null;
+  /** The name the account is in — a bank checks it against the number. Usually
+   *  the candidate's own, so the screen falls back to that. */
   payoutHolderName: string | null;
 
   status: PayrollStatus;
@@ -280,11 +289,40 @@ export function hours(minutes: number | null) {
   return rest === 0 ? `${h}h` : `${h}h ${rest}m`;
 }
 
-/** How to pay them, as one short line. */
+/** Everything needed to make the transfer, split into the lines a screen shows.
+ *
+ *  THE TWO KINDS NEED DIFFERENT THINGS TYPED IN. PayNow is a mobile number and
+ *  the bank is resolved from it; a bank transfer needs the bank, the account
+ *  number and the name on the account, and gets rejected if the name does not
+ *  match. So a single "pay to" string cannot serve both, and this returns the
+ *  parts instead of pretending it can. */
+export interface Payout {
+  kind: "paynow" | "bank";
+  /** 'PayNow' or the bank's name. */
+  method: string;
+  /** The mobile, or the account number. Full. */
+  number: string;
+  /** Who the account is in the name of. */
+  holder: string | null;
+}
+
+export function payoutOf(row: PayrollRow): Payout | null {
+  if (!row.payoutKind || !row.payoutNumber) return null;
+
+  return {
+    kind: row.payoutKind,
+    method: row.payoutKind === "paynow" ? "PayNow" : (row.payoutBank ?? "Bank"),
+    number: row.payoutNumber,
+    // The holder is only asked for on the bank route, and it is the candidate's
+    // own name for all but the handful paying into somebody else's account.
+    holder: row.payoutHolderName ?? row.candidateName,
+  };
+}
+
+/** The same thing on one line, for somewhere too narrow to show the parts. */
 export function payoutLabel(row: PayrollRow) {
-  if (!row.payoutKind) return null;
-  if (row.payoutKind === "paynow") return `PayNow ·${row.payoutNumberLast4 ?? "????"}`;
-  return `${row.payoutBank ?? "Bank"} ·${row.payoutNumberLast4 ?? "????"}`;
+  const payout = payoutOf(row);
+  return payout ? `${payout.method} ${payout.number}` : null;
 }
 
 // --- the attendance sheet -----------------------------------------------------------
@@ -294,8 +332,9 @@ export interface CandidateSheet {
   candidateId: string;
   name: string;
   phone: string | null;
-  payTo: string | null;
-  hasAccount: boolean;
+  /** How to pay them, in parts — null when they have set nothing up, which is
+   *  the one thing that stops a transfer. */
+  payout: Payout | null;
   shifts: PayrollRow[];
   minutes: number;
   /** Signed off and not yet sent. THE ONLY ONE THAT IS MONEY TO TRANSFER. */
@@ -329,8 +368,7 @@ export function byCandidate(rows: PayrollRow[]): CandidateSheet[] {
         candidateId: row.candidateId,
         name: row.candidateName ?? "Unnamed candidate",
         phone: row.candidatePhone,
-        payTo: payoutLabel(row),
-        hasAccount: row.payoutKind !== null,
+        payout: payoutOf(row),
         shifts: [],
         minutes: 0,
         readyCents: 0,
@@ -368,7 +406,7 @@ export function byCandidate(rows: PayrollRow[]): CandidateSheet[] {
  *  is "what is this person owed and why", and the answer should survive being
  *  opened in Excel without anybody sorting it first. */
 export function sheetCsv(people: CandidateSheet[], range: DateRange) {
-  const cell = (value: string | number | null) =>
+  const cell = (value: string | number | null | undefined) =>
     `"${String(value ?? "").replace(/"/g, '""')}"`;
 
   const amount = (cents: number) => (cents / 100).toFixed(2);
@@ -378,7 +416,9 @@ export function sheetCsv(people: CandidateSheet[], range: DateRange) {
     [
       "Candidate / shift",
       "Phone / role",
-      "Pay to",
+      "Method",
+      "Account number",
+      "Account name",
       "Date",
       "Hours",
       "Rate SGD",
@@ -395,7 +435,9 @@ export function sheetCsv(people: CandidateSheet[], range: DateRange) {
       [
         cell(person.name),
         cell(person.phone),
-        cell(person.payTo ?? "NO ACCOUNT"),
+        cell(person.payout?.method ?? "NO ACCOUNT"),
+        cell(person.payout?.number),
+        cell(person.payout?.holder),
         cell(`${person.shifts.length} shifts`),
         cell(hours(person.minutes)),
         cell(""),
@@ -412,6 +454,8 @@ export function sheetCsv(people: CandidateSheet[], range: DateRange) {
         [
           cell(`    ${shift.companyName}`),
           cell(shift.roleName),
+          cell(""),
+          cell(""),
           cell(""),
           cell(shift.shiftOnDate),
           cell(hours(shift.minutes)),
@@ -430,6 +474,8 @@ export function sheetCsv(people: CandidateSheet[], range: DateRange) {
   lines.push(
     [
       cell(`TOTAL — ${people.length} candidates`),
+      cell(""),
+      cell(""),
       cell(""),
       cell(""),
       cell(`${people.reduce((n, p) => n + p.shifts.length, 0)} shifts`),
@@ -479,23 +525,40 @@ export function payableCsv(rows: PayrollRow[], month: string) {
 
   // Quoted, because a company or a person's name can contain a comma and an
   // unquoted one silently shifts every later column by one.
-  const cell = (value: string | number | null) =>
+  const cell = (value: string | number | null | undefined) =>
     `"${String(value ?? "").replace(/"/g, '""')}"`;
 
   const lines = [
-    ["Name", "Phone", "Method", "Bank", "Account (last 4)", "Shifts", "Amount SGD", "Reference"]
+    [
+      "Name",
+      "Phone",
+      "Method",
+      "Bank",
+      "Account number",
+      "Account name",
+      "Shifts",
+      "Amount SGD",
+      "Reference",
+    ]
       .map(cell)
       .join(","),
   ];
 
   for (const { row, cents, shifts } of byCandidate.values()) {
+    const payout = payoutOf(row);
+
     lines.push(
       [
         cell(row.candidateName),
         cell(row.candidatePhone),
-        cell(row.payoutKind === "paynow" ? "PayNow" : "Bank"),
+        // PayNow or the bank's own name — a bulk-upload form asks for different
+        // fields depending which, so the two are never flattened to "Bank".
+        cell(payout?.kind === "paynow" ? "PayNow" : "Bank"),
         cell(row.payoutBank),
-        cell(row.payoutNumberLast4),
+        // THE FULL NUMBER. This file is uploaded to a bank, and four digits was
+        // never something it could transfer to.
+        cell(payout?.number),
+        cell(payout?.holder),
         cell(shifts),
         // Plain decimal, no currency symbol and no thousands separator — a
         // bank upload wants a number, not a rendered one.

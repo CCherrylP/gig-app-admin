@@ -124,7 +124,7 @@ export default function PayoutSheetPage() {
   // reason the payroll page does it: finding out halfway through a batch of
   // transfers is how somebody gets missed for a month.
   const stuck = useMemo(
-    () => shown.filter((person) => !person.hasAccount && person.readyCents > 0),
+    () => shown.filter((person) => !person.payout && person.readyCents > 0),
     [shown],
   );
 
@@ -341,12 +341,14 @@ export default function PayoutSheetPage() {
           ) : (
             <TableShell
               headers={["", "Candidate", "Pay to", "Shifts", "Hours", "Ready", "Waiting", ""]}
+              // Pay to gets the widest share after the name: it carries a full
+              // account number now, and a truncated one is worse than none.
               widths={[
                 "w-[3%]",
-                "w-[24%]",
-                "w-[16%]",
+                "w-[22%]",
+                "w-[20%]",
+                "w-[7%]",
                 "w-[8%]",
-                "w-[9%]",
                 "w-[12%]",
                 "w-[12%]",
                 "w-[16%]",
@@ -418,9 +420,27 @@ function PersonRows({
           </div>
         </td>
 
-        <td className="truncate px-4 py-3">
-          {person.payTo ? (
-            <span className="truncate text-xs">{person.payTo}</span>
+        {/* EVERYTHING NEEDED TO MAKE THE TRANSFER, in full and on the row.
+            The number is mono and select-all: it is copied into a bank app,
+            and a digit misread out of a proportional font pays a stranger.
+            The account name is there because a bank rejects a transfer whose
+            holder does not match the number — PayNow resolves the name from
+            the mobile itself, so it is only shown on the bank route. */}
+        <td className="px-4 py-3">
+          {person.payout ? (
+            <div className="flex min-w-0 flex-col">
+              <span className="truncate text-xs text-muted-foreground">
+                {person.payout.method}
+              </span>
+              <span className="truncate font-mono text-xs select-all">
+                {person.payout.number}
+              </span>
+              {person.payout.kind === "bank" && person.payout.holder && (
+                <span className="truncate text-xs text-muted-foreground">
+                  {person.payout.holder}
+                </span>
+              )}
+            </div>
           ) : (
             <span className="text-xs font-medium text-amber-600">No account</span>
           )}
@@ -450,7 +470,7 @@ function PersonRows({
         </td>
 
         <td className="px-4 py-3 text-right">
-          {readyShifts.length > 0 && person.hasAccount && (
+          {readyShifts.length > 0 && person.payout && (
             <Button
               size="xs"
               disabled={isPending}

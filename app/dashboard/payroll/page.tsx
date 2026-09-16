@@ -34,7 +34,7 @@ import {
   monthLabel,
   monthRange,
   payableCsv,
-  payoutLabel,
+  payoutOf,
   recentMonths,
   type PayrollRow,
   type PayrollStatus,
@@ -390,7 +390,7 @@ function Row({
   checked: boolean;
   onToggle: () => void;
 }) {
-  const payTo = payoutLabel(row);
+  const payout = payoutOf(row);
 
   return (
     <tr className="border-b last:border-0">
@@ -426,9 +426,19 @@ function Row({
 
       <td className="px-4 py-3 tabular-nums">{hours(row.minutes)}</td>
 
+      {/* The method above, the number below, and the number is SELECTABLE and
+          in a mono face — it gets copied into a bank app, and a digit misread
+          out of a proportional font is a transfer to a stranger. */}
       <td className="truncate px-4 py-3">
-        {payTo ? (
-          <span className="truncate text-xs">{payTo}</span>
+        {payout ? (
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate text-xs text-muted-foreground">
+              {payout.method}
+            </span>
+            <span className="truncate font-mono text-xs select-all">
+              {payout.number}
+            </span>
+          </div>
         ) : (
           <span className="text-xs text-amber-600">No account</span>
         )}
