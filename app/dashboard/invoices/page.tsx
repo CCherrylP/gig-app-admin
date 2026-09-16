@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -40,7 +40,7 @@ import {
 } from "@/lib/invoices";
 import { coins, date, isPast, money, relative } from "@/lib/format";
 
-// All first and default â€” see the note on the employers page. Unpaid keeps its
+// All first and default — see the note on the employers page. Unpaid keeps its
 // count, so money still owed announces itself without being the only view.
 //
 // A `?status=` in the URL still wins: arriving from a link that asked for one
@@ -93,7 +93,7 @@ function InvoiceQueue() {
   // Arriving from an employer's page, which links here with the company's UEN
   // and usually `status=all`. Seeded into the ordinary search box rather than
   // held as a separate hidden filter, so the narrowing is visible and can be
-  // cleared by deleting it â€” a list quietly filtered by something off-screen is
+  // cleared by deleting it — a list quietly filtered by something off-screen is
   // how somebody concludes an invoice has vanished.
   const params = useSearchParams();
   const fromUrl = params.get("company") ?? "";
@@ -105,7 +105,7 @@ function InvoiceQueue() {
   const [search, setSearch] = useState(fromUrl);
   const [decision, setDecision] = useState<Decision | null>(null);
 
-  // Re-seed when the URL changes under a mounted page â€” going straight from one
+  // Re-seed when the URL changes under a mounted page — going straight from one
   // employer's invoices to another's is the same route with a different query,
   // so React keeps this component and its state. Adjusted during render rather
   // than in an effect, the same pattern the employers dialog uses.
@@ -129,7 +129,7 @@ function InvoiceQueue() {
       setDecision(null);
       toast.success(
         status === "paid"
-          ? "Payment confirmed â€” coins credited"
+          ? "Payment confirmed — coins credited"
           : "Invoice cancelled",
       );
     },
@@ -164,7 +164,7 @@ function InvoiceQueue() {
         <SearchInput
           value={search}
           onChange={setSearch}
-          placeholder="Search number, company or UENâ€¦"
+          placeholder="Search number, company or UEN…"
           className="w-full sm:w-72"
         />
       </PageHeader>
@@ -172,18 +172,18 @@ function InvoiceQueue() {
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard
           label="Awaiting confirmation"
-          count={data?.awaitingConfirmationCount ?? "â€”"}
+          count={data?.awaitingConfirmationCount ?? "—"}
           icon={ReceiptIcon}
           cls="text-amber-500"
         />
         <StatCard
           label="Unpaid invoices"
-          count={data?.unpaidCount ?? "â€”"}
+          count={data?.unpaidCount ?? "—"}
           icon={Invoice01Icon}
         />
         <StatCard
           label="Outstanding"
-          count={data ? money(data.outstandingCents) : "â€”"}
+          count={data ? money(data.outstandingCents) : "—"}
           icon={CheckmarkCircle02Icon}
         />
       </div>
@@ -335,7 +335,7 @@ function InvoiceRow({
           </Button>
 
           {/* Evidence, not a decision. A row carrying a receipt is still
-              unpaid â€” what settles an invoice is the bank statement. */}
+              unpaid — what settles an invoice is the bank statement. */}
           <Button
             variant="outline"
             size="xs"
@@ -399,7 +399,7 @@ function DecisionDialog({
           <DialogDescription>
             {decision && paying && (
               <>
-                {decision.invoice.number} â€”{" "}
+                {decision.invoice.number} —{" "}
                 <span className="font-medium text-foreground">
                   {money(decision.invoice.totalCents)}
                 </span>{" "}
@@ -407,7 +407,7 @@ function DecisionDialog({
                 <span className="font-medium text-foreground">
                   {coins(decision.invoice.coins)} coins
                 </span>{" "}
-                and cannot be undone â€” only confirm it against the transfer on
+                and cannot be undone — only confirm it against the transfer on
                 the bank statement, not against an uploaded receipt.
               </>
             )}
@@ -436,7 +436,7 @@ function DecisionDialog({
             disabled={isPending}
           >
             {isPending
-              ? "Savingâ€¦"
+              ? "Saving…"
               : paying
                 ? "Confirm payment"
                 : "Cancel invoice"}

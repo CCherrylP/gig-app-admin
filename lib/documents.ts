@@ -43,7 +43,20 @@ export async function openFreshDocument<T>({
   // after a promise resolves has lost the user-gesture that permits it, and
   // every browser blocks it as a popup — so the tab is claimed first and its
   // location set once the URL arrives.
-  const tab = window.open("", "_blank", "noopener,noreferrer");
+  //
+  // NO `noopener` IN THE FEATURES STRING, and that is not an oversight. The spec
+  // says window.open() returns NULL whenever noopener is set — there is no
+  // handle to hand back, which is the entire point of the flag. Passing it here
+  // meant `tab` was always null: the browser opened the blank tab anyway, the
+  // `if (tab)` below never ran, and the fallback redirected THIS page to the
+  // document. So every receipt and certificate opened a blank tab and threw the
+  // reviewer off the queue they were working.
+  //
+  // The opener is severed on the line below instead, which gets both: a handle
+  // to point at the URL, and a new tab that cannot reach back into this one.
+  const tab = window.open("", "_blank");
+
+  if (tab) tab.opener = null;
 
   try {
     const data = await queryClient.fetchQuery({

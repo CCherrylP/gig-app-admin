@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Suspense, useState } from "react";
 import Link from "next/link";
@@ -41,7 +41,7 @@ import { coins as formatCoins, date, money, relative } from "@/lib/format";
 // unpaid AND the company has said they transferred. The rest of the unpaid pile
 // is waiting on the employer, not on us, so it shows here only as a total.
 //
-// Nothing on this page decides anything â€” confirming a transfer is the only act
+// Nothing on this page decides anything — confirming a transfer is the only act
 // in the system that creates coins, and it belongs next to the invoice's own
 // receipt and PDF. Invoices is where that happens; this is where you find out
 // there is something to do.
@@ -51,7 +51,7 @@ import { coins as formatCoins, date, money, relative } from "@/lib/format";
 // a subset is how somebody concludes a payment never arrived.
 
 export default function PaymentsPage() {
-  // Required, not stylistic â€” a static page reading `useSearchParams` from a
+  // Required, not stylistic — a static page reading `useSearchParams` from a
   // Client Component fails the production build without a boundary, while
   // rendering fine in development.
   return (
@@ -128,18 +128,18 @@ function PaymentsQueue() {
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard
           label="Awaiting confirmation"
-          count={data ? awaitingCount : "â€”"}
+          count={data ? awaitingCount : "—"}
           icon={ReceiptIcon}
           cls="text-amber-500"
         />
         <StatCard
           label="Unpaid invoices"
-          count={data ? unpaidCount : "â€”"}
+          count={data ? unpaidCount : "—"}
           icon={Invoice01Icon}
         />
         <StatCard
           label="Outstanding"
-          count={data ? money(outstandingCents) : "â€”"}
+          count={data ? money(outstandingCents) : "—"}
           icon={CheckmarkCircle02Icon}
         />
       </div>
@@ -178,7 +178,7 @@ function PaymentsQueue() {
             key: invoice.id,
             seed: invoice.companyId,
             title: invoice.companyName,
-            subtitle: `${invoice.number} Â· ${money(invoice.totalCents)}`,
+            subtitle: `${invoice.number} · ${money(invoice.totalCents)}`,
             meta: relative(invoice.paymentProofAt),
           }))}
         />
@@ -201,7 +201,7 @@ function PaymentsQueue() {
  *  making somebody navigate elsewhere to act on the one they just found is the
  *  hop that was being complained about.
  *
- *  Both documents are re-signed at click time â€” the links minted when the queue
+ *  Both documents are re-signed at click time — the links minted when the queue
  *  loaded expire in ten minutes, and a lapsed one shows a raw Supabase error
  *  page. See lib/documents. */
 function InvoiceDialog({
@@ -223,7 +223,7 @@ function InvoiceDialog({
       onOpenChange(false);
       toast.success(
         status === "paid"
-          ? "Payment confirmed â€” coins credited"
+          ? "Payment confirmed — coins credited"
           : "Invoice cancelled",
       );
     },
@@ -264,7 +264,7 @@ function InvoiceDialog({
             {invoice && (
               <>
                 {invoice.companyName}
-                {invoice.companyUen ? ` Â· UEN ${invoice.companyUen}` : ""}
+                {invoice.companyUen ? ` · UEN ${invoice.companyUen}` : ""}
               </>
             )}
           </DialogDescription>
@@ -317,7 +317,7 @@ function InvoiceDialog({
             </div>
 
             {/* Evidence, not a decision. What settles an invoice is the transfer
-                on the bank statement â€” a screenshot is the easiest artefact
+                on the bank statement — a screenshot is the easiest artefact
                 here to fake, and confirming is what creates the coins. */}
             <p className="rounded-lg border border-amber-500/30 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-900/15 dark:text-amber-200">
               Confirm against the transfer on the bank statement, not against the
@@ -344,8 +344,8 @@ function InvoiceDialog({
                 disabled={decide.isPending}
               >
                 {decide.isPending
-                  ? "Confirmingâ€¦"
-                  : `Yes â€” credit ${invoice ? formatCoins(invoice.coins) : ""} coins`}
+                  ? "Confirming…"
+                  : `Yes — credit ${invoice ? formatCoins(invoice.coins) : ""} coins`}
               </Button>
             </>
           ) : (
