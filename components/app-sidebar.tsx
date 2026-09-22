@@ -28,6 +28,7 @@ import {
   InboxIcon,
   MoneyBag02Icon,
   ChartLineData01Icon,
+  Calendar03Icon,
 } from "@hugeicons/core-free-icons";
 import Logo from "./common/Logo";
 import { listCertificates } from "@/lib/certificates";
@@ -83,6 +84,20 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       title: "Overview",
       url: "/dashboard",
       icon: <HugeiconsIcon icon={HomeIcon} strokeWidth={2} />,
+    },
+    {
+      // HERE, beside Overview, for the same reason Inbox and the two reports
+      // are: a shift is both sides at once. The employer posted it and the
+      // candidate works it, so filing it under either would hide half of what it
+      // is about.
+      //
+      // NO BADGE, and this is the one where it was tempting. Unfilled shifts are
+      // a real number and the page shows it — but nobody on staff can fill a
+      // shift, only the board can, so a badge counting them would show work that
+      // cannot be done and would never reach zero.
+      title: "Shifts",
+      url: "/dashboard/shifts",
+      icon: <HugeiconsIcon icon={Calendar03Icon} strokeWidth={2} />,
     },
     {
       // Up here rather than under Candidates or Employers because it is the one
