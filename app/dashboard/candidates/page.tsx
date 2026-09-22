@@ -15,6 +15,7 @@ import {
   CallIcon,
   UserBlock01Icon,
   CheckmarkCircle02Icon,
+  Clock01Icon,
 } from "@hugeicons/core-free-icons";
 
 import { Button } from "@/components/ui/button";
@@ -39,12 +40,15 @@ import {
 } from "@/components/dashboard/data-views";
 import {
   CANDIDATE_PAGE_SIZE,
+  hasOwnCap,
   listCandidates,
   ratingLabel,
+  setHoursCap,
   setSuspension,
   type BookingFilter,
   type CandidateSummary,
 } from "@/lib/candidates";
+import { MIN_CAP_MINUTES, capLabel, toHours, toMinutes } from "@/lib/settings";
 import { date, isPast, relative } from "@/lib/format";
 
 type VerifiedFilter = "all" | "verified" | "unverified";
@@ -69,6 +73,10 @@ export default function CandidatesPage() {
   const [booking, setBooking] = useState<BookingFilter>("all");
   const [offset, setOffset] = useState(0);
   const [target, setTarget] = useState<CandidateSummary | null>(null);
+  // A separate target from the suspension's, so the two dialogs cannot be open
+  // about different people at once — and so closing one does not clear the
+  // other's row out from under it.
+  const [capping, setCapping] = useState<CandidateSummary | null>(null);
 
   // The search goes to the API rather than filtering a page in the browser —
   // this list is capped at fifty rows, so a client-side filter would only ever
@@ -103,6 +111,32 @@ export default function CandidatesPage() {
     },
     onError: (error: Error) => {
       toast.error(error.message || "Could not change that suspension");
+    },
+  });
+
+  const capMutation = useMutation({
+    mutationFn: ({
+      candidate,
+      cap,
+    }: {
+      candidate: CandidateSummary;
+      cap: {
+        maxDailyMinutes: number | null;
+        maxWeeklyMinutes: number | null;
+        reason?: string | null;
+      };
+    }) => setHoursCap(candidate.userId, cap),
+    onSuccess: (_result, { cap }) => {
+      queryClient.invalidateQueries({ queryKey: ["candidates"] });
+      setCapping(null);
+      toast.success(
+        cap.maxDailyMinutes === null && cap.maxWeeklyMinutes === null
+          ? "Back on the platform's hours limits"
+          : "Hours limit saved for this candidate",
+      );
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Could not save that limit");
     },
   });
 
@@ -192,6 +226,7 @@ export default function CandidatesPage() {
                   key={candidate.userId}
                   candidate={candidate}
                   onToggle={() => setTarget(candidate)}
+                  onEditHours={() => setCapping(candidate)}
                 />
               ))}
             </TableShell>
@@ -230,6 +265,17 @@ export default function CandidatesPage() {
         }
         isPending={mutation.isPending}
       />
+
+      <HoursCapDialog
+        candidate={capping}
+        onOpenChange={(open) => {
+          if (!open) setCapping(null);
+        }}
+        onSave={(cap) =>
+          capping && capMutation.mutate({ candidate: capping, cap })
+        }
+        isPending={capMutation.isPending}
+      />
     </div>
   );
 }
@@ -237,9 +283,11 @@ export default function CandidatesPage() {
 function CandidateRow({
   candidate,
   onToggle,
+  onEditHours,
 }: {
   candidate: CandidateSummary;
   onToggle: () => void;
+  onEditHours: () => void;
 }) {
   const name = candidate.name ?? "Unnamed candidate";
   const suspended = !!candidate.suspendedAt;
@@ -357,6 +405,25 @@ function CandidateRow({
             Can book
           </span>
         )}
+
+        {/* THE THIRD REASON A BOOKING CAN BE REFUSED, and it belongs in this
+            column rather than one of its own: the question the column asks is
+            "can they book", and somebody on 16 hours a week can book until
+            they cannot. It is not a penalty, so it sits under the pill rather
+            than replacing it. */}
+        {hasOwnCap(candidate) && (
+          <div className="mt-1.5 flex min-w-0 flex-col gap-0.5">
+            <span className="inline-flex w-fit items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-900/30 dark:text-sky-300">
+              <HugeiconsIcon icon={Clock01Icon} size={11} strokeWidth={2} />
+              {candidate.maxWeeklyMinutes !== null
+                ? `${capLabel(candidate.maxWeeklyMinutes)} a week`
+                : `${capLabel(candidate.maxDailyMinutes)} a day`}
+            </span>
+            <span className="line-clamp-2 text-[11px] text-muted-foreground">
+              {candidate.hoursCapReason ?? "Own hours limit"}
+            </span>
+          </div>
+        )}
       </td>
 
       <td className="px-4 py-3">
@@ -372,7 +439,11 @@ function CandidateRow({
       </td>
 
       <td className="px-4 py-3">
-        <div className="flex items-center justify-end">
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
+          <Button variant="outline" size="xs" onClick={onEditHours}>
+            <HugeiconsIcon icon={Clock01Icon} strokeWidth={2} />
+            Hours
+          </Button>
           {suspended ? (
             <Button size="xs" onClick={onToggle}>
               <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} />
@@ -387,6 +458,272 @@ function CandidateRow({
         </div>
       </td>
     </tr>
+  );
+}
+
+/** The three things one of these numbers can say. A form with a blank box
+ *  cannot tell them apart — "empty" would have to mean either "follow the
+ *  platform" or "no limit", and those are opposite instructions. */
+type CapMode = "default" | "none" | "custom";
+
+const MODES: { value: CapMode; label: string }[] = [
+  { value: "default", label: "Platform limit" },
+  { value: "none", label: "No limit" },
+  { value: "custom", label: "Their own limit" },
+];
+
+const modeOf = (minutes: number | null): CapMode =>
+  minutes === null ? "default" : minutes === 0 ? "none" : "custom";
+
+function HoursCapDialog({
+  candidate,
+  onOpenChange,
+  onSave,
+  isPending,
+}: {
+  candidate: CandidateSummary | null;
+  onOpenChange: (open: boolean) => void;
+  onSave: (cap: {
+    maxDailyMinutes: number | null;
+    maxWeeklyMinutes: number | null;
+    reason?: string | null;
+  }) => void;
+  isPending: boolean;
+}) {
+  const [form, setForm] = useState({
+    dailyMode: "default" as CapMode,
+    dailyHours: "",
+    weeklyMode: "default" as CapMode,
+    weeklyHours: "",
+    reason: "",
+  });
+  const [prevId, setPrevId] = useState<string | null>(null);
+
+  // Loaded from the row when a different candidate opens the dialog, adjusted
+  // during render rather than in an effect — the same pattern the suspension
+  // dialog below uses. A limit left over from the last person is the worst
+  // possible thing to have sitting in these boxes.
+  if ((candidate?.userId ?? null) !== prevId) {
+    setPrevId(candidate?.userId ?? null);
+    setForm({
+      dailyMode: modeOf(candidate?.maxDailyMinutes ?? null),
+      dailyHours: candidate?.maxDailyMinutes
+        ? String(toHours(candidate.maxDailyMinutes))
+        : "",
+      weeklyMode: modeOf(candidate?.maxWeeklyMinutes ?? null),
+      weeklyHours: candidate?.maxWeeklyMinutes
+        ? String(toHours(candidate.maxWeeklyMinutes))
+        : "",
+      reason: candidate?.hoursCapReason ?? "",
+    });
+  }
+
+  const minutesFor = (mode: CapMode, typed: string): number | null | undefined => {
+    if (mode === "default") return null;
+    if (mode === "none") return 0;
+
+    const minutes = toMinutes(Number(typed));
+    // `undefined` is "they chose their own limit and have not given a usable
+    // one yet" — a third answer from the null that means "follow the platform",
+    // and the reason the save button can be blocked without guessing.
+    if (typed.trim() === "" || !Number.isFinite(minutes)) return undefined;
+    return minutes;
+  };
+
+  const daily = minutesFor(form.dailyMode, form.dailyHours);
+  const weekly = minutesFor(form.weeklyMode, form.weeklyHours);
+
+  const badNumber = (minutes: number | null | undefined) =>
+    minutes === undefined || (minutes !== null && minutes !== 0 && minutes < MIN_CAP_MINUTES);
+
+  const clearing = daily === null && weekly === null;
+  // Matches the API's floor, and the reason for it is the same as the
+  // suspension's: this text is shown to the candidate when a booking is refused.
+  const reasonTooShort = form.reason.trim().length < 10;
+
+  const blocked =
+    badNumber(daily) ||
+    badNumber(weekly) ||
+    (!clearing && reasonTooShort);
+
+  return (
+    <Dialog open={!!candidate} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Hours limit for this candidate</DialogTitle>
+          <DialogDescription>
+            {candidate && (
+              <>
+                The platform&apos;s own limits apply to{" "}
+                <span className="font-medium text-foreground">
+                  {candidate.name ?? "this candidate"}
+                </span>{" "}
+                unless something here says otherwise — set one only when the cap
+                is a fact about them rather than policy. A student pass allows 16
+                hours a week during term, and no platform-wide number can say
+                that without capping everybody at 16.
+              </>
+            )}
+          </DialogDescription>
+        </DialogHeader>
+
+        {candidate && (
+          <div className="flex flex-col gap-4 px-6 pb-4">
+            <div className="rounded-lg border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+              Nothing they already hold is affected: a limit refuses the{" "}
+              <span className="font-medium text-foreground">next</span> shift they
+              try to take. They are not notified when one is set — it takes
+              nothing away, and they meet it only at the point they would exceed
+              it, where the refusal carries the reason below.
+            </div>
+
+            <CapField
+              label="In one day"
+              id="cap-daily"
+              mode={form.dailyMode}
+              hours={form.dailyHours}
+              onMode={(dailyMode) => setForm((f) => ({ ...f, dailyMode }))}
+              onHours={(dailyHours) => setForm((f) => ({ ...f, dailyHours }))}
+            />
+
+            <CapField
+              label="In one week (Mon–Sun)"
+              id="cap-weekly"
+              mode={form.weeklyMode}
+              hours={form.weeklyHours}
+              onMode={(weeklyMode) => setForm((f) => ({ ...f, weeklyMode }))}
+              onHours={(weeklyHours) => setForm((f) => ({ ...f, weeklyHours }))}
+            />
+
+            {!clearing && (
+              <div className="flex flex-col gap-2">
+                <label htmlFor="cap-reason" className="text-sm font-medium">
+                  Why — the candidate is shown this
+                </label>
+                <Input
+                  id="cap-reason"
+                  value={form.reason}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, reason: e.target.value }))
+                  }
+                  placeholder="Student pass — 16 hours a week during term"
+                />
+                <p
+                  className={
+                    reasonTooShort && form.reason.length > 0
+                      ? "text-xs font-medium text-destructive"
+                      : "text-xs text-muted-foreground"
+                  }
+                >
+                  At least 10 characters. It is the sentence they read when a
+                  shift is refused, and a limit with nothing written against it is
+                  one they cannot answer.
+                </p>
+              </div>
+            )}
+
+            {candidate.hoursCapSetAt && (
+              <p className="text-xs text-muted-foreground">
+                Current limit set {relative(candidate.hoursCapSetAt)}
+                {candidate.hoursCapSetById ? " by staff" : ""}.
+              </p>
+            )}
+          </div>
+        )}
+
+        <div className="flex items-center justify-end gap-2 border-t px-6 py-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onOpenChange(false)}
+            disabled={isPending}
+          >
+            Back
+          </Button>
+          <Button
+            size="sm"
+            disabled={isPending || blocked}
+            onClick={() =>
+              onSave({
+                // Narrowed by `blocked` above: neither can be undefined here.
+                maxDailyMinutes: (daily ?? null) as number | null,
+                maxWeeklyMinutes: (weekly ?? null) as number | null,
+                reason: clearing ? null : form.reason.trim(),
+              })
+            }
+          >
+            {isPending
+              ? "Saving…"
+              : clearing
+                ? "Use the platform's limits"
+                : "Save this limit"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CapField({
+  label,
+  id,
+  mode,
+  hours,
+  onMode,
+  onHours,
+}: {
+  label: string;
+  id: string;
+  mode: CapMode;
+  hours: string;
+  onMode: (mode: CapMode) => void;
+  onHours: (hours: string) => void;
+}) {
+  const minutes = toMinutes(Number(hours));
+  const bad =
+    mode === "custom" &&
+    hours.trim() !== "" &&
+    (!Number.isFinite(minutes) || minutes < MIN_CAP_MINUTES);
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={id} className="text-sm font-medium">
+        {label}
+      </label>
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          id={id}
+          value={mode}
+          onChange={(e) => onMode(e.target.value as CapMode)}
+          className="h-9 rounded-md border border-border bg-background px-3 text-sm"
+        >
+          {MODES.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        {mode === "custom" && (
+          <>
+            <Input
+              type="number"
+              inputMode="decimal"
+              step="0.5"
+              value={hours}
+              aria-invalid={bad}
+              onChange={(e) => onHours(e.target.value)}
+              className="h-9 w-24 tabular-nums"
+            />
+            <span className="text-xs text-muted-foreground">hours</span>
+          </>
+        )}
+      </div>
+      {bad && (
+        <p className="text-xs font-medium text-destructive">
+          An hour at least. Choose &ldquo;No limit&rdquo; to exempt them instead.
+        </p>
+      )}
+    </div>
   );
 }
 

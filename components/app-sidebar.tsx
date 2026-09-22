@@ -22,6 +22,7 @@ import {
   Legal01Icon,
   BuildingIcon,
   UserGroupIcon,
+  StarIcon,
   Coins01Icon,
   Clock01Icon,
   ReceiptIcon,
@@ -184,6 +185,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       title: "All Candidates",
       url: "/dashboard/candidates",
       icon: <HugeiconsIcon icon={UserGroupIcon} strokeWidth={2} />,
+    },
+    {
+      // No badge either, and for a stronger reason than the directory above: a
+      // block is not work waiting on staff. It is one employer's own decision
+      // about their own site, and badging a count of them would turn a record
+      // into a queue nobody is meant to clear.
+      title: "Reputation",
+      url: "/dashboard/reputation",
+      icon: <HugeiconsIcon icon={StarIcon} strokeWidth={2} />,
     },
   ];
 

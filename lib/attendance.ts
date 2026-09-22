@@ -12,7 +12,12 @@ import { fetchWithAuth } from "./api";
 
 export type CheckInMethod = "code" | "selfie";
 export type SelfieReview = "pending" | "approved" | "rejected";
-export type AttendanceFilter = "attention" | "missing" | "reviewed" | "all";
+export type AttendanceFilter =
+  | "attention"
+  | "missing"
+  | "upcoming"
+  | "reviewed"
+  | "all";
 
 export interface AttendanceRecord {
   applicationId: string;
@@ -60,9 +65,43 @@ export interface AttendanceResponse {
   records: AttendanceRecord[];
   pendingReviewCount: number;
   attentionCount: number;
-  /** Shifts with an end of the clock missing and nobody paid. */
+  /** Shifts with an end of the clock missing and nobody paid. Only shifts that
+   *  have ENDED — a booking for next week has not missed anything. */
   missingCount: number;
+  /** Bookings still to run, or running now. A diary, not a work pile. */
+  upcomingCount: number;
 }
+
+/** When a shift actually finishes, overnight included.
+ *
+ *  The API's `shiftEndInstant`, repeated on this side for one reason: whether
+ *  the Release button appears. `all` lists shifts that have not run yet, and the
+ *  API refuses to release those (409 SHIFT_NOT_OVER) — offering the button and
+ *  then failing on it would be the same bug one step later.
+ *
+ *  Both columns are Singapore wall clocks, so an end at or before the start has
+ *  rolled past midnight: 21:00–05:00 finishes the next morning, not sixteen
+ *  hours before it began. */
+export function shiftEndsAt(record: {
+  shiftOnDate: string;
+  scheduledStart: string;
+  scheduledEnd: string;
+}) {
+  const start = new Date(`${record.shiftOnDate}T${record.scheduledStart}:00+08:00`);
+  const end = new Date(`${record.shiftOnDate}T${record.scheduledEnd}:00+08:00`);
+
+  return end > start ? end : new Date(end.getTime() + 86_400_000);
+}
+
+/** Has this shift been and gone? */
+export const shiftHasEnded = (
+  record: {
+    shiftOnDate: string;
+    scheduledStart: string;
+    scheduledEnd: string;
+  },
+  now: Date = new Date(),
+) => shiftEndsAt(record) <= now;
 
 /** The geofence the selfie route is gated on, repeated here so the screen can
  *  say WHY a row is flagged. The API is the authority. */

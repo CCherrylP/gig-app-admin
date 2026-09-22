@@ -3,11 +3,18 @@ import { fetchWithAuth } from "./api";
 // GET /admin/candidates — the support directory, and the only browsable list
 // behind /admin.
 //
-// ONE thing here is writable: the suspension. That is not a directory feature
-// that crept in — it is the other half of a rule the API already enforces. A
-// no-show, or a third late cancellation, blocks booking with no end date
-// "pending a human decision" (lib/penalty says so, and deliberately refuses to
-// make it automatic). This is where that human decides.
+// TWO things here are writable, and both are the other half of a rule the API
+// enforces rather than directory features that crept in.
+//
+//   the suspension  a no-show, or a third late cancellation, blocks booking with
+//                   no end date "pending a human decision" — lib/penalty says so
+//                   and deliberately refuses to make it automatic. This is where
+//                   that human decides.
+//   the hours cap   the platform's own limits live on Platform config and are
+//                   right for almost everybody. This is for a cap that is a FACT
+//                   ABOUT ONE PERSON: a student pass allows 16 hours a week
+//                   during term, and no platform-wide number can say that
+//                   without capping everybody at 16.
 //
 // Shapes copied from gig-app-api's contract/admin.ts. Keep them in step.
 
@@ -40,6 +47,27 @@ export interface CandidateSummary {
   suspendedById: string | null;
   /** A timed block. A date in the past means it is simply over. */
   bookingBlockedUntil: string | null;
+
+  // A THIRD way a booking can be refused, and the only one that is not a
+  // penalty: how much they are allowed to work.
+  //
+  // THREE STATES, and they are three different answers — only this screen can
+  // say them in words:
+  //
+  //   null  follow the platform's cap. Almost every row, and the right default.
+  //   0     EXEMPT. This person has no cap of that kind at all.
+  //   n     their own limit, in minutes.
+
+  maxDailyMinutes: number | null;
+  maxWeeklyMinutes: number | null;
+  /** Why they are capped differently. SHOWN TO THEM when a booking is refused by
+   *  it — the same promise suspensionReason makes — so it is never blank while a
+   *  cap is set. */
+  hoursCapReason: string | null;
+  /** Which admin set it, and when. Always a person: no sweep writes these, so
+   *  unlike suspendedById a null means only that no cap was ever set. */
+  hoursCapSetById: string | null;
+  hoursCapSetAt: string | null;
 }
 
 export interface CandidatesResponse {
@@ -99,6 +127,37 @@ export function setSuspension(
     },
   );
 }
+
+/** This person's own hours cap, or `null, null` to put them back on the
+ *  platform's.
+ *
+ *  BOTH NUMBERS TRAVEL TOGETHER, and null is a real instruction rather than
+ *  "leave alone" — it is the only way to undo an override, so it cannot be
+ *  expressed by leaving a field out.
+ *
+ *  `reason` is required whenever either number is set and is SHOWN TO THE
+ *  CANDIDATE in the refusal the cap produces. Nobody is notified when it is set,
+ *  unlike a suspension: a cap takes nothing away, so a banner announcing one
+ *  would alarm without informing. */
+export function setHoursCap(
+  userId: string,
+  cap: {
+    maxDailyMinutes: number | null;
+    maxWeeklyMinutes: number | null;
+    reason?: string | null;
+  },
+) {
+  return fetchWithAuth<CandidatesResponse>(`/admin/candidates/${userId}/hours`, {
+    method: "PATCH",
+    body: JSON.stringify(cap),
+  });
+}
+
+/** Whether this person is on a cap of their own rather than the platform's. One
+ *  helper so the row, the pill and the dialog cannot disagree about what counts
+ *  as "capped". */
+export const hasOwnCap = (candidate: CandidateSummary) =>
+  candidate.maxDailyMinutes !== null || candidate.maxWeeklyMinutes !== null;
 
 /** The app shows "No reviews" for 0 rather than a zero-star score, because
  *  nothing here can rate somebody below 1 — a new candidate printed raw reads as

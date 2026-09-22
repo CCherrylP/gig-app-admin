@@ -44,6 +44,7 @@ import {
   listAttendance,
   releaseWages,
   reviewAttendance,
+  shiftHasEnded,
   wagesFor,
   type AttendanceFilter,
   type AttendanceRecord,
@@ -51,14 +52,33 @@ import {
 import { openFreshDocument } from "@/lib/documents";
 import { date, money, relative } from "@/lib/format";
 
-// All first and default — see the note on the employers page. The two work
-// piles keep their counts, so they still announce themselves.
+// All first and default — see the note on the employers page. The work piles
+// keep their counts, so they still announce themselves.
+//
+// `upcoming` sits next to `missing` deliberately: it is where the rows that
+// used to pollute that queue now live. A shift booked for next Thursday was
+// being listed as "missing clock in/out" — nothing was missing, it had not
+// happened — and the pair reads as one idea split the right way round: shifts
+// that have run and lost their clock, and shifts that have not run yet.
 const FILTERS: { value: AttendanceFilter; label: string }[] = [
   { value: "all", label: "All" },
   { value: "attention", label: "Needs a look" },
   { value: "missing", label: "Missing clock in/out" },
+  { value: "upcoming", label: "Not started yet" },
   { value: "reviewed", label: "Reviewed" },
 ];
+
+/** What an empty list means, which differs by tab. "Every check-in was a
+ *  scanned code" is good news on the review queues and simply wrong on the two
+ *  that are about shifts rather than evidence. */
+const EMPTY: Record<AttendanceFilter, string> = {
+  all: "Nothing here yet.",
+  attention: "Nothing here. Every check-in was a scanned code inside the fence.",
+  missing:
+    "No shift has lost its clock. Every shift that has run was clocked at both ends, or has been settled.",
+  upcoming: "Nothing booked that has not already run.",
+  reviewed: "No selfie check-in has been decided yet.",
+};
 
 const REVIEW_STYLES: Record<string, string> = {
   PENDING: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
@@ -172,7 +192,9 @@ export default function AttendancePage() {
               ? data?.attentionCount
               : f.value === "missing"
                 ? data?.missingCount
-                : undefined,
+                : f.value === "upcoming"
+                  ? data?.upcomingCount
+                  : undefined,
         }))}
         value={filter}
         onChange={setFilter}
@@ -185,11 +207,7 @@ export default function AttendancePage() {
           ) : records.length === 0 ? (
             <EmptyState
               icon={Clock01Icon}
-              message={
-                search
-                  ? "Nothing matches that search."
-                  : "Nothing here. Every check-in was a scanned code inside the fence."
-              }
+              message={search ? "Nothing matches that search." : EMPTY[filter]}
             />
           ) : (
             <TableShell
@@ -359,11 +377,22 @@ function AttendanceRow({
   onRelease: () => void;
 }) {
   const name = record.candidateName ?? "Unnamed candidate";
+
+  // HAS IT EVEN RUN? The row can be a booking for next week — the `all` tab
+  // lists those, and so does `upcoming` — and nothing about the clock means
+  // anything until the shift is over.
+  const ended = shiftHasEnded(record);
+
   // Either end of the clock missing, and nobody paid yet. The employer's own
   // sign-off cannot touch these — it requires a clock-out — so the wages are
   // stuck until staff release them.
+  //
+  // `ended` is the condition this was missing. Without it every confirmed
+  // future booking drew a "Release 8h" button, offering to pay the full
+  // scheduled day for work nobody had done; the API now refuses that with 409
+  // SHIFT_NOT_OVER, and the button should never have been there to press.
   const missingClock =
-    !record.approvedAt && (!record.checkInAt || !record.clockOutAt);
+    ended && !record.approvedAt && (!record.checkInAt || !record.clockOutAt);
   const late = lateness(record.minutesLate);
   // Beyond the geofence is the one automatic signal on a route with no
   // supervisor in it, so it is called out rather than left as a number.
@@ -543,6 +572,14 @@ function AttendanceRow({
           {record.approvedAt && record.earnedCents !== null && (
             <span className="text-xs font-medium text-green-700 dark:text-green-400">
               {money(record.earnedCents)} paid
+            </span>
+          )}
+          {/* Said rather than left blank. An empty Actions cell reads as a row
+              somebody forgot to build a button for; this one is a shift that
+              has not run, and there is nothing to do about it yet. */}
+          {!ended && !record.approvedAt && (
+            <span className="text-xs text-muted-foreground">
+              {record.checkInAt ? "On shift now" : "Not started yet"}
             </span>
           )}
         </div>
