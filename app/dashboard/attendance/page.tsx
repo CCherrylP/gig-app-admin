@@ -42,6 +42,7 @@ import {
   formatHours,
   lateness,
   listAttendance,
+  attendancePhoto,
   releaseWages,
   reviewAttendance,
   shiftHasEnded,
@@ -143,17 +144,18 @@ export default function AttendancePage() {
     },
   });
 
-  // Photos are re-signed at click time. The link on the row was minted when the
-  // page loaded and lives ten minutes — see lib/documents.
+  // Photos are signed at click time, one at a time.
+  //
+  // This used to re-fetch the WHOLE queue to get one fresh link, back when the
+  // queue carried a signed URL per photograph — so opening a single selfie made
+  // the API mint two hundred of them. The row now says only whether a
+  // photograph exists and this asks for the one being looked at.
   function openPhoto(applicationId: string, which: "in" | "out") {
     void openFreshDocument({
       queryClient,
-      queryKey: ["attendance", filter],
-      queryFn: () => listAttendance(filter),
-      select: (fresh) => {
-        const row = fresh.records.find((r) => r.applicationId === applicationId);
-        return which === "in" ? row?.checkInPhotoUrl : row?.clockOutPhotoUrl;
-      },
+      queryKey: ["attendance", "photo", applicationId, which],
+      queryFn: () => attendancePhoto(applicationId, which),
+      select: (fresh) => fresh.url,
       onMissing: () => toast.error("That photo could not be opened."),
     });
   }
@@ -511,7 +513,7 @@ function AttendanceRow({
           )}
 
           <div className="flex flex-wrap gap-1">
-            {record.checkInPhotoUrl && (
+            {record.hasCheckInPhoto && (
               <Button
                 variant="outline"
                 size="xs"
@@ -521,7 +523,7 @@ function AttendanceRow({
                 Arrival
               </Button>
             )}
-            {record.clockOutPhotoUrl && (
+            {record.hasClockOutPhoto && (
               <Button
                 variant="outline"
                 size="xs"

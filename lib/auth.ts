@@ -18,10 +18,54 @@ export interface Me {
   avatar: string | null;
 }
 
+/** The session as the Supabase client last reported it.
+ *
+ *  `getSession()` is not free — it reads storage and takes a navigator lock —
+ *  and fetchWithAuth awaited one before EVERY request. A dashboard page fires
+ *  four or five queries at once, so they queued behind each other's lock for a
+ *  token that had not changed between them.
+ *
+ *  Kept current by onAuthStateChange rather than polled. That is the same
+ *  mechanism getSession reads behind, pushed to us instead of pulled:
+ *  SIGNED_IN, TOKEN_REFRESHED and SIGNED_OUT all land here, so the cache cannot
+ *  drift from what the client actually holds. */
+let cached: { token: string | null; expiresAt: number | null } | null = null;
+
+supabase.auth.onAuthStateChange((_event, session) => {
+  cached = session
+    ? { token: session.access_token, expiresAt: session.expires_at ?? null }
+    : { token: null, expiresAt: null };
+});
+
+/** Seconds of headroom before a cached token is treated as spent.
+ *
+ *  A token that expires mid-flight comes back 401, and fetchWithAuth ends the
+ *  session on a 401 — so a reviewer halfway through a decision would be thrown
+ *  out to the login page. Well inside Supabase's own refresh window, so asking
+ *  again this early costs nothing: the client has usually rotated it already. */
+const EXPIRY_SKEW_S = 60;
+
 /** The current access token, refreshed by the Supabase client if it has
- *  expired. Null when there is no session. */
+ *  expired. Null when there is no session.
+ *
+ *  Answers from the cache while it holds a token with real time left on it, and
+ *  asks properly otherwise — the first call of a cold page load, and any call
+ *  close enough to expiry that the answer might be about to change. */
 export async function getAccessToken(): Promise<string | null> {
+  if (cached?.token && cached.expiresAt) {
+    const secondsLeft = cached.expiresAt - Math.floor(Date.now() / 1000);
+    if (secondsLeft > EXPIRY_SKEW_S) return cached.token;
+  }
+
   const { data } = await supabase.auth.getSession();
+
+  cached = data.session
+    ? {
+        token: data.session.access_token,
+        expiresAt: data.session.expires_at ?? null,
+      }
+    : { token: null, expiresAt: null };
+
   return data.session?.access_token ?? null;
 }
 

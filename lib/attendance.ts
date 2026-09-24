@@ -37,8 +37,11 @@ export interface AttendanceRecord {
 
   checkInAt: string | null;
   checkInMethod: CheckInMethod | null;
-  /** Short-lived signed link, or null. */
-  checkInPhotoUrl: string | null;
+  /** WHETHER there is one. The link is fetched on the click — see
+   *  attendancePhoto below. This used to be a short-lived signed URL, which
+   *  meant the queue signed two per row before it could answer, for links the
+   *  page discarded and re-minted anyway. */
+  hasCheckInPhoto: boolean;
   /** Metres from the gig. Evidence on the code route, the gate on the selfie. */
   checkInDistance: number | null;
   /** Null on a scanned code — only the selfie route needs a human. */
@@ -47,7 +50,7 @@ export interface AttendanceRecord {
   minutesLate: number | null;
 
   clockOutAt: string | null;
-  clockOutPhotoUrl: string | null;
+  hasClockOutPhoto: boolean;
 
   workedMinutes: number | null;
   earnedCents: number | null;
@@ -109,6 +112,18 @@ export const GEOFENCE_M = 150;
 
 export function listAttendance(filter: AttendanceFilter = "attention") {
   return fetchWithAuth<AttendanceResponse>(`/admin/attendance?filter=${filter}`);
+}
+
+/** A fresh link to ONE photograph, minted now.
+ *
+ *  Replaces re-fetching the whole queue to refresh a single URL, which is what
+ *  the page used to do — and since the queue signed every photograph on it, one
+ *  click cost as much as a page load. The link is still short-lived and still
+ *  minted per request; that part was never the problem. */
+export function attendancePhoto(applicationId: string, which: "in" | "out") {
+  return fetchWithAuth<{ url: string }>(
+    `/admin/attendance/${applicationId}/photo/${which}`,
+  );
 }
 
 /** Whether a selfie check-in counts. Refused by the API on a scanned code —

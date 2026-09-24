@@ -32,45 +32,27 @@ import {
   Calendar03Icon,
 } from "@hugeicons/core-free-icons";
 import Logo from "./common/Logo";
-import { listCertificates } from "@/lib/certificates";
-import { listAppeals } from "@/lib/appeals";
-import { listEmployers } from "@/lib/employers";
-import { listAttendance } from "@/lib/attendance";
-import { listInvoices } from "@/lib/invoices";
-import { listSupportThreads } from "@/lib/inbox";
+import { adminCounts } from "@/lib/counts";
 import { getCachedUser } from "@/lib/auth";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [user] = React.useState(getCachedUser);
 
-  // The badges are the queues, and they run the same queries the pages do — so
-  // opening one costs nothing, and working it updates the badge without a second
-  // round trip.
-  const { data: certs } = useQuery({
-    queryKey: ["certificates", "pending"],
-    queryFn: () => listCertificates("pending"),
-  });
-  const { data: appeals } = useQuery({
-    queryKey: ["appeals", "pending"],
-    queryFn: () => listAppeals("pending"),
-  });
-  const { data: employers } = useQuery({
-    queryKey: ["employers", "pending"],
-    queryFn: () => listEmployers("pending"),
-  });
-  const { data: attendance } = useQuery({
-    queryKey: ["attendance", "attention"],
-    queryFn: () => listAttendance("attention"),
-  });
-  const { data: invoices } = useQuery({
-    queryKey: ["invoices", "unpaid"],
-    queryFn: () => listInvoices("unpaid"),
-  });
-  // BOTH inboxes in one request — no role. The badge is one number and does not
-  // care which side the question came from; the split is inside the screen.
-  const { data: inbox } = useQuery({
-    queryKey: ["inbox", "open"],
-    queryFn: () => listSupportThreads(undefined, "open"),
+  // SIX NUMBERS, ONE REQUEST.
+  //
+  // These badges used to run the six LIST endpoints and read one field off each
+  // response. The sidebar is on every page, and none of those endpoints pages —
+  // so every screen in this dashboard pulled six whole tables with their joins
+  // to draw six integers in a nav rail, before its own data had been asked for.
+  // The attendance one also signed a link to every photograph in the queue.
+  //
+  // /admin/counts is six indexed COUNTs run together. Nothing on the pages had
+  // to change for it: a MutationCache callback in the query provider refreshes
+  // this key after ANY mutation succeeds, so a decision still updates its badge
+  // without every screen having to remember to say so.
+  const { data: counts } = useQuery({
+    queryKey: ["admin", "counts"],
+    queryFn: adminCounts,
   });
 
   // Grouped by WHOSE SIDE the work is on, not by what kind of thing it is.
@@ -115,7 +97,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       // Threads still OPEN, which is the work — not the total, and not the
       // unread count. `answered` is waiting on them, and a badge counting that
       // would never reach zero.
-      badge: inbox?.openCount,
+      badge: counts?.support,
       children: [
         { title: "Candidate questions", url: "/dashboard/inbox/candidates" },
         { title: "Employer questions", url: "/dashboard/inbox/employers" },
@@ -157,13 +139,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       title: "Certifications",
       url: "/dashboard/certificates",
       icon: <HugeiconsIcon icon={CheckmarkBadge01Icon} strokeWidth={2} />,
-      badge: certs?.pendingCount,
+      badge: counts?.certificates,
     },
     {
       title: "Appeals",
       url: "/dashboard/appeals",
       icon: <HugeiconsIcon icon={Legal01Icon} strokeWidth={2} />,
-      badge: appeals?.pendingCount,
+      badge: counts?.appeals,
     },
     {
       title: "Clock In / Out",
@@ -173,10 +155,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       // nobody vouching for them, plus shifts whose clock missed an end and
       // whose wages are stuck until somebody releases them. Both are somebody
       // waiting on staff, which is what a badge should count.
-      badge:
-        attendance === undefined
-          ? undefined
-          : attendance.attentionCount + attendance.missingCount,
+      // Summed on the API side now — see attendanceBadgeCount — so the badge
+      // and the queue it points at cannot drift apart.
+      badge: counts?.attendance,
     },
     {
       // No badge. This is a directory rather than a queue — nobody is waiting
@@ -202,7 +183,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       title: "Employers",
       url: "/dashboard/employers",
       icon: <HugeiconsIcon icon={BuildingIcon} strokeWidth={2} />,
-      badge: employers?.pendingCount,
+      badge: counts?.employers,
     },
     {
       // The badge counts only the transfers a company has said it made — the
@@ -211,7 +192,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       title: "Payments",
       url: "/dashboard/payments",
       icon: <HugeiconsIcon icon={ReceiptIcon} strokeWidth={2} />,
-      badge: invoices?.awaitingConfirmationCount,
+      badge: counts?.invoices,
     },
     {
       // Under Employers because that is who pays it: the coin price and the
