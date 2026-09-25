@@ -125,6 +125,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       children: [
         { title: "By shift", url: "/dashboard/payroll" },
         { title: "Attendance sheet", url: "/dashboard/payroll/sheet" },
+        // Does the PayNow number belong to the person being paid. Under Payroll
+        // because that is where somebody is when the question matters, and the
+        // number is drawn on the pay run beside its state.
+        { title: "Payout checks", url: "/dashboard/payroll/payouts" },
       ],
     },
     {
