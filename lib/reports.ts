@@ -59,6 +59,15 @@ export interface PayrollRow {
    *  the candidate's own, so the screen falls back to that. */
   payoutHolderName: string | null;
 
+  /** WHETHER ANYBODY HAS CHECKED THAT THE NUMBER IS THEIRS. The number and the
+   *  holder above are both typed by the candidate into one form, so they agree
+   *  with each other whatever the truth is — and a PayNow transfer clears at
+   *  once and cannot be pulled back. It does not stop a payment; it is here so
+   *  the person about to make one can see it. */
+  payoutVerification: PayoutVerification;
+  /** Whether there is a screenshot to open. */
+  payoutHasProof: boolean;
+
   status: PayrollStatus;
   approvedAt: string | null;
   paidAt: string | null;
@@ -304,7 +313,24 @@ export interface Payout {
   number: string;
   /** Who the account is in the name of. */
   holder: string | null;
+  /** Whether anybody has checked the number is theirs. */
+  verification: PayoutVerification;
+  /** Whether there is a screenshot to open. */
+  hasProof: boolean;
 }
+
+export type PayoutVerification = "unverified" | "pending" | "verified" | "rejected";
+
+/** What each state means to somebody about to make a transfer.
+ *
+ *  Worded about THE TRANSFER rather than about the paperwork: what changes
+ *  their next move is whether anybody has checked, not what our queue calls it. */
+export const VERIFICATION_LABEL: Record<PayoutVerification, string> = {
+  verified: "Checked",
+  pending: "Not checked yet",
+  rejected: "Did not match",
+  unverified: "No proof sent",
+};
 
 export function payoutOf(row: PayrollRow): Payout | null {
   if (!row.payoutKind || !row.payoutNumber) return null;
@@ -316,6 +342,8 @@ export function payoutOf(row: PayrollRow): Payout | null {
     // The holder is only asked for on the bank route, and it is the candidate's
     // own name for all but the handful paying into somebody else's account.
     holder: row.payoutHolderName ?? row.candidateName,
+    verification: row.payoutVerification ?? "unverified",
+    hasProof: Boolean(row.payoutHasProof),
   };
 }
 

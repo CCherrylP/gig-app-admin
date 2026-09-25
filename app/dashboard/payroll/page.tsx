@@ -35,11 +35,14 @@ import {
   monthRange,
   payableCsv,
   payoutOf,
+  VERIFICATION_LABEL,
+  type PayoutVerification,
   recentMonths,
   type PayrollRow,
   type PayrollStatus,
 } from "@/lib/reports";
 import { date, money } from "@/lib/format";
+import { payoutProof } from "@/lib/payouts";
 
 // Who we owe money to, and whether it has gone out.
 //
@@ -381,6 +384,79 @@ export default function PayrollPage() {
   );
 }
 
+/** HAS ANYBODY CHECKED THIS NUMBER IS THEIRS, under the number itself.
+ *
+ *  Not a gate and not a warning banner — a line of text where somebody about to
+ *  copy digits into a bank app will read it. `Checked` is quiet; the other three
+ *  are amber, because they all mean the same thing in practice: nobody has
+ *  compared these digits to anything, and a PayNow transfer cannot be undone.
+ *
+ *  The screenshot opens in a new tab, signed at the moment of the click. The
+ *  queue carries no links — see lib/payouts. */
+function PayoutCheck({
+  verification,
+  hasProof,
+  candidateId,
+}: {
+  verification: PayoutVerification;
+  hasProof: boolean;
+  candidateId: string;
+}) {
+  const [opening, setOpening] = useState(false);
+
+  const good = verification === "verified";
+
+  const open = async () => {
+    if (opening) return;
+
+    // The tab is claimed BEFORE the await, or the browser blocks it as a popup:
+    // a window.open that runs after a promise resolves has lost the click that
+    // permitted it. Same reason openFreshDocument does it this way.
+    const tab = window.open("", "_blank");
+
+    if (tab) tab.opener = null;
+
+    setOpening(true);
+
+    try {
+      const { url } = await payoutProof(candidateId);
+
+      if (tab) tab.location.href = url;
+      else window.location.href = url;
+    } catch {
+      tab?.close();
+      toast.error("That screenshot could not be opened.");
+    } finally {
+      setOpening(false);
+    }
+  };
+
+  return (
+    <span className="mt-0.5 flex items-center gap-1.5">
+      <span
+        className={
+          good
+            ? "text-[11px] text-muted-foreground"
+            : "text-[11px] font-medium text-amber-600"
+        }
+      >
+        {VERIFICATION_LABEL[verification]}
+      </span>
+
+      {hasProof && (
+        <button
+          type="button"
+          onClick={open}
+          disabled={opening}
+          className="text-[11px] underline underline-offset-2 hover:text-primary disabled:opacity-50"
+        >
+          {opening ? "opening…" : "view proof"}
+        </button>
+      )}
+    </span>
+  );
+}
+
 function Row({
   row,
   checked,
@@ -438,6 +514,18 @@ function Row({
             <span className="truncate font-mono text-xs select-all">
               {payout.number}
             </span>
+
+            {/* WHETHER ANYBODY HAS CHECKED THE NUMBER IS THEIRS, right under
+                the number somebody is about to copy into a bank app. It does
+                not stop the transfer — it is the one thing on this row that
+                says whether the digits above have ever been compared to a
+                screenshot of the registered account, and a PayNow transfer
+                cannot be pulled back. */}
+            <PayoutCheck
+              verification={payout.verification}
+              hasProof={payout.hasProof}
+              candidateId={row.candidateId}
+            />
           </div>
         ) : (
           <span className="text-xs text-amber-600">No account</span>
