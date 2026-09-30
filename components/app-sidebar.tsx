@@ -30,6 +30,7 @@ import {
   MoneyBag02Icon,
   ChartLineData01Icon,
   Calendar03Icon,
+  UserAdd01Icon,
 } from "@hugeicons/core-free-icons";
 import Logo from "./common/Logo";
 import { adminCounts } from "@/lib/counts";
@@ -135,6 +136,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       title: "Money",
       url: "/dashboard/money",
       icon: <HugeiconsIcon icon={ChartLineData01Icon} strokeWidth={2} />,
+    },
+    {
+      // Here because referrals cover both sides: companies and candidates.
+      title: "Referrals",
+      url: "/dashboard/referrals",
+      icon: <HugeiconsIcon icon={UserAdd01Icon} strokeWidth={2} />,
     },
   ];
 

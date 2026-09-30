@@ -9,6 +9,8 @@ import {
   Cancel01Icon,
   Clock01Icon,
   Coins01Icon,
+  Link01Icon,
+  UserAdd01Icon,
 } from "@hugeicons/core-free-icons";
 
 import { Button } from "@/components/ui/button";
@@ -24,6 +26,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/dashboard/data-views";
 import {
   BOUNDS,
+  LINK_BASE_MAX,
   MIN_CAP_MINUTES,
   capLabel,
   getSettings,
@@ -57,11 +60,14 @@ import { cn } from "@/lib/utils";
 /** The plain integer settings. `roleTypeCaps` is deliberately NOT one of these:
  *  it is a map, it is edited as rows, and folding it into the same loop would
  *  mean a field whose "value" is an object pretending to be a number. */
-type NumericKey = Exclude<keyof PlatformSettingsPatch, "roleTypeCaps">;
+type NumericKey = Exclude<
+  keyof PlatformSettingsPatch,
+  "roleTypeCaps" | "referralLinkBase"
+>;
 
 const FIELDS: {
   key: NumericKey;
-  group: "money" | "hours";
+  group: "money" | "hours" | "referral";
   label: string;
   help: string;
   /** What sits beside the box. The unit somebody TYPES, which for the caps is
@@ -147,6 +153,61 @@ const FIELDS: {
     invalid: (minutes) => capError("maxWeeklyMinutes", minutes),
     step: "0.5",
   },
+  {
+    key: "referralBdPct",
+    group: "referral",
+    label: "BD client referral",
+    help: "Paid to BD staff on every shift a company they referred completes. A share of the platform fee we keep on that shift. Changes apply to shifts settled after you save.",
+    unit: "% of fee",
+    toStored: (typed) => typed,
+    toTyped: (stored) => stored,
+    format: (value) => `${value}% of the platform fee`,
+    invalid: (value) => boundsError("referralBdPct", value),
+  },
+  {
+    key: "referralTaPct",
+    group: "referral",
+    label: "TA candidate referral",
+    help: "Paid to TA staff on every shift a candidate they referred completes. Changes apply to shifts settled after you save.",
+    unit: "% of fee",
+    toStored: (typed) => typed,
+    toTyped: (stored) => stored,
+    format: (value) => `${value}% of the platform fee`,
+    invalid: (value) => boundsError("referralTaPct", value),
+  },
+  {
+    key: "referralCandidatePct",
+    group: "referral",
+    label: "Candidate referral",
+    help: "Paid to a candidate on every shift a friend they referred completes. Changes apply to shifts settled after you save.",
+    unit: "% of fee",
+    toStored: (typed) => typed,
+    toTyped: (stored) => stored,
+    format: (value) => `${value}% of the platform fee`,
+    invalid: (value) => boundsError("referralCandidatePct", value),
+  },
+  {
+    key: "referralMonths",
+    group: "referral",
+    label: "Referral length",
+    help: "How long a referral earns for, from the day it starts. Changes apply to new referrals only. Existing ones keep their end date.",
+    unit: "months",
+    toStored: (typed) => typed,
+    toTyped: (stored) => stored,
+    format: (value) => `${value} month${value === 1 ? "" : "s"}`,
+    invalid: (value) => boundsError("referralMonths", value),
+  },
+  {
+    key: "referralActiveDays",
+    group: "referral",
+    label: "Active candidate rule",
+    help: "A candidate referrer only earns if they completed a shift of their own within this many days. Staff always earn.",
+    unit: "days",
+    toStored: (typed) => typed,
+    toTyped: (stored) => stored,
+    format: (value) => `Worked in the last ${value} day${value === 1 ? "" : "s"}`,
+    invalid: (value) => boundsError("referralActiveDays", value),
+  },
 ];
 
 /** Hours-as-typed for a per-kind cap row, keyed by industry id. */
@@ -170,12 +231,16 @@ export default function ConfigPage() {
   // page and saving something else would delete every per-kind cap.
   const [caps, setCaps] = useState<CapDraft | null>(null);
 
+  // Referral link base as typed. Null means untouched.
+  const [link, setLink] = useState<string | null>(null);
+
   const mutation = useMutation({
     mutationFn: (patch: PlatformSettingsPatch) => updateSettings(patch),
     onSuccess: (settings) => {
       queryClient.setQueryData(["settings"], settings);
       setDraft({});
       setCaps(null);
+      setLink(null);
       toast.success("Platform settings updated");
     },
     onError: (error: Error) => {
@@ -199,7 +264,8 @@ export default function ConfigPage() {
     );
   }
 
-  const patch = buildPatch(draft, caps, data);
+  const patch = buildPatch(draft, caps, link, data);
+  const linkInvalid = link === null ? null : linkError(link);
   const errors = FIELDS.map((field) => storedFrom(draft, field))
     .map((value, i) => (value === null ? null : FIELDS[i].invalid(value)))
     .filter(Boolean);
@@ -213,7 +279,7 @@ export default function ConfigPage() {
     : [];
 
   const dirty = Object.keys(patch).length > 0;
-  const blocked = errors.length > 0 || capErrors.length > 0;
+  const blocked = errors.length > 0 || capErrors.length > 0 || linkInvalid !== null;
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -288,6 +354,40 @@ export default function ConfigPage() {
         onChange={setCaps}
       />
 
+      {/* --- referrals --------------------------------------------------- */}
+
+      <SectionHeading
+        title="Referrals"
+        description="What a referrer earns from the platform fee on shifts their referrals complete."
+      />
+
+      <Note tone="amber">
+        Rate changes only apply to shifts settled{" "}
+        <span className="font-medium">after</span> you save. Commissions already
+        recorded keep their rate. A new referral length only applies to{" "}
+        <span className="font-medium">new</span> referrals.
+      </Note>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        {FIELDS.filter((field) => field.group === "referral").map((field) => (
+          <SettingCard
+            key={field.key}
+            field={field}
+            data={data}
+            draft={draft}
+            onChange={(value) =>
+              setDraft((d) => ({ ...d, [field.key]: value }))
+            }
+          />
+        ))}
+        <LinkBaseCard
+          current={data.referralLinkBase}
+          typed={link}
+          error={linkInvalid}
+          onChange={setLink}
+        />
+      </div>
+
       {/* --- saving ------------------------------------------------------ */}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -303,6 +403,7 @@ export default function ConfigPage() {
             onClick={() => {
               setDraft({});
               setCaps(null);
+              setLink(null);
             }}
           >
             Discard
@@ -384,7 +485,13 @@ function SettingCard({
         <div className="flex items-center justify-between">
           <CardDescription>{field.label}</CardDescription>
           <HugeiconsIcon
-            icon={field.group === "hours" ? Clock01Icon : Coins01Icon}
+            icon={
+              field.group === "hours"
+                ? Clock01Icon
+                : field.group === "referral"
+                  ? UserAdd01Icon
+                  : Coins01Icon
+            }
             strokeWidth={1.5}
             className={cn(
               "size-5",
@@ -418,6 +525,63 @@ function SettingCard({
           }
         >
           {error ?? allowedText(field)}
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** The web address shared referral links are built on. */
+function LinkBaseCard({
+  current,
+  typed,
+  error,
+  onChange,
+}: {
+  current: string | null;
+  typed: string | null;
+  error: string | null;
+  onChange: (value: string) => void;
+}) {
+  const value = typed ?? current ?? "";
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardDescription>Referral link</CardDescription>
+          <HugeiconsIcon
+            icon={Link01Icon}
+            strokeWidth={1.5}
+            className="size-5 text-primary"
+          />
+        </div>
+        <CardTitle className="truncate text-lg font-semibold">
+          {current ? `${current}/r/CODE` : "Code only, no link"}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-2">
+        <p className="text-xs leading-5 text-muted-foreground">
+          The web address people share. Each link is this address plus /r/ and
+          their code. Leave it empty to share the code only.
+        </p>
+        <Input
+          type="url"
+          inputMode="url"
+          placeholder="https://adhoc.sg"
+          value={value}
+          aria-invalid={!!error}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-9"
+        />
+        <p
+          className={
+            error
+              ? "text-xs font-medium text-destructive"
+              : "text-xs text-muted-foreground"
+          }
+        >
+          {error ?? "Must start with https://"}
         </p>
       </CardContent>
     </Card>
@@ -636,7 +800,7 @@ function storedFrom(
 function allowedText(field: (typeof FIELDS)[number]) {
   const bound = BOUNDS[field.key];
 
-  if (field.group === "money") return `Allowed: ${bound.min}–${bound.max}`;
+  if (field.group !== "hours") return `Allowed: ${bound.min}–${bound.max}`;
 
   return `An hour at least, or 0 for no limit. Up to ${toHours(bound.max)}.`;
 }
@@ -656,6 +820,7 @@ function toCapDraft(caps: Record<string, number>): CapDraft {
 function buildPatch(
   draft: Partial<Record<NumericKey, string>>,
   caps: CapDraft | null,
+  link: string | null,
   current: PlatformSettings,
 ): PlatformSettingsPatch {
   const patch: PlatformSettingsPatch = {};
@@ -684,7 +849,25 @@ function buildPatch(
     if (!sameCaps(next, current.roleTypeCaps)) patch.roleTypeCaps = next;
   }
 
+  if (link !== null && linkError(link) === null) {
+    const next = normalizeLink(link);
+    if (next !== (current.referralLinkBase ?? null)) patch.referralLinkBase = next;
+  }
+
   return patch;
+}
+
+/** Trimmed, no trailing slash, and null when empty. Matches what the API stores. */
+function normalizeLink(typed: string) {
+  return typed.trim().replace(/\/+$/, "") || null;
+}
+
+function linkError(typed: string) {
+  const value = normalizeLink(typed);
+  if (value === null) return null;
+  if (value.length > LINK_BASE_MAX) return `${LINK_BASE_MAX} characters at most`;
+  if (!/^https:\/\/[^\s/]+(\/\S*)?$/.test(value)) return "Must start with https://";
+  return null;
 }
 
 /** Two maps, same caps? Compared on sorted entries rather than by reference, so

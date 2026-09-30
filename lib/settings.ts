@@ -66,6 +66,17 @@ export interface PlatformSettings {
   /** The kinds of work that exist to be capped, most used first. */
   roleTypes: RoleTypeUsage[];
 
+  /** Referral rates, as a percent of the platform fee kept on a shift. */
+  referralBdPct: number;
+  referralTaPct: number;
+  referralCandidatePct: number;
+  /** How long a new referral earns for. */
+  referralMonths: number;
+  /** A candidate referrer only earns if they worked a shift within this many days. */
+  referralActiveDays: number;
+  /** e.g. https://adhoc.sg. Links are `${base}/r/${code}`. Null shares the code only. */
+  referralLinkBase: string | null;
+
   updatedAt: string;
   updatedById: string | null;
 }
@@ -83,6 +94,13 @@ export type PlatformSettingsPatch = Partial<
     // that key. The API does not merge, deliberately — a merge would leave no
     // way to delete one.
     | "roleTypeCaps"
+    | "referralBdPct"
+    | "referralTaPct"
+    | "referralCandidatePct"
+    | "referralMonths"
+    | "referralActiveDays"
+    // Null clears it.
+    | "referralLinkBase"
   >
 >;
 
@@ -112,7 +130,15 @@ export const BOUNDS = {
   // shift would refuse every booking on the platform and read as an outage.
   maxDailyMinutes: { min: 0, max: 1440 },
   maxWeeklyMinutes: { min: 0, max: 10080 },
+  referralBdPct: { min: 0, max: 100 },
+  referralTaPct: { min: 0, max: 100 },
+  referralCandidatePct: { min: 0, max: 100 },
+  referralMonths: { min: 1, max: 120 },
+  referralActiveDays: { min: 1, max: 365 },
 } as const;
+
+/** Longest referral link base the API stores. */
+export const LINK_BASE_MAX = 200;
 
 /** The smallest cap the API will store above zero. A rule nobody could satisfy
  *  is not a rule, it is a closed platform. */
