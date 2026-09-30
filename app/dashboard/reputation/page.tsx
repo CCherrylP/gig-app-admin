@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { PeopleTabs } from "@/components/dashboard/section-tabs";
 import { useQuery } from "@tanstack/react-query";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { StarIcon, UserBlock01Icon, Alert02Icon } from "@hugeicons/core-free-icons";
@@ -99,9 +100,10 @@ export default function ReputationPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
+      <PeopleTabs />
       <PageHeader
-        title="Reputation"
-        description="Who has been blocked where, and every rating behind the averages the app shows. Read-only — a block is the employer's own, and a review is its author's."
+        title="Reviews & blocks"
+        description="Every rating and every block. View only, since each belongs to the person who made it."
       >
         <SearchInput
           value={search}

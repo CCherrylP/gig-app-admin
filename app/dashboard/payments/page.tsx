@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
+import { ReviewTabs } from "@/components/dashboard/review-tabs";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -102,12 +103,13 @@ function PaymentsQueue() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
+      <ReviewTabs />
       <PageHeader
         title="Payments"
         description={
           term
-            ? `Transfers ${label} says it has made, oldest first.`
-            : "Transfers employers say they have made, oldest first."
+            ? `Transfers ${label} says it made. Check your bank, then confirm.`
+            : "Transfers businesses say they made. Check your bank, then confirm."
         }
       />
 

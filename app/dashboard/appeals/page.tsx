@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { ReviewTabs } from "@/components/dashboard/review-tabs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -225,12 +226,13 @@ export default function AppealsPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
+      <ReviewTabs />
       <PageHeader
         title="Appeals"
         description={
           queue === "incident"
-            ? "Somebody dropped one confirmed shift and says it should not count. Read the document against the date of that shift."
-            : "Somebody is blocked from booking at all and is asking to be let back. There is no single date to check. Weigh the pattern and what they say has changed."
+            ? "A worker dropped a shift and says it should not count. Check their proof against the shift date."
+            : "A worker is blocked from booking and is asking to come back. Look at their history and what has changed."
         }
       >
         <SearchInput

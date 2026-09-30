@@ -6,30 +6,93 @@ import {
   CheckmarkBadge01Icon,
   Legal01Icon,
   BuildingIcon,
-  ReceiptIcon,
 } from "@hugeicons/core-free-icons";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { QueuePanel, StatCard } from "@/components/dashboard/data-views";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { QueuePanel } from "@/components/dashboard/data-views";
+import { REVIEW_TABS } from "@/components/dashboard/review-tabs";
+import { adminCounts, type AdminCounts } from "@/lib/counts";
 import { listCertificates } from "@/lib/certificates";
 import { listAppeals, groundLabel } from "@/lib/appeals";
 import { listEmployers } from "@/lib/employers";
-import { listInvoices } from "@/lib/invoices";
 import { certName } from "@/lib/certs-catalogue";
 import { date, relative } from "@/lib/format";
 
-// What needs a person today, in the order somebody would work it.
-//
-// Four counts across the top and the same four queries the pages themselves run
-// — so opening one from here costs nothing. Each panel shows the three that have
-// been waiting longest rather than the newest, because every one of these lists
-// is worked oldest first: the person who has been waiting longest is the one
-// being kept from something.
-//
-// Payments appears here only as a count, because it is worked against a bank
-// statement rather than in the gaps between the other three queues. The count is
-// a link to /dashboard/payments, which carries the whole waiting list and the
-// way through to the invoice queue — the one screen that creates coins.
+/** One plain line under each queue on the to-do list. */
+const REVIEW_NOTES: Partial<Record<keyof AdminCounts, string>> = {
+  employers: "Businesses waiting for a verification call.",
+  certificates: "Certificates to check.",
+  attendance: "Selfie check-ins and missed clock-outs.",
+  appeals: "Penalty appeals to decide.",
+  invoices: "Transfers to confirm against the bank.",
+  payouts: "PayNow numbers to match to a name.",
+};
+
+// Home: a to-do list of everything waiting on staff, then the people who have
+// waited longest in the three biggest queues. Counts come from the same request
+// as the sidebar badges, so the two always agree.
+
+/** One line per queue on the to-do list, in the order they appear under To review. */
+const TODO: { label: string; note: string; url: string; count: keyof AdminCounts }[] = [
+  ...REVIEW_TABS.map((tab) => ({ ...tab, note: REVIEW_NOTES[tab.count] ?? "" })),
+  {
+    label: "Inbox",
+    note: "Questions from candidates and employers.",
+    url: "/dashboard/inbox/candidates",
+    count: "support",
+  },
+];
+
+function TodoList() {
+  const { data: counts, isLoading } = useQuery({ queryKey: ["admin", "counts"], queryFn: adminCounts });
+  const waiting = TODO.reduce((sum, row) => sum + (counts?.[row.count] ?? 0), 0);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>To do</CardTitle>
+        <CardDescription>
+          {isLoading ? "Checking…" : waiting === 0 ? "All clear. Nothing is waiting on you." : `${waiting} things are waiting on you.`}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="p-0">
+        <ul className="divide-y border-t">
+          {TODO.map((row) => {
+            const count = counts?.[row.count] ?? 0;
+
+            return (
+              <li key={row.url}>
+                <Link
+                  href={row.url}
+                  className="flex items-center gap-4 px-6 py-3 transition-colors hover:bg-muted/50"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className={count > 0 ? "font-medium" : "text-muted-foreground"}>{row.label}</p>
+                    <p className="truncate text-sm text-muted-foreground">{row.note}</p>
+                  </div>
+                  {count > 0 ? (
+                    <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-sm font-medium text-amber-900 tabular-nums">
+                      {count}
+                    </span>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">Done</span>
+                  )}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function DashboardPage() {
   const certificates = useQuery({
@@ -44,81 +107,29 @@ export default function DashboardPage() {
     queryKey: ["employers", "pending"],
     queryFn: () => listEmployers("pending"),
   });
-  const invoices = useQuery({
-    queryKey: ["invoices", "unpaid"],
-    queryFn: () => listInvoices("unpaid"),
-  });
+  const loading = certificates.isLoading || appeals.isLoading || employers.isLoading;
 
-  const loading =
-    certificates.isLoading ||
-    appeals.isLoading ||
-    employers.isLoading ||
-    invoices.isLoading;
+  return (
+    <div className="flex flex-col gap-6 p-6">
+      <div>
+        <h1 className="font-heading text-2xl font-semibold">Home</h1>
+        <p className="text-sm text-muted-foreground">What needs you today.</p>
+      </div>
 
-  if (loading) {
-    return (
-      <div className="flex flex-col gap-6 p-6">
-        <div className="flex flex-col gap-2">
-          <Skeleton className="h-7 w-36" />
-          <Skeleton className="h-4 w-72" />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-28 rounded-xl" />
-          ))}
-        </div>
+      <TodoList />
+
+      <h2 className="text-lg font-semibold">Waiting longest</h2>
+
+      {loading ? (
         <div className="grid gap-4 lg:grid-cols-2">
           {Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-56 rounded-xl" />
           ))}
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-6 p-6">
-      <div>
-        <h1 className="font-heading text-2xl font-semibold">Overview</h1>
-        <p className="text-sm text-muted-foreground">
-          Welcome back — here&apos;s what needs a person today.
-        </p>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Certificates to review"
-          count={certificates.data?.pendingCount ?? 0}
-          icon={CheckmarkBadge01Icon}
-          cls="text-amber-500"
-        />
-        <StatCard
-          label="Appeals to decide"
-          count={appeals.data?.pendingCount ?? 0}
-          icon={Legal01Icon}
-          cls="text-amber-500"
-        />
-        <StatCard
-          label="Employers to call"
-          count={employers.data?.pendingCount ?? 0}
-          icon={BuildingIcon}
-          cls="text-amber-500"
-        />
-        <Link
-          href="/dashboard/payments"
-          className="rounded-xl transition-opacity hover:opacity-80"
-        >
-          <StatCard
-            label="Payments to confirm"
-            count={invoices.data?.awaitingConfirmationCount ?? 0}
-            icon={ReceiptIcon}
-          />
-        </Link>
-      </div>
-
+      ) : (
       <div className="grid gap-4 lg:grid-cols-2">
         <QueuePanel
-          title="Certificates waiting longest"
+          title="Certificates"
           href="/dashboard/certificates"
           icon={CheckmarkBadge01Icon}
           emptyMessage="Nothing awaiting a decision."
@@ -132,7 +143,7 @@ export default function DashboardPage() {
         />
 
         <QueuePanel
-          title="Appeals waiting longest"
+          title="Appeals"
           href="/dashboard/appeals"
           icon={Legal01Icon}
           emptyMessage="No appeals to decide."
@@ -140,7 +151,7 @@ export default function DashboardPage() {
             key: appeal.withdrawalId,
             seed: appeal.candidateId,
             title: appeal.candidateName ?? "Unnamed candidate",
-            subtitle: `${groundLabel(appeal.ground)} — shift on ${
+            subtitle: `${groundLabel(appeal.ground)} · shift on ${
               appeal.shiftOnDate ? date(appeal.shiftOnDate) : "an unknown date"
             }`,
             meta: relative(appeal.submittedAt),
@@ -148,7 +159,7 @@ export default function DashboardPage() {
         />
 
         <QueuePanel
-          title="Employers waiting on a call"
+          title="Employers to verify"
           href="/dashboard/employers"
           icon={BuildingIcon}
           emptyMessage="Nobody waiting on a call."
@@ -161,6 +172,7 @@ export default function DashboardPage() {
           }))}
         />
       </div>
+      )}
     </div>
   );
 }

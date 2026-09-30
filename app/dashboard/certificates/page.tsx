@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { ReviewTabs } from "@/components/dashboard/review-tabs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -120,9 +121,10 @@ export default function CertificatesPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
+      <ReviewTabs />
       <PageHeader
-        title="Certificate reviews"
-        description="Oldest first, the person waiting longest is the one being kept from applying for work."
+        title="Certificates"
+        description="Check uploaded certificates. Oldest first, since these workers cannot apply yet."
       >
         <SearchInput
           value={search}

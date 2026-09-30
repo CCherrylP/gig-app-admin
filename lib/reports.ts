@@ -151,7 +151,13 @@ export interface CompanyMoney {
   feeCoins: number;
   refundCoins: number;
 
+  topupCents: number;
+  spendCents: number;
+  feeCents: number;
+  refundCents: number;
+
   balanceCoins: number;
+  balanceCents: number;
 }
 
 export interface PlatformMoneyTotals {
@@ -166,12 +172,46 @@ export interface PlatformMoneyTotals {
   feeCoins: number;
   refundCoins: number;
   heldCoins: number;
+
+  /** The coin figures in money, each row priced at its own day's coin rate. */
+  topupCents: number;
+  spendCents: number;
+  feeCents: number;
+  refundCents: number;
+  heldCents: number;
+  balanceCents: number;
+}
+
+/** Every placement fee we hold, split by what it is. The parts add up to the total. */
+export interface FeeBreakdown {
+  totalCents: number;
+  /** Hourly fee times hours worked. */
+  earnedCents: number;
+  /** Jobs whose shifts are still ahead. */
+  upcomingCents: number;
+  /** Jobs that are over, for seats nobody filled. */
+  toRefundCents: number;
+  /** Jobs that were deleted. */
+  deletedCents: number;
+}
+
+/** Since the start, not just the chosen month. */
+export interface AllTimeMoney {
+  /** Every paid invoice. */
+  paidCents: number;
+  referralCents: number;
+  /** Earned fees minus referrals. */
+  revenueCents: number;
+  minutesWorked: number;
+  fees: FeeBreakdown;
 }
 
 export interface MoneyReportResponse {
   month: string;
   companies: CompanyMoney[];
   totals: PlatformMoneyTotals;
+  /** Missing on an older API. */
+  allTime?: AllTimeMoney;
 }
 
 export function getMoneyReport(month: string) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { ReviewTabs } from "@/components/dashboard/review-tabs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -162,9 +163,10 @@ export default function PayoutChecksPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
+      <ReviewTabs />
       <PageHeader
-        title="Payout checks"
-        description="Does the number match the person. A PayNow transfer cannot be reversed, so this is the only check there is."
+        title="PayNow checks"
+        description="Check each PayNow number belongs to the worker. A wrong transfer cannot be undone."
       >
         <SearchInput
           value={search}

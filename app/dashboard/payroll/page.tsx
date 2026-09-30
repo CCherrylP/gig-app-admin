@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { MoneyTabs, PayrollSwitch } from "@/components/dashboard/section-tabs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -167,9 +168,11 @@ export default function PayrollPage() {
     // p-6 and gap-6, matching every other queue on this dashboard. Without the
     // padding the table runs into the edge of the pane.
     <div className="flex flex-col gap-6 p-6">
+      <MoneyTabs />
+      <PayrollSwitch />
       <PageHeader
-        title="Payroll"
-        description="Finished shifts and what is owed. Transfers are made in your bank, this is where you tick them off."
+        title="Payroll by shift"
+        description="Pay workers in your bank, then tick the shifts off here."
       >
         <div className="flex flex-wrap items-center gap-2">
           <select

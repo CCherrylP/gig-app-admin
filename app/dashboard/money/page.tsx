@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { MoneyTabs } from "@/components/dashboard/section-tabs";
 import { useQuery } from "@tanstack/react-query";
-import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Alert02Icon,
   Coins01Icon,
@@ -25,18 +25,20 @@ import {
   getMoneyReport,
   monthLabel,
   recentMonths,
+  type AllTimeMoney,
   type CompanyMoney,
+  type FeeBreakdown,
 } from "@/lib/reports";
 import { coins as formatCoins, money } from "@/lib/format";
 
 // Money coming IN, a month at a time.
 //
-// COINS AND CASH ARE REPORTED SEPARATELY AND DELIBERATELY NOT ADDED TOGETHER.
-// A coin is worth S$1 of wages or fee to every company alike, but what a
-// company PAID for one is negotiable — so "fees earned" is in coins at face
-// value, and "received" is what actually landed in the bank. Blending the two
-// into a single revenue figure would be wrong for anybody on a negotiated
-// rate, on a screen somebody makes decisions from.
+// Everything is in dollars. Coin figures come from the API already priced at
+// each row's own coin rate, because a month can straddle a redenomination and
+// old and new coins cannot be added as counts. Invoice cash and coin movements
+// are still shown apart, never summed into one revenue number.
+//
+// Invoiced = received + outstanding + cancelled, so all three are shown.
 //
 // Nothing here can be acted on. Confirming a transfer is the only act that
 // creates coins and it belongs next to the invoice's own receipt and PDF —
@@ -52,17 +54,25 @@ export default function MoneyPage() {
 
   const totals = data?.totals;
   const companies = data?.companies ?? [];
+  const allTime = data?.allTime;
 
   return (
     // p-6 and gap-6, matching every other page on this dashboard.
     <div className="flex flex-col gap-6 p-6">
+      <MoneyTabs />
       <PageHeader
-        title="Money"
-        description="What was billed, what landed, what is still owed, and what the platform earned."
-      >
+        title="Overview"
+        description="What companies paid us, what we earned, and what is still owed."
+      />
+
+      {allTime && <AllTime data={allTime} />}
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold">By month</h2>
         <select
           value={month}
           onChange={(event) => setMonth(event.target.value)}
+          aria-label="Month"
           className="h-9 rounded-md border border-border bg-background px-3 text-sm"
         >
           {recentMonths().map((value) => (
@@ -71,7 +81,7 @@ export default function MoneyPage() {
             </option>
           ))}
         </select>
-      </PageHeader>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
@@ -92,33 +102,36 @@ export default function MoneyPage() {
           icon={Alert02Icon}
           cls="text-rose-600"
         />
-        {/*
-          THE REVENUE LINE, and the reason it is in coins rather than dollars
-          is in the header of this file.
-        */}
         <StatCard
-          label="Placement fees earned"
-          count={`${formatCoins(totals?.feeCoins ?? 0)} coins`}
+          label="Placement fees taken"
+          count={money(totals?.feeCents ?? 0)}
           icon={Coins01Icon}
           cls="text-primary"
+          hint="Taken when jobs are posted. Not all earned yet."
         />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          label="Coins bought"
-          count={formatCoins(totals?.topupCoins ?? 0)}
+          label="Cancelled invoices"
+          count={money(totals?.cancelledCents ?? 0)}
+          icon={Invoice01Icon}
+          cls="text-muted-foreground"
+        />
+        <StatCard
+          label="Coins topped up"
+          count={money(totals?.topupCents ?? 0)}
           icon={Coins01Icon}
         />
         <StatCard
           label="Wages held"
-          count={formatCoins(totals?.heldCoins ?? 0)}
+          count={money(totals?.heldCents ?? 0)}
           icon={MoneySend02Icon}
           cls="text-muted-foreground"
         />
         <StatCard
           label="Refunded to employers"
-          count={formatCoins(totals?.refundCoins ?? 0)}
+          count={money(totals?.refundCents ?? 0)}
           icon={MoneyReceive02Icon}
           cls="text-muted-foreground"
         />
@@ -148,10 +161,11 @@ export default function MoneyPage() {
                 "Invoiced",
                 "Received",
                 "Outstanding",
-                "Fees earned",
+                "Cancelled",
+                "Fees taken",
                 "Balance left",
               ]}
-              widths={["w-[30%]", "w-[14%]", "w-[14%]", "w-[16%]", "w-[13%]", "w-[13%]"]}
+              widths={["w-[26%]", "w-[12%]", "w-[12%]", "w-[13%]", "w-[12%]", "w-[12%]", "w-[13%]"]}
             >
               {companies.map((row) => (
                 <CompanyRow key={row.companyId} row={row} />
@@ -161,6 +175,123 @@ export default function MoneyPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+/** "3h 20m" from minutes. */
+const hoursLabel = (minutes: number) => {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest ? `${hours}h ${rest}m` : `${hours}h`;
+};
+
+/** The two numbers that matter most: cash paid for coins and revenue, since the start. */
+function AllTime({ data }: { data: AllTimeMoney }) {
+  return (
+    <section className="flex flex-col gap-4">
+      <h2 className="text-lg font-semibold">All time</h2>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <StatCard
+          label="Companies paid for coins"
+          count={money(data.paidCents)}
+          icon={MoneyReceive02Icon}
+          cls="text-emerald-600"
+          hint="Every paid invoice."
+        />
+        <StatCard
+          label="Your revenue"
+          count={money(data.revenueCents)}
+          icon={Coins01Icon}
+          cls="text-primary"
+          hint={`$2 an hour × ${hoursLabel(data.minutesWorked)} worked${
+            data.referralCents > 0 ? `, minus ${money(data.referralCents)} in referrals` : ""
+          }.`}
+        />
+      </div>
+
+      <FeesHeld fees={data.fees} />
+    </section>
+  );
+}
+
+/** The four parts of a fee we hold. Colours are shared by the bar and the list. */
+const FEE_PARTS = [
+  {
+    key: "earnedCents",
+    label: "Earned",
+    note: "$2 an hour for hours actually worked. This is ours.",
+    colour: "bg-emerald-500",
+  },
+  {
+    key: "upcomingCents",
+    label: "Upcoming jobs",
+    note: "Paid in advance for shifts that have not happened yet.",
+    colour: "bg-sky-500",
+  },
+  {
+    key: "toRefundCents",
+    label: "To give back",
+    note: "Jobs that are over, for seats nobody filled. Goes back to the company when the job closes.",
+    colour: "bg-amber-500",
+  },
+  {
+    key: "deletedCents",
+    label: "Deleted jobs",
+    note: "Fees still held on jobs that were deleted. Mostly test data.",
+    colour: "bg-slate-400",
+  },
+] as const;
+
+/** Every fee we took at posting, as one bar split by what it really is. */
+function FeesHeld({ fees }: { fees: FeeBreakdown }) {
+  const total = Math.max(1, fees.totalCents);
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <CardTitle>Placement fees we hold</CardTitle>
+          <span className="text-2xl font-semibold tabular-nums">{money(fees.totalCents)}</span>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          The fee is taken in full when a job is posted. Only the part for hours worked is earned.
+        </p>
+      </CardHeader>
+
+      <CardContent className="flex flex-col gap-4">
+        <div className="flex h-3 w-full gap-0.5 overflow-hidden rounded-full bg-muted">
+          {FEE_PARTS.map((part) =>
+            fees[part.key] > 0 ? (
+              <div
+                key={part.key}
+                className={part.colour}
+                style={{ width: `${(fees[part.key] / total) * 100}%` }}
+                title={`${part.label}: ${money(fees[part.key])}`}
+              />
+            ) : null,
+          )}
+        </div>
+
+        <ul className="divide-y">
+          {FEE_PARTS.map((part) => (
+            <li key={part.key} className="flex items-start gap-3 py-3">
+              <span className={`mt-1.5 size-2.5 shrink-0 rounded-full ${part.colour}`} />
+              <div className="min-w-0 flex-1">
+                <p className="font-medium">{part.label}</p>
+                <p className="text-sm text-muted-foreground">{part.note}</p>
+              </div>
+              <div className="text-right tabular-nums">
+                <p className="font-medium">{money(fees[part.key])}</p>
+                <p className="text-xs text-muted-foreground">
+                  {Math.round((fees[part.key] / total) * 100)}%
+                </p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -198,8 +329,15 @@ function CompanyRow({ row }: { row: CompanyMoney }) {
         )}
       </td>
 
-      <td className="px-4 py-3 tabular-nums">{formatCoins(row.feeCoins)}</td>
-      <td className="px-4 py-3 tabular-nums">{formatCoins(row.balanceCoins)}</td>
+      <td className="px-4 py-3 tabular-nums text-muted-foreground">
+        {row.cancelledCents > 0 ? money(row.cancelledCents) : "—"}
+      </td>
+
+      <td className="px-4 py-3 tabular-nums">{money(row.feeCents)}</td>
+      <td className="px-4 py-3 tabular-nums">
+        {money(row.balanceCents)}
+        <div className="text-xs text-muted-foreground">{formatCoins(row.balanceCoins)} coins</div>
+      </td>
     </tr>
   );
 }

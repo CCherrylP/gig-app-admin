@@ -24,6 +24,8 @@ export interface AdminCounts {
   invoices: number;
   /** Open support threads, both sides together. */
   support: number;
+  /** PayNow proofs waiting for a check. Missing on an older API. */
+  payouts?: number;
 }
 
 export function adminCounts() {

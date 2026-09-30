@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { MoneyTabs, PayrollSwitch } from "@/components/dashboard/section-tabs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -171,9 +172,11 @@ export default function PayoutSheetPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
+      <MoneyTabs />
+      <PayrollSwitch />
       <PageHeader
-        title="Attendance sheet"
-        description="Who worked, what they are owed, and what makes up the figure. One line per person — a transfer goes to a human being, not to a shift."
+        title="Payroll by person"
+        description="One line per worker, with what they are owed and the shifts behind it."
       >
         <SearchInput
           value={search}

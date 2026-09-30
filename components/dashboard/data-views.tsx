@@ -2,7 +2,9 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Card,
@@ -12,7 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Search01Icon } from "@hugeicons/core-free-icons";
+import { Download04Icon, Search01Icon } from "@hugeicons/core-free-icons";
 import { cn } from "@/lib/utils";
 
 export type IconType = Parameters<typeof HugeiconsIcon>[0]["icon"];
@@ -163,11 +165,14 @@ export function StatCard({
   count,
   icon,
   cls = "text-primary",
+  hint,
 }: {
   label: string;
   count: React.ReactNode;
   icon: IconType;
   cls?: string;
+  /** A short line under the number. */
+  hint?: React.ReactNode;
 }) {
   return (
     <Card>
@@ -183,6 +188,7 @@ export function StatCard({
         <CardTitle className="text-3xl font-semibold tabular-nums">
           {count}
         </CardTitle>
+        {hint && <p className="text-sm text-muted-foreground">{hint}</p>}
       </CardHeader>
     </Card>
   );
@@ -421,6 +427,7 @@ export function TableShell({
   headers,
   widths,
   children,
+  exportName,
 }: {
   headers: React.ReactNode[];
   /** A width per column, e.g. `w-[22%]`. Under `table-fixed` the first row's
@@ -428,11 +435,35 @@ export function TableShell({
    *  — so this is where a table decides what it is willing to spend on each. */
   widths?: string[];
   children: React.ReactNode;
+  /** The file name for Export to Excel. Defaults to the page's address. */
+  exportName?: string;
 }) {
   const last = headers.length - 1;
+  const table = React.useRef<HTMLTableElement>(null);
+  const pathname = usePathname();
+  const [exporting, setExporting] = React.useState(false);
+
+  const exportTable = async () => {
+    if (!table.current || exporting) return;
+    setExporting(true);
+
+    try {
+      const name = exportName ?? (pathname.replace(/^\/dashboard\/?/, "").replace(/\//g, "-") || "home");
+      await exportTableToExcel(table.current, `adhoc-${name}-${todayStamp()}.xlsx`);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div className="overflow-x-auto">
+      {/* Exports the rows on screen, with the current tab, filter and search. */}
+      <div className="flex justify-end border-b px-4 py-2">
+        <Button variant="outline" size="sm" onClick={exportTable} disabled={exporting}>
+          <HugeiconsIcon icon={Download04Icon} strokeWidth={2} />
+          {exporting ? "Exporting…" : "Export to Excel"}
+        </Button>
+      </div>
       {/*
         min-w-5xl, not 3xl. Under `table-fixed` a cell whose content is wider
         than its column does not wrap the column — it SPILLS OVER the next one,
@@ -442,7 +473,7 @@ export function TableShell({
         at its share of it. Below that the table scrolls, which is the honest
         outcome — a queue nobody can read is worse than one that scrolls.
       */}
-      <table className="w-full min-w-5xl table-fixed text-sm">
+      <table ref={table} className="w-full min-w-5xl table-fixed text-sm">
         <thead>
           <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
             {headers.map((header, i) => (
@@ -467,6 +498,71 @@ export function TableShell({
       </table>
     </div>
   );
+}
+
+// ─── Export to Excel ──────────────────────────────────────────────────────────
+
+/** 2026-09-30, in Singapore time. */
+const todayStamp = () =>
+  new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Singapore" });
+
+/** A cell's text without its buttons and form controls, one line per block. */
+function cellText(cell: HTMLElement) {
+  let text = cell.innerText;
+
+  for (const control of cell.querySelectorAll<HTMLElement>("button, select, input, [role='button']")) {
+    const own = control.innerText?.trim();
+    if (own) text = text.replace(own, "");
+  }
+
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join(" · ");
+}
+
+/** "$1,234.50" and "1,234" become numbers so Excel can add them up. Long runs
+ *  of bare digits (phone numbers, IDs) stay as text. */
+function toCell(text: string) {
+  const money = /^-?\$-?[\d,]+(\.\d+)?$/.test(text);
+  const plain = /^-?[\d,]+(\.\d+)?$/.test(text) && (/[,.]/.test(text) || text.replace("-", "").length <= 6);
+
+  if (!money && !plain) return { value: text };
+
+  const value = Number(text.replace(/[$,]/g, ""));
+  if (!Number.isFinite(value)) return { value: text };
+
+  return { value, type: Number, format: money ? '"$"#,##0.00' : "#,##0.##" };
+}
+
+/** Writes the rows on screen to an .xlsx file. Columns with no header or no
+ *  text (checkboxes, action buttons) are left out. */
+async function exportTableToExcel(table: HTMLTableElement, fileName: string) {
+  const { default: writeXlsxFile } = await import("write-excel-file/browser");
+
+  const headers = [...table.querySelectorAll<HTMLElement>("thead th")].map((th) => th.innerText.trim());
+
+  // Detail rows that span the whole table are skipped; they do not fit the columns.
+  const rows = [...table.querySelectorAll<HTMLTableRowElement>("tbody > tr")]
+    .map((row) => [...row.cells])
+    .filter((cells) => cells.length === headers.length)
+    .map((cells) => cells.map(cellText));
+
+  const keep = headers
+    .map((header, i) => i)
+    .filter((i) => headers[i] !== "" && rows.some((row) => row[i] !== ""));
+
+  const data = [
+    keep.map((i) => ({ value: headers[i], fontWeight: "bold" as const })),
+    ...rows.map((row) => keep.map((i) => toCell(row[i]))),
+  ];
+
+  const columns = keep.map((i) => ({
+    width: Math.min(50, Math.max(10, headers[i].length, ...rows.map((row) => row[i].length)) + 2),
+  }));
+
+  await writeXlsxFile(data, { columns, stickyRowsCount: 1 }).toFile(fileName);
 }
 
 // ─── Table skeleton ───────────────────────────────────────────────────────────

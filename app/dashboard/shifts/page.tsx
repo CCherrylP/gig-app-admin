@@ -240,7 +240,7 @@ export default function ShiftsPage() {
     <div className="flex flex-col gap-6 p-6">
       <PageHeader
         title="Shifts"
-        description="Every shift on the platform, month by month, finished ones included. This is the only place a booked shift's date or hours can be corrected."
+        description="Every shift, by month. Fix a booked shift's date or hours here."
       >
         <SearchInput
           value={search}

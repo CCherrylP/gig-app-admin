@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { ReviewTabs } from "@/components/dashboard/review-tabs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -174,9 +175,10 @@ export default function AttendancePage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
+      <ReviewTabs />
       <PageHeader
-        title="Clock in / clock out"
-        description="A scanned code is a supervisor vouching on the spot. A selfie is a photo and a location fix with nobody behind it, those are the ones worth reading."
+        title="Clock-ins"
+        description="Check selfie clock-ins and fix shifts with a missing clock-out. Scanned codes are already confirmed."
       >
         <SearchInput
           value={search}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { InboxTabs } from "@/components/dashboard/section-tabs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -425,6 +426,7 @@ export function SupportInbox({
 
   return (
     <div className="flex flex-col gap-4 p-6">
+      <InboxTabs />
       <PageHeader title={title} description={description} />
 
       <div className="flex flex-wrap items-center justify-between gap-3">

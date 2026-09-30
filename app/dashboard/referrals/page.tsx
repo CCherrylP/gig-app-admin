@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
+import { MoneyTabs } from "@/components/dashboard/section-tabs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -97,9 +98,10 @@ export default function ReferralsPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
+      <MoneyTabs />
       <PageHeader
         title="Referrals"
-        description="Who referred whom, and the commission they earn from the platform fee."
+        description="Who referred whom, and what they earn from our fee."
       >
         <FilterTabs options={SECTIONS} value={section} onChange={setSection} />
       </PageHeader>

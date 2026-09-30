@@ -284,23 +284,17 @@ export default function ConfigPage() {
   return (
     <div className="flex flex-col gap-6 p-6">
       <PageHeader
-        title="Platform config"
-        description="What a coin costs, what the platform fee costs, how long a company has to pay — and how much one person is allowed to work."
+        title="Settings"
+        description="Prices, hours limits and referral rates for the whole platform."
       />
 
       {/* --- money ------------------------------------------------------- */}
 
-      <SectionHeading
-        title="Money"
-        description="Prices the next invoice and the next shift posted."
-      />
+      <SectionHeading title="Prices" description="Used for the next invoice and the next job posted." />
 
-      {/* The one thing a reviewer has to understand before touching these. */}
       <Note tone="amber">
-        These price the <span className="font-medium">next</span> invoice and the{" "}
-        <span className="font-medium">next</span> shift posted. Nothing already
-        written down moves: an invoice keeps the amount and due date it was raised
-        with, and a ledger entry keeps its coins.
+        Changes only apply from now on. Invoices and jobs that already exist keep
+        their old prices.
       </Note>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -319,19 +313,11 @@ export default function ConfigPage() {
 
       {/* --- hours ------------------------------------------------------- */}
 
-      <SectionHeading
-        title="Hours limits"
-        description="How much one person may work, so volume stops being unlimited."
-      />
+      <SectionHeading title="Hours limits" description="The most one person can work." />
 
       <Note tone="amber">
-        <span className="font-medium">Nothing else on this platform caps this.</span>{" "}
-        A candidate cannot be in two places at once — overlapping shifts are
-        refused — but six back-to-back twelve-hour shifts overlap at no point, and
-        without these numbers all six are bookable. A limit here refuses the{" "}
-        <span className="font-medium">next</span> booking anybody attempts and
-        unbooks nobody: shifts people already hold are theirs. Set a limit to{" "}
-        <span className="font-medium">0</span> to switch it off.
+        A new limit only stops new bookings. Shifts people already have stay
+        booked. Set a limit to <span className="font-medium">0</span> to turn it off.
       </Note>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -356,16 +342,11 @@ export default function ConfigPage() {
 
       {/* --- referrals --------------------------------------------------- */}
 
-      <SectionHeading
-        title="Referrals"
-        description="What a referrer earns from the platform fee on shifts their referrals complete."
-      />
+      <SectionHeading title="Referral rates" description="What referrers earn from our fee." />
 
       <Note tone="amber">
-        Rate changes only apply to shifts settled{" "}
-        <span className="font-medium">after</span> you save. Commissions already
-        recorded keep their rate. A new referral length only applies to{" "}
-        <span className="font-medium">new</span> referrals.
+        New rates apply to shifts settled after you save. A new referral length
+        only applies to new referrals.
       </Note>
 
       <div className="grid gap-4 lg:grid-cols-3">

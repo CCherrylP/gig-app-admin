@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useMemo, useState } from "react";
+import { MoneyTabs } from "@/components/dashboard/section-tabs";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -157,9 +158,10 @@ function InvoiceQueue() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
+      <MoneyTabs />
       <PageHeader
         title="Invoices"
-        description="Confirming a transfer is the only thing in this system that creates coins."
+        description="Every invoice raised. Marking one paid adds the coins to the company."
       >
         <SearchInput
           value={search}

@@ -28,6 +28,8 @@ export interface NavItem {
   url: string;
   icon?: React.ReactNode;
   badge?: number;
+  /** Other pages that should also highlight this item. */
+  match?: string[];
   // When present, the item renders as a collapsible group of sub-links instead
   // of a single link.
   children?: { title: string; url: string }[];
@@ -35,7 +37,7 @@ export interface NavItem {
 
 export function NavMain({
   items,
-  label = "Admin Portal",
+  label,
 }: {
   items: NavItem[];
   label?: string;
@@ -44,7 +46,7 @@ export function NavMain({
 
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>{label}</SidebarGroupLabel>
+      {label && <SidebarGroupLabel>{label}</SidebarGroupLabel>}
       <SidebarMenu>
         {items.map((item) =>
           item.children && item.children.length > 0 ? (
@@ -53,7 +55,7 @@ export function NavMain({
             <SidebarMenuItem key={item.title}>
               <SidebarMenuButton
                 render={<Link href={item.url} />}
-                isActive={pathname === item.url}
+                isActive={pathname === item.url || Boolean(item.match?.includes(pathname))}
                 tooltip={item.title}
               >
                 {item.icon}

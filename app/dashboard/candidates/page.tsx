@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { PeopleTabs } from "@/components/dashboard/section-tabs";
 import {
   keepPreviousData,
   useMutation,
@@ -154,9 +155,10 @@ export default function CandidatesPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
+      <PeopleTabs />
       <PageHeader
         title="Candidates"
-        description="For support. Finding the person who wrote in, and seeing what is keeping them from applying."
+        description="Find a worker and see what is stopping them from applying."
       >
         <SearchInput
           value={search}

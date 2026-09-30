@@ -1,7 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { ReviewTabs } from "@/components/dashboard/review-tabs";
+import { PeopleTabs } from "@/components/dashboard/section-tabs";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -42,14 +45,8 @@ import {
 } from "@/lib/employers";
 import { relative } from "@/lib/format";
 
-// ALL FIRST, and it is the default.
-//
-// Opening on Pending meant a screen that said "Nothing in this queue" whenever
-// there was nothing to decide — on a page listing every employer on the
-// platform. That reads as an empty database rather than as an empty queue, and
-// it is the wrong first impression of a page whose main job is looking people
-// up. The work still announces itself: Pending carries a count, so an empty
-// queue is visible without being the only thing on offer.
+// One screen, two ways in. Under To review it opens on Pending, the calls to
+// make. Under People (/dashboard/people/employers) it opens on All, as a list.
 const FILTERS: { value: EmployerFilter; label: string }[] = [
   { value: "all", label: "All" },
   { value: "pending", label: "Pending" },
@@ -64,7 +61,8 @@ type Decision = {
 
 export default function EmployersPage() {
   const queryClient = useQueryClient();
-  const [filter, setFilter] = useState<EmployerFilter>("all");
+  const directory = usePathname().startsWith("/dashboard/people");
+  const [filter, setFilter] = useState<EmployerFilter>(directory ? "all" : "pending");
   const [search, setSearch] = useState("");
   const [decision, setDecision] = useState<Decision | null>(null);
 
@@ -121,9 +119,14 @@ export default function EmployersPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
+      {directory ? <PeopleTabs /> : <ReviewTabs />}
       <PageHeader
         title="Employers"
-        description="A UEN is public, so signing up against one proves nothing. Nobody can post a job until this call has been made."
+        description={
+          directory
+            ? "Every business on the platform."
+            : "Call each new business to check it is real. They cannot post jobs until you approve them."
+        }
       >
         <SearchInput
           value={search}
