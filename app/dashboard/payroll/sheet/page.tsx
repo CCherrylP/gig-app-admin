@@ -532,7 +532,7 @@ function PersonRows({
                 <span className="truncate text-xs">{date(shift.shiftOnDate)}</span>
                 <span className="truncate text-xs text-muted-foreground">
                   {isReferralRow(shift)
-                    ? "Friend's shift"
+                    ? "Referred shift"
                     : `${shift.scheduledStart}–${shift.scheduledEnd}`}
                 </span>
               </div>

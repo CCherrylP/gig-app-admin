@@ -514,7 +514,7 @@ function Row({
       <td className="truncate px-4 py-3">
         <div className="truncate">{date(row.shiftOnDate)}</div>
         <div className="truncate text-xs text-muted-foreground">
-          {isReferralRow(row) ? "Friend's shift" : `${row.scheduledStart}–${row.scheduledEnd}`}
+          {isReferralRow(row) ? "Referred shift" : `${row.scheduledStart}–${row.scheduledEnd}`}
         </div>
       </td>
 

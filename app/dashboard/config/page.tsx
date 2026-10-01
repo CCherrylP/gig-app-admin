@@ -156,8 +156,8 @@ const FIELDS: {
   {
     key: "referralBdPct",
     group: "referral",
-    label: "BD client referral",
-    help: "Paid to BD staff on every shift a company they referred completes. A share of the platform fee we keep on that shift. Changes apply to shifts settled after you save.",
+    label: "Business referral",
+    help: "Paid to any candidate who brings in a business, usually BD staff, on every shift that business completes. A share of the platform fee we keep on that shift. Paid as coins (1 coin = 1 cent) that an admin cashes out later.",
     unit: "% of fee",
     toStored: (typed) => typed,
     toTyped: (stored) => stored,
@@ -167,8 +167,8 @@ const FIELDS: {
   {
     key: "referralTaPct",
     group: "referral",
-    label: "TA candidate referral",
-    help: "Paid to TA staff on every shift a candidate they referred completes. Changes apply to shifts settled after you save.",
+    label: "Worker referral by TA staff",
+    help: "Paid to TA staff on every shift a worker they referred completes. Paid as coins (1 coin = 1 cent) that an admin cashes out later.",
     unit: "% of fee",
     toStored: (typed) => typed,
     toTyped: (stored) => stored,
@@ -178,36 +178,15 @@ const FIELDS: {
   {
     key: "referralCandidatePct",
     group: "referral",
-    label: "Candidate referral",
-    help: "Paid to a candidate on every shift a friend they referred completes. Changes apply to shifts settled after you save.",
+    label: "Worker referral by a candidate",
+    help: "Paid to a candidate on every shift a worker they referred completes. Paid as coins (1 coin = 1 cent) that an admin cashes out later.",
     unit: "% of fee",
     toStored: (typed) => typed,
     toTyped: (stored) => stored,
     format: (value) => `${value}% of the platform fee`,
     invalid: (value) => boundsError("referralCandidatePct", value),
   },
-  {
-    key: "referralEmployerCandidatePct",
-    group: "referral",
-    label: "Partner → candidate referral",
-    help: "Paid in coins to a partner company (e.g. MCI) on every shift a candidate its employer referred completes. No active rule. Changes apply to shifts settled after you save.",
-    unit: "% of fee",
-    toStored: (typed) => typed,
-    toTyped: (stored) => stored,
-    format: (value) => `${value}% of the platform fee, in coins`,
-    invalid: (value) => boundsError("referralEmployerCandidatePct", value),
-  },
-  {
-    key: "referralEmployerClientPct",
-    group: "referral",
-    label: "Partner → company referral",
-    help: "Paid in coins to a partner company on every shift completed at a company its employer referred. Changes apply to shifts settled after you save.",
-    unit: "% of fee",
-    toStored: (typed) => typed,
-    toTyped: (stored) => stored,
-    format: (value) => `${value}% of the platform fee, in coins`,
-    invalid: (value) => boundsError("referralEmployerClientPct", value),
-  },
+  // Employer referral rates are left out: employers can no longer refer.
   {
     key: "referralMonths",
     group: "referral",
@@ -368,7 +347,8 @@ export default function ConfigPage() {
 
       <Note tone="amber">
         New rates apply to shifts settled after you save. A new referral length
-        only applies to new referrals.
+        only applies to new referrals. Rewards are paid as coins (1 coin = 1 cent)
+        and cashed out by an admin.
       </Note>
 
       <div className="grid gap-4 lg:grid-cols-3">

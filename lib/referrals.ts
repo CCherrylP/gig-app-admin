@@ -1,26 +1,18 @@
 import { fetchWithAuth } from "./api";
+import { coins, money } from "./format";
 
 // Referral staff, referrals and commissions. Types copied from the API's
-// src/contract/referral.ts.
+// src/contract/referral.ts. Only candidate accounts refer; rewards are coins
+// (1 coin = 1 cent) that an admin cashes out.
 
 export type ReferralKind =
   | "client"
   | "staff_candidate"
   | "candidate"
+  /** Old: employers can no longer refer. */
   | "employer_candidate"
   | "employer_client";
 export type StaffTeam = "bd" | "ta";
-
-/** GET /admin/referrals/partners. A company whose employers can refer, for coins. */
-export interface ReferralPartner {
-  companyId: string;
-  name: string;
-  uen: string;
-  employers: number;
-  referrals: number;
-  /** Coins earned by all its employers. */
-  coins: number;
-}
 
 /** GET /admin/referrals/staff */
 export interface ReferralStaff {
@@ -77,7 +69,7 @@ export interface AdminCommission {
   feeCents: number;
   ratePct: number;
   amountCents: number;
-  /** Coins credited, for an employer referral. Null when paid in money. */
+  /** Coins earned. Null only on rows from an older API. */
   coins: number | null;
   createdAt: string;
   paidAt: string | null;
@@ -96,19 +88,26 @@ export interface CommissionReferrerLine {
 export interface AdminCommissionReport {
   month: string;
   rows: AdminCommission[];
-  /** One line per referrer, for payroll. Cash only: coin rewards are left out. */
+  /** One line per referrer, in cash. */
   byReferrer: CommissionReferrerLine[];
 }
 
 export type CommissionStatus = "pending" | "paid" | "all";
 
 export const KIND_LABEL: Record<ReferralKind, string> = {
-  client: "BD client",
-  staff_candidate: "TA candidate",
-  candidate: "Candidate",
-  employer_candidate: "Partner → candidate",
-  employer_client: "Partner → company",
+  client: "Business",
+  staff_candidate: "Worker (TA)",
+  candidate: "Worker",
+  employer_candidate: "Employer (old)",
+  employer_client: "Employer (old)",
 };
+
+/** A reward as coins and what they cash out to, e.g. "800 coins · $8.00". */
+export function rewardLabel(row: { coins: number | null; amountCents: number }) {
+  // 1 coin = 1 cent, so an older row without coins still has a count.
+  const count = row.coins ?? row.amountCents;
+  return `${coins(count)} coin${count === 1 ? "" : "s"} · ${money(row.amountCents)}`;
+}
 
 export const TEAM_LABEL: Record<StaffTeam, string> = {
   bd: "BD",
@@ -123,18 +122,6 @@ export function setReferralStaff(body: SetReferralStaffBody) {
   return fetchWithAuth<unknown>("/admin/referrals/staff", {
     method: "PUT",
     body: JSON.stringify(body),
-  });
-}
-
-export function listReferralPartners() {
-  return fetchWithAuth<ReferralPartner[]>("/admin/referrals/partners");
-}
-
-/** Turns referrals on or off for a company, by UEN. */
-export function setReferralPartner(uen: string, canRefer: boolean) {
-  return fetchWithAuth<unknown>("/admin/referrals/partners", {
-    method: "PUT",
-    body: JSON.stringify({ uen, canRefer }),
   });
 }
 

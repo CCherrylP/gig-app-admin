@@ -44,7 +44,7 @@ export interface EmployerReview {
   referredBy: {
     name: string | null;
     code: string | null;
-    /** The partner company, e.g. MCI. Null for BD staff. */
+    /** Only set on old employer referrals. Null for candidate referrers. */
     companyName: string | null;
     endsAt: string;
   } | null;
@@ -54,7 +54,7 @@ export interface EmployerReview {
     code: string;
     name: string | null;
     companyName: string | null;
-    /** A BD or partner code, so it can refer a business. */
+    /** A candidate's code, so it can refer a business. */
     valid: boolean;
   } | null;
   /** `companyCoinPriceCents` is GONE, with the per-company rate behind it. One
@@ -73,7 +73,7 @@ export function listEmployers(status: EmployerFilter = "pending") {
 /** `status` is this person's approval; `companyVerified` is the business's own.
  *  Omit the second to leave the company alone — the right thing for the second
  *  manager at a business already checked. `referralCode` links who referred
- *  them (an MCI or BD staff code), as said on the call. */
+ *  them (any candidate's code, BD staff included), as said on the call. */
 export function decideEmployer(
   userId: string,
   status: "approved" | "rejected",

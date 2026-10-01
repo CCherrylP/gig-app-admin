@@ -70,7 +70,7 @@ export interface PlatformSettings {
   referralBdPct: number;
   referralTaPct: number;
   referralCandidatePct: number;
-  /** Partner company employers, paid in coins. */
+  /** Old employer referral rates. No longer paid, so hidden in the form. */
   referralEmployerCandidatePct: number;
   referralEmployerClientPct: number;
   /** How long a new referral earns for. */

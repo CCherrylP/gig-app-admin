@@ -7,7 +7,7 @@ import type { EmployerReview } from "@/lib/employers";
 export const suggestedReferralCode = (employer: EmployerReview) =>
   employer.signupReferral?.valid ? employer.signupReferral.code : "";
 
-/** Asked on the approval call: did someone refer you? Takes an MCI or BD staff code. */
+/** Asked on the approval call: did someone refer you? Takes any candidate's code, BD staff included. */
 export function ReferredByField({
   employer,
   value,
@@ -29,7 +29,7 @@ export function ReferredByField({
       </label>
       <Input
         id="referred-by"
-        placeholder="Their referrer's code, e.g. from MCI"
+        placeholder="Their referrer's code"
         value={value}
         onChange={(e) => onChange(e.target.value.toUpperCase())}
         className="h-9 font-mono"
@@ -43,7 +43,7 @@ export function ReferredByField({
             ? `They signed up from ${who}'s link. Confirm it on the call, or clear the box.`
             : link
               ? `They signed up with code ${link.code}, but it can't refer a business.`
-              : "Ask if a partner such as MCI referred them. Leave blank if not."}
+              : "Ask who referred them. Any candidate's referral code works, including BD staff. Leave blank if no one did."}
       </p>
     </div>
   );

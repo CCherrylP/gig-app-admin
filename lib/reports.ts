@@ -15,7 +15,7 @@ import { getAccessToken } from "./auth";
 export type PayrollStatus = "awaiting_signoff" | "ready" | "paid";
 
 export interface PayrollRow {
-  /** `referral` is a candidate's referral bonus, paid with their wages. It has
+  /** `referral` is a referral payout (any referrer, staff included), paid with wages. It has
    *  no hours or rate. Missing on an older API, which means `shift`. */
   kind?: "shift" | "referral";
   /** The commission id on a referral row. Mark-paid accepts both. */

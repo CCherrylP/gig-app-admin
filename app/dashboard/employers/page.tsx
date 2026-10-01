@@ -303,7 +303,7 @@ function EmployerRow({
           )}
           {!employer.referredBy && employer.signupReferral?.valid && (
             <span className="truncate text-xs font-medium text-amber-600 dark:text-amber-400">
-              From {employer.signupReferral.name ?? "a partner"}&apos;s link
+              From {employer.signupReferral.name ?? "someone"}&apos;s link
               {employer.signupReferral.companyName ? ` (${employer.signupReferral.companyName})` : ""}
               . Confirm on the call.
             </span>
