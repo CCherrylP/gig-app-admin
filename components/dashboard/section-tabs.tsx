@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { useAdminCounts } from "@/hooks/use-admin-counts";
+import type { AdminCounts } from "@/lib/counts";
 import { cn } from "@/lib/utils";
 
 export interface SectionTab {
@@ -12,12 +14,23 @@ export interface SectionTab {
   match?: string[];
   /** Shown as a small amber count when above zero. */
   count?: number;
+  /** Which number on /admin/counts this tab shows, when it is one of them.
+   *
+   *  DECLARED RATHER THAN RESOLVED BY THE CALLER, so a tab bar gets a live count
+   *  by naming one — the bar reads them itself, off the same polled request the
+   *  sidebar and the header bell use. `count` still wins where it is given, for
+   *  a number that is not one of these. */
+  countKey?: keyof AdminCounts;
 }
 
 /** The section name and its tabs, at the top of every page in a section. Each
  *  tab is its own page; this bar ties them together. */
 export function SectionTabs({ title, tabs }: { title: string; tabs: SectionTab[] }) {
   const pathname = usePathname();
+  // Same query as everything else that badges a number, so it is one request
+  // however many of these are on screen — and it polls, so a tab's count rises
+  // while somebody is working the tab next to it.
+  const { data: counts } = useAdminCounts();
 
   return (
     <nav aria-label={title} className="flex flex-col gap-3">
@@ -26,7 +39,8 @@ export function SectionTabs({ title, tabs }: { title: string; tabs: SectionTab[]
       <div className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1">
         {tabs.map((tab) => {
           const active = pathname === tab.url || Boolean(tab.match?.includes(pathname));
-          const waiting = tab.count ?? 0;
+          const waiting =
+            tab.count ?? (tab.countKey ? (counts?.[tab.countKey] ?? 0) : 0);
 
           return (
             <Link
@@ -61,9 +75,22 @@ export function SectionTabs({ title, tabs }: { title: string; tabs: SectionTab[]
 
 // --- the sections ---------------------------------------------------------------
 
+// THE TWO INBOXES CARRY THEIR OWN NUMBERS, where the sidebar's badge is their
+// sum. It has to be both: the badge answers "is anybody waiting" from any page,
+// and these answer "which of the two", which the sum cannot — a 3 on the section
+// sends somebody into the candidate queue to find it empty, and after that they
+// stop believing the number.
 export const INBOX_TABS: SectionTab[] = [
-  { label: "Candidates", url: "/dashboard/inbox/candidates" },
-  { label: "Employers", url: "/dashboard/inbox/employers" },
+  {
+    label: "Candidates",
+    url: "/dashboard/inbox/candidates",
+    countKey: "supportCandidates",
+  },
+  {
+    label: "Employers",
+    url: "/dashboard/inbox/employers",
+    countKey: "supportEmployers",
+  },
 ];
 
 export const PEOPLE_TABS: SectionTab[] = [
@@ -74,7 +101,8 @@ export const PEOPLE_TABS: SectionTab[] = [
 
 export const MONEY_TABS: SectionTab[] = [
   { label: "Overview", url: "/dashboard/money" },
-  { label: "Payroll", url: "/dashboard/payroll", match: ["/dashboard/payroll/sheet"] },
+  // Opens on one line per person, the view you pay from.
+  { label: "Payroll", url: "/dashboard/payroll/sheet", match: ["/dashboard/payroll"] },
   { label: "Invoices", url: "/dashboard/invoices" },
   { label: "Referrals", url: "/dashboard/referrals" },
 ];

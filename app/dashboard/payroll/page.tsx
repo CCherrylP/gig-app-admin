@@ -30,6 +30,7 @@ import {
   downloadCsv,
   downloadPayrollXlsx,
   hours,
+  isReferralRow,
   listPayroll,
   markPayrollPaid,
   monthLabel,
@@ -44,6 +45,7 @@ import {
 } from "@/lib/reports";
 import { date, money } from "@/lib/format";
 import { payoutProof } from "@/lib/payouts";
+import { RevealNumber } from "@/components/dashboard/reveal-number";
 
 // Who we owe money to, and whether it has gone out.
 //
@@ -123,11 +125,7 @@ export default function PayrollPage() {
     onSuccess: (result) => {
       setSelected(new Set());
       queryClient.invalidateQueries({ queryKey: ["payroll"] });
-      toast.success(
-        result.marked === 1
-          ? "1 shift marked as paid"
-          : `${result.marked} shifts marked as paid`,
-      );
+      toast.success(`Marked ${result.marked} as paid`);
     },
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "Could not save that"),
@@ -249,6 +247,12 @@ export default function PayrollPage() {
         />
       </div>
 
+      {(totals?.referralCents ?? 0) > 0 && (
+        <p className="-mt-3 text-sm text-muted-foreground">
+          Includes {money(totals?.referralCents ?? 0)} in referral bonuses, paid with wages.
+        </p>
+      )}
+
       {/*
         THE UNPAYABLE LIST IS ABOVE THE TABLE, not a column in it. These are
         people with money waiting and nowhere to send it, and finding that out
@@ -342,6 +346,8 @@ export default function PayrollPage() {
             />
           ) : (
             <TableShell
+              // This page has its own Excel and CSV exports above.
+              exportable={false}
               headers={[
                 <input
                   key="all"
@@ -491,15 +497,24 @@ function Row({
         </div>
       </td>
 
-      <td className="truncate px-4 py-3">
-        <div className="truncate">{row.companyName}</div>
-        <div className="truncate text-xs text-muted-foreground">{row.roleName}</div>
-      </td>
+      {isReferralRow(row) ? (
+        <td className="truncate px-4 py-3">
+          <div className="truncate font-medium text-primary">Referral bonus</div>
+          <div className="truncate text-xs text-muted-foreground">
+            {row.roleName} · {row.companyName}
+          </div>
+        </td>
+      ) : (
+        <td className="truncate px-4 py-3">
+          <div className="truncate">{row.companyName}</div>
+          <div className="truncate text-xs text-muted-foreground">{row.roleName}</div>
+        </td>
+      )}
 
       <td className="truncate px-4 py-3">
         <div className="truncate">{date(row.shiftOnDate)}</div>
         <div className="truncate text-xs text-muted-foreground">
-          {row.scheduledStart}–{row.scheduledEnd}
+          {isReferralRow(row) ? "Friend's shift" : `${row.scheduledStart}–${row.scheduledEnd}`}
         </div>
       </td>
 
@@ -514,9 +529,7 @@ function Row({
             <span className="truncate text-xs text-muted-foreground">
               {payout.method}
             </span>
-            <span className="truncate font-mono text-xs select-all">
-              {payout.number}
-            </span>
+            <RevealNumber value={payout.number} />
 
             {/* WHETHER ANYBODY HAS CHECKED THE NUMBER IS THEIRS, right under
                 the number somebody is about to copy into a bank app. It does

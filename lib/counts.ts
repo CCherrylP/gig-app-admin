@@ -24,8 +24,19 @@ export interface AdminCounts {
   invoices: number;
   /** Open support threads, both sides together. */
   support: number;
+  /** The same total split by whose question it is. The inbox is two pages worked
+   *  by different staff, so a combined number on the section tells nobody which
+   *  tab to open — the tabs carry these, the sidebar carries the sum.
+   *
+   *  Optional, like the two below, so a dashboard deployed ahead of the API
+   *  shows no inbox tab counts rather than two zeroes that look like an empty
+   *  queue. */
+  supportCandidates?: number;
+  supportEmployers?: number;
   /** PayNow proofs waiting for a check. Missing on an older API. */
   payouts?: number;
+  /** Feed posts with a report nobody has reviewed. Missing on an older API. */
+  postReports?: number;
 }
 
 export function adminCounts() {

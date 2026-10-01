@@ -1,8 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-
-import { adminCounts, type AdminCounts } from "@/lib/counts";
+import { type AdminCounts } from "@/lib/counts";
 import { SectionTabs } from "@/components/dashboard/section-tabs";
 
 /** Everything that is waiting on staff, in one place. Each tab is its own page;
@@ -14,6 +12,7 @@ export const REVIEW_TABS: { label: string; url: string; count: keyof AdminCounts
   { label: "Appeals", url: "/dashboard/appeals", count: "appeals" },
   { label: "Payments", url: "/dashboard/payments", count: "invoices" },
   { label: "PayNow checks", url: "/dashboard/payroll/payouts", count: "payouts" },
+  { label: "Reported posts", url: "/dashboard/post-reports", count: "postReports" },
 ];
 
 export const REVIEW_URLS = REVIEW_TABS.map((tab) => tab.url);
@@ -23,13 +22,17 @@ export const reviewTotal = (counts?: AdminCounts) =>
   REVIEW_TABS.reduce((sum, tab) => sum + (counts?.[tab.count] ?? 0), 0);
 
 export function ReviewTabs() {
-  // Same query key as the sidebar, so this costs no extra request.
-  const { data: counts } = useQuery({ queryKey: ["admin", "counts"], queryFn: adminCounts });
-
+  // The counts are NAMED rather than resolved here — SectionTabs reads them off
+  // the same polled request the sidebar and the header bell use, so every one of
+  // these bars stays in step with the badge above it without each one fetching.
   return (
     <SectionTabs
       title="To review"
-      tabs={REVIEW_TABS.map((tab) => ({ label: tab.label, url: tab.url, count: counts?.[tab.count] }))}
+      tabs={REVIEW_TABS.map((tab) => ({
+        label: tab.label,
+        url: tab.url,
+        countKey: tab.count,
+      }))}
     />
   );
 }

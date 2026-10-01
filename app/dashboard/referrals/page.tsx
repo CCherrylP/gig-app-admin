@@ -49,22 +49,26 @@ import {
   createReferral,
   deleteReferral,
   listCommissions,
+  listReferralPartners,
   listReferralStaff,
   listReferrals,
   markCommissionsPaid,
+  setReferralPartner,
   setReferralStaff,
   type AdminReferral,
   type CommissionStatus,
+  type ReferralPartner,
   type ReferralStaff,
   type StaffTeam,
 } from "@/lib/referrals";
 import { currentMonth, downloadCsv, monthLabel, recentMonths } from "@/lib/reports";
 import { date, money } from "@/lib/format";
 
-type Section = "staff" | "referrals" | "commissions";
+type Section = "staff" | "partners" | "referrals" | "commissions";
 
 const SECTIONS: { value: Section; label: string }[] = [
   { value: "staff", label: "Staff" },
+  { value: "partners", label: "Partners" },
   { value: "referrals", label: "Referrals" },
   { value: "commissions", label: "Commissions" },
 ];
@@ -107,6 +111,7 @@ export default function ReferralsPage() {
       </PageHeader>
 
       {section === "staff" && <StaffSection />}
+      {section === "partners" && <PartnersSection />}
       {section === "referrals" && <ReferralsSection />}
       {section === "commissions" && <CommissionsSection />}
     </div>
@@ -251,6 +256,118 @@ function StaffSection() {
   );
 }
 
+// --- partners -------------------------------------------------------------------
+
+function PartnersSection() {
+  const queryClient = useQueryClient();
+  const [uen, setUen] = useState("");
+  const [removing, setRemoving] = useState<ReferralPartner | null>(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["referrals", "partners"],
+    queryFn: listReferralPartners,
+  });
+
+  const save = useMutation({
+    mutationFn: ({ uen, canRefer }: { uen: string; canRefer: boolean }) =>
+      setReferralPartner(uen, canRefer),
+    onSuccess: (_, body) => {
+      queryClient.invalidateQueries({ queryKey: ["referrals"] });
+      if (body.canRefer) {
+        setUen("");
+        toast.success("Partner added");
+      } else {
+        setRemoving(null);
+        toast.success("Partner removed");
+      }
+    },
+    onError: (error) => toast.error(errorText(error, "Could not save that")),
+  });
+
+  const trimmed = uen.trim();
+  const partners = data ?? [];
+
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Add a partner company</CardTitle>
+          <CardDescription>
+            Every employer at a partner company gets a referral code. It works for
+            candidates and companies. They earn coins into their company when a
+            referred shift is signed off.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form
+            className="flex flex-wrap items-center gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (trimmed) save.mutate({ uen: trimmed, canRefer: true });
+            }}
+          >
+            <Input
+              placeholder="Company UEN, e.g. 201607136W"
+              value={uen}
+              onChange={(e) => setUen(e.target.value)}
+              className="h-9 w-72 font-mono"
+            />
+            <Button type="submit" disabled={!trimmed || save.isPending}>
+              <HugeiconsIcon icon={UserAdd01Icon} strokeWidth={1.5} className="size-4" />
+              {save.isPending ? "Saving…" : "Add partner"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <LoadingRows />
+          ) : partners.length === 0 ? (
+            <EmptyState icon={UserMultipleIcon} message="No partner companies yet." />
+          ) : (
+            <TableShell
+              headers={["Company", "UEN", "Employers", "Referrals", "Coins earned", ""]}
+              widths={["w-[32%]", "w-[16%]", "w-[12%]", "w-[12%]", "w-[15%]", "w-[13%]"]}
+            >
+              {partners.map((partner) => (
+                <tr key={partner.companyId}>
+                  <td className="truncate px-4 py-3 font-medium">{partner.name}</td>
+                  <td className="px-4 py-3 font-mono text-xs">{partner.uen}</td>
+                  <td className="px-4 py-3 tabular-nums">{partner.employers}</td>
+                  <td className="px-4 py-3 tabular-nums">{partner.referrals}</td>
+                  <td className="px-4 py-3 tabular-nums">{partner.coins.toLocaleString("en-SG")}</td>
+                  <td className="px-4 py-3 text-right">
+                    <Button variant="outline" size="xs" onClick={() => setRemoving(partner)}>
+                      Remove
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </TableShell>
+          )}
+        </CardContent>
+      </Card>
+
+      <ConfirmDialog
+        open={!!removing}
+        title="Remove this partner"
+        description={
+          <>
+            <span className="font-medium text-foreground">{removing?.name}</span> can no
+            longer refer new people. Referrals they already made keep earning until they end.
+          </>
+        }
+        confirmLabel="Remove"
+        isPending={save.isPending}
+        onOpenChange={(open) => !open && setRemoving(null)}
+        onConfirm={() => removing && save.mutate({ uen: removing.uen, canRefer: false })}
+      />
+    </>
+  );
+}
+
 function CodeCell({ code }: { code: string }) {
   const copy = async () => {
     try {
@@ -317,7 +434,7 @@ function ReferralsSection() {
           <CardTitle className="text-base">Set referrer by hand</CardTitle>
           <CardDescription>
             For someone who signed up without a code. This replaces any
-            referrer they already have.
+            referrer they already have. Partner codes work for both.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -666,12 +783,20 @@ function CommissionsSection() {
                   <td className="px-4 py-3 tabular-nums">{money(row.feeCents)}</td>
                   <td className="px-4 py-3 tabular-nums">{row.ratePct}%</td>
                   <td className="px-4 py-3 font-medium tabular-nums">
-                    {money(row.amountCents)}
+                    {row.coins !== null
+                      ? `${row.coins.toLocaleString("en-SG")} coins`
+                      : money(row.amountCents)}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <StatusPill
                       status={row.paidAt ? "paid" : "pending"}
-                      label={row.paidAt ? `Paid ${sgDay(row.paidAt)}` : "Pending"}
+                      label={
+                        row.coins !== null
+                          ? "Coins credited"
+                          : row.paidAt
+                            ? `Paid ${sgDay(row.paidAt)}`
+                            : "Pending"
+                      }
                       styles={PILL_STYLES}
                     />
                   </td>

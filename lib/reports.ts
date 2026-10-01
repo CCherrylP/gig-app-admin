@@ -15,6 +15,10 @@ import { getAccessToken } from "./auth";
 export type PayrollStatus = "awaiting_signoff" | "ready" | "paid";
 
 export interface PayrollRow {
+  /** `referral` is a candidate's referral bonus, paid with their wages. It has
+   *  no hours or rate. Missing on an older API, which means `shift`. */
+  kind?: "shift" | "referral";
+  /** The commission id on a referral row. Mark-paid accepts both. */
   applicationId: string;
 
   candidateId: string;
@@ -73,7 +77,10 @@ export interface PayrollRow {
   paidAt: string | null;
 }
 
+/** Counts are shifts only. Cents include referral bonuses. */
 export interface PayrollTotals {
+  /** The part of ready + paid that is referral bonuses. */
+  referralCents?: number;
   readyCents: number;
   readyCount: number;
   awaitingCents: number;
@@ -393,6 +400,18 @@ export function payoutLabel(row: PayrollRow) {
   return payout ? `${payout.method} ${payout.number}` : null;
 }
 
+export const isReferralRow = (row: PayrollRow) => row.kind === "referral";
+
+/** Worked shifts only, leaving out referral bonus rows. */
+export const shiftCountOf = (rows: PayrollRow[]) =>
+  rows.filter((row) => !isReferralRow(row)).length;
+
+/** How much of a person's rows are referral bonuses, paid or not. */
+export const referralCentsOf = (person: { shifts: PayrollRow[] }) =>
+  person.shifts
+    .filter(isReferralRow)
+    .reduce((sum, row) => sum + (row.amountCents ?? 0), 0);
+
 // --- the attendance sheet -----------------------------------------------------------
 
 /** One person, every shift behind them, and the three totals kept apart. */
@@ -506,7 +525,7 @@ export function sheetCsv(people: CandidateSheet[], range: DateRange) {
         cell(person.payout?.method ?? "NO ACCOUNT"),
         cell(person.payout?.number),
         cell(person.payout?.holder),
-        cell(`${person.shifts.length} shifts`),
+        cell(`${shiftCountOf(person.shifts)} shifts`),
         cell(hours(person.minutes)),
         cell(""),
         cell(amount(person.readyCents)),
@@ -527,7 +546,7 @@ export function sheetCsv(people: CandidateSheet[], range: DateRange) {
           cell(""),
           cell(shift.shiftOnDate),
           cell(hours(shift.minutes)),
-          cell(amount(shift.payPerHourCents)),
+          cell(isReferralRow(shift) ? "" : amount(shift.payPerHourCents)),
           cell(shift.status === "ready" ? amount(cents) : ""),
           cell(shift.status === "paid" ? amount(cents) : ""),
           cell(shift.status === "awaiting_signoff" ? amount(cents) : ""),
@@ -546,7 +565,7 @@ export function sheetCsv(people: CandidateSheet[], range: DateRange) {
       cell(""),
       cell(""),
       cell(""),
-      cell(`${people.reduce((n, p) => n + p.shifts.length, 0)} shifts`),
+      cell(`${people.reduce((n, p) => n + shiftCountOf(p.shifts), 0)} shifts`),
       cell(hours(sum((person) => person.minutes))),
       cell(""),
       cell(amount(sum((person) => person.readyCents))),
@@ -578,15 +597,16 @@ export function payableCsv(rows: PayrollRow[], month: string) {
     if (row.status !== "ready" || !row.payoutKind) continue;
 
     const existing = byCandidate.get(row.candidateId);
+    const shifts = isReferralRow(row) ? 0 : 1;
 
     if (existing) {
       existing.cents += row.amountCents ?? 0;
-      existing.shifts += 1;
+      existing.shifts += shifts;
     } else {
       byCandidate.set(row.candidateId, {
         row,
         cents: row.amountCents ?? 0,
-        shifts: 1,
+        shifts,
       });
     }
   }

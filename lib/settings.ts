@@ -70,6 +70,9 @@ export interface PlatformSettings {
   referralBdPct: number;
   referralTaPct: number;
   referralCandidatePct: number;
+  /** Partner company employers, paid in coins. */
+  referralEmployerCandidatePct: number;
+  referralEmployerClientPct: number;
   /** How long a new referral earns for. */
   referralMonths: number;
   /** A candidate referrer only earns if they worked a shift within this many days. */
@@ -97,6 +100,8 @@ export type PlatformSettingsPatch = Partial<
     | "referralBdPct"
     | "referralTaPct"
     | "referralCandidatePct"
+    | "referralEmployerCandidatePct"
+    | "referralEmployerClientPct"
     | "referralMonths"
     | "referralActiveDays"
     // Null clears it.
@@ -133,6 +138,8 @@ export const BOUNDS = {
   referralBdPct: { min: 0, max: 100 },
   referralTaPct: { min: 0, max: 100 },
   referralCandidatePct: { min: 0, max: 100 },
+  referralEmployerCandidatePct: { min: 0, max: 100 },
+  referralEmployerClientPct: { min: 0, max: 100 },
   referralMonths: { min: 1, max: 120 },
   referralActiveDays: { min: 1, max: 365 },
 } as const;

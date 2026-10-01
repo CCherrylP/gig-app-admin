@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useQuery } from "@tanstack/react-query";
 
 import { NavMain, type NavItem } from "@/components/nav-main";
 import { NavUser } from "@/components/nav-user";
@@ -26,7 +25,7 @@ import {
   Settings02Icon,
 } from "@hugeicons/core-free-icons";
 import Logo from "./common/Logo";
-import { adminCounts } from "@/lib/counts";
+import { useAdminCounts } from "@/hooks/use-admin-counts";
 import { getCachedUser } from "@/lib/auth";
 import { REVIEW_TABS, REVIEW_URLS, reviewTotal } from "@/components/dashboard/review-tabs";
 import { INBOX_TABS, MONEY_TABS, PEOPLE_TABS, urlsOf } from "@/components/dashboard/section-tabs";
@@ -36,11 +35,9 @@ import { INBOX_TABS, MONEY_TABS, PEOPLE_TABS, urlsOf } from "@/components/dashbo
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [user] = React.useState(getCachedUser);
 
-  // Every badge in one request. See /admin/counts.
-  const { data: counts } = useQuery({
-    queryKey: ["admin", "counts"],
-    queryFn: adminCounts,
-  });
+  // Every badge in one request, asked again on a timer so a queue that fills
+  // while somebody is working elsewhere says so. See useAdminCounts.
+  const { data: counts } = useAdminCounts();
 
   // Opens on the first tab with something waiting, so a click lands on work.
   const firstWaiting =

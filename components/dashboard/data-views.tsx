@@ -428,6 +428,7 @@ export function TableShell({
   widths,
   children,
   exportName,
+  exportable = true,
 }: {
   headers: React.ReactNode[];
   /** A width per column, e.g. `w-[22%]`. Under `table-fixed` the first row's
@@ -437,6 +438,8 @@ export function TableShell({
   children: React.ReactNode;
   /** The file name for Export to Excel. Defaults to the page's address. */
   exportName?: string;
+  /** False on pages with their own, fuller export. */
+  exportable?: boolean;
 }) {
   const last = headers.length - 1;
   const table = React.useRef<HTMLTableElement>(null);
@@ -458,12 +461,14 @@ export function TableShell({
   return (
     <div className="overflow-x-auto">
       {/* Exports the rows on screen, with the current tab, filter and search. */}
-      <div className="flex justify-end border-b px-4 py-2">
-        <Button variant="outline" size="sm" onClick={exportTable} disabled={exporting}>
-          <HugeiconsIcon icon={Download04Icon} strokeWidth={2} />
-          {exporting ? "Exporting…" : "Export to Excel"}
-        </Button>
-      </div>
+      {exportable && (
+        <div className="flex justify-end border-b px-4 py-2">
+          <Button variant="outline" size="sm" onClick={exportTable} disabled={exporting}>
+            <HugeiconsIcon icon={Download04Icon} strokeWidth={2} />
+            {exporting ? "Exporting…" : "Export to Excel"}
+          </Button>
+        </div>
+      )}
       {/*
         min-w-5xl, not 3xl. Under `table-fixed` a cell whose content is wider
         than its column does not wrap the column — it SPILLS OVER the next one,

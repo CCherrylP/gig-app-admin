@@ -3,8 +3,24 @@ import { fetchWithAuth } from "./api";
 // Referral staff, referrals and commissions. Types copied from the API's
 // src/contract/referral.ts.
 
-export type ReferralKind = "client" | "staff_candidate" | "candidate";
+export type ReferralKind =
+  | "client"
+  | "staff_candidate"
+  | "candidate"
+  | "employer_candidate"
+  | "employer_client";
 export type StaffTeam = "bd" | "ta";
+
+/** GET /admin/referrals/partners. A company whose employers can refer, for coins. */
+export interface ReferralPartner {
+  companyId: string;
+  name: string;
+  uen: string;
+  employers: number;
+  referrals: number;
+  /** Coins earned by all its employers. */
+  coins: number;
+}
 
 /** GET /admin/referrals/staff */
 export interface ReferralStaff {
@@ -61,6 +77,8 @@ export interface AdminCommission {
   feeCents: number;
   ratePct: number;
   amountCents: number;
+  /** Coins credited, for an employer referral. Null when paid in money. */
+  coins: number | null;
   createdAt: string;
   paidAt: string | null;
 }
@@ -78,7 +96,7 @@ export interface CommissionReferrerLine {
 export interface AdminCommissionReport {
   month: string;
   rows: AdminCommission[];
-  /** One line per referrer, for payroll. */
+  /** One line per referrer, for payroll. Cash only: coin rewards are left out. */
   byReferrer: CommissionReferrerLine[];
 }
 
@@ -88,6 +106,8 @@ export const KIND_LABEL: Record<ReferralKind, string> = {
   client: "BD client",
   staff_candidate: "TA candidate",
   candidate: "Candidate",
+  employer_candidate: "Partner → candidate",
+  employer_client: "Partner → company",
 };
 
 export const TEAM_LABEL: Record<StaffTeam, string> = {
@@ -103,6 +123,18 @@ export function setReferralStaff(body: SetReferralStaffBody) {
   return fetchWithAuth<unknown>("/admin/referrals/staff", {
     method: "PUT",
     body: JSON.stringify(body),
+  });
+}
+
+export function listReferralPartners() {
+  return fetchWithAuth<ReferralPartner[]>("/admin/referrals/partners");
+}
+
+/** Turns referrals on or off for a company, by UEN. */
+export function setReferralPartner(uen: string, canRefer: boolean) {
+  return fetchWithAuth<unknown>("/admin/referrals/partners", {
+    method: "PUT",
+    body: JSON.stringify({ uen, canRefer }),
   });
 }
 

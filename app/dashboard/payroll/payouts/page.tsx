@@ -41,6 +41,7 @@ import {
 } from "@/lib/payouts";
 import { VERIFICATION_LABEL, type PayoutVerification } from "@/lib/reports";
 import { relative } from "@/lib/format";
+import { RevealNumber } from "@/components/dashboard/reveal-number";
 
 // DOES THIS PAYNOW NUMBER BELONG TO THE PERSON WE ARE ABOUT TO PAY.
 //
@@ -231,8 +232,8 @@ export default function PayoutChecksPage() {
                       differ, the screenshot is the only thing that settles it.
                       Mono so a digit cannot be misread. */}
                   <td className="truncate px-4 py-3">
-                    <div className="truncate font-mono text-xs select-all">
-                      {account.number}
+                    <div className="truncate">
+                      <RevealNumber value={account.number} />
                     </div>
                     <div className="truncate text-xs text-muted-foreground">
                       {account.holderName ?? "no name given"}

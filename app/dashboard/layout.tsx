@@ -1,5 +1,6 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import { AuthGuard } from "@/components/auth-guard";
+import { WorkWaiting } from "@/components/dashboard/work-waiting";
 import { Separator } from "@/components/ui/separator";
 import {
   SidebarInset,
@@ -25,12 +26,19 @@ export default function DashboardLayout({
               overflow-x-hidden then clips the last column rather than letting
               anybody reach it. */}
           <SidebarInset className="min-w-0">
+            {/* The header is the only thing on EVERY page, which is why what is
+                waiting lives in it. The sidebar badges answer the same question
+                and are one click away behind a collapsed rail; Home answers it
+                best and is the one page nobody is on while they work. */}
             <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
               <SidebarTrigger className="-ml-1" />
               <Separator
                 orientation="vertical"
                 className="mr-2 data-[orientation=vertical]:h-4 data-[orientation=vertical]:self-auto"
               />
+              <div className="ml-auto">
+                <WorkWaiting />
+              </div>
             </header>
             <main className="flex flex-1 flex-col overflow-x-hidden">
               {children}

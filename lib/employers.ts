@@ -40,6 +40,23 @@ export interface EmployerReview {
   companyVerificationStatus: VerificationStatus;
   /** How many people already hold a seat at this UEN. */
   companySeats: number;
+  /** Who referred this company, or null. Set on the approval call. */
+  referredBy: {
+    name: string | null;
+    code: string | null;
+    /** The partner company, e.g. MCI. Null for BD staff. */
+    companyName: string | null;
+    endsAt: string;
+  } | null;
+  /** The code they signed up with from a referral link. NOT linked: confirm it
+   *  on the call. Null once linked, or when there was none. */
+  signupReferral: {
+    code: string;
+    name: string | null;
+    companyName: string | null;
+    /** A BD or partner code, so it can refer a business. */
+    valid: boolean;
+  } | null;
   /** `companyCoinPriceCents` is GONE, with the per-company rate behind it. One
    *  published price now, on the Config screen, the same for everybody. */
 }
@@ -55,17 +72,21 @@ export function listEmployers(status: EmployerFilter = "pending") {
 
 /** `status` is this person's approval; `companyVerified` is the business's own.
  *  Omit the second to leave the company alone — the right thing for the second
- *  manager at a business already checked. */
+ *  manager at a business already checked. `referralCode` links who referred
+ *  them (an MCI or BD staff code), as said on the call. */
 export function decideEmployer(
   userId: string,
   status: "approved" | "rejected",
   companyVerified?: boolean,
+  referralCode?: string,
 ) {
   return fetchWithAuth<EmployersResponse>(`/admin/employers/${userId}`, {
     method: "PATCH",
-    body: JSON.stringify(
-      companyVerified === undefined ? { status } : { status, companyVerified },
-    ),
+    body: JSON.stringify({
+      status,
+      ...(companyVerified === undefined ? {} : { companyVerified }),
+      ...(referralCode ? { referralCode } : {}),
+    }),
   });
 }
 

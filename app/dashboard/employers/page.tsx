@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { ReviewTabs } from "@/components/dashboard/review-tabs";
 import { PeopleTabs } from "@/components/dashboard/section-tabs";
+import { ReferredByField, suggestedReferralCode } from "@/components/dashboard/referred-by-field";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -81,8 +82,9 @@ export default function EmployersPage() {
       employer,
       status,
       companyVerified,
-    }: Decision & { companyVerified?: boolean }) =>
-      decideEmployer(employer.userId, status, companyVerified),
+      referralCode,
+    }: Decision & { companyVerified?: boolean; referralCode?: string }) =>
+      decideEmployer(employer.userId, status, companyVerified, referralCode),
     onSuccess: (_result, { status, employer }) => {
       queryClient.invalidateQueries({ queryKey: ["employers"] });
       setDecision(null);
@@ -95,7 +97,7 @@ export default function EmployersPage() {
     },
     onError: (error: Error) => {
       toast.error(error.message || "Could not record that decision");
-      setDecision(null);
+      // Nothing was saved, so a mistyped referral code can be fixed in place.
       queryClient.invalidateQueries({ queryKey: ["employers"] });
     },
   });
@@ -205,8 +207,8 @@ export default function EmployersPage() {
         onOpenChange={(open) => {
           if (!open) setDecision(null);
         }}
-        onConfirm={(companyVerified) =>
-          decision && mutation.mutate({ ...decision, companyVerified })
+        onConfirm={(companyVerified, referralCode) =>
+          decision && mutation.mutate({ ...decision, companyVerified, referralCode })
         }
         isPending={mutation.isPending}
       />
@@ -293,6 +295,19 @@ function EmployerRow({
             {employer.companySeats} seat
             {employer.companySeats === 1 ? "" : "s"} at this UEN
           </span>
+          {employer.referredBy && (
+            <span className="truncate text-xs font-medium text-violet-600 dark:text-violet-400">
+              Referred by {employer.referredBy.name ?? "someone"}
+              {employer.referredBy.companyName ? ` (${employer.referredBy.companyName})` : ""}
+            </span>
+          )}
+          {!employer.referredBy && employer.signupReferral?.valid && (
+            <span className="truncate text-xs font-medium text-amber-600 dark:text-amber-400">
+              From {employer.signupReferral.name ?? "a partner"}&apos;s link
+              {employer.signupReferral.companyName ? ` (${employer.signupReferral.companyName})` : ""}
+              . Confirm on the call.
+            </span>
+          )}
         </div>
       </td>
 
@@ -401,11 +416,19 @@ function DecisionDialog({
 }: {
   decision: Decision | null;
   onOpenChange: (open: boolean) => void;
-  onConfirm: (companyVerified?: boolean) => void;
+  onConfirm: (companyVerified?: boolean, referralCode?: string) => void;
   isPending: boolean;
 }) {
   const approving = decision?.status === "approved";
   const employer = decision?.employer;
+  const [referralCode, setReferralCode] = useState("");
+
+  // A fresh box for each employer.
+  const [openFor, setOpenFor] = useState<string | null>(null);
+  if ((employer?.userId ?? null) !== openFor) {
+    setOpenFor(employer?.userId ?? null);
+    setReferralCode(employer ? suggestedReferralCode(employer) : "");
+  }
 
   // The business's own check RIDES ALONG, and is no longer a tick.
   //
@@ -456,6 +479,14 @@ function DecisionDialog({
                 pass before anyone at this UEN can post.
               </p>
             )}
+
+            {approving && (
+              <ReferredByField
+                employer={employer}
+                value={referralCode}
+                onChange={setReferralCode}
+              />
+            )}
           </div>
         )}
 
@@ -474,7 +505,10 @@ function DecisionDialog({
             onClick={() =>
               // Only on an approval: a rejection must not quietly verify the
               // business it is turning somebody down at.
-              onConfirm(approving ? verifyCompanyToo : undefined)
+              onConfirm(
+                approving ? verifyCompanyToo : undefined,
+                approving ? referralCode.trim() || undefined : undefined,
+              )
             }
             disabled={isPending}
           >

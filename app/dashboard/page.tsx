@@ -17,42 +17,26 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { QueuePanel } from "@/components/dashboard/data-views";
-import { REVIEW_TABS } from "@/components/dashboard/review-tabs";
-import { adminCounts, type AdminCounts } from "@/lib/counts";
+import { WORK_QUEUES, workTotal } from "@/components/dashboard/work-queues";
+import { useAdminCounts } from "@/hooks/use-admin-counts";
 import { listCertificates } from "@/lib/certificates";
 import { listAppeals, groundLabel } from "@/lib/appeals";
 import { listEmployers } from "@/lib/employers";
 import { certName } from "@/lib/certs-catalogue";
 import { date, relative } from "@/lib/format";
 
-/** One plain line under each queue on the to-do list. */
-const REVIEW_NOTES: Partial<Record<keyof AdminCounts, string>> = {
-  employers: "Businesses waiting for a verification call.",
-  certificates: "Certificates to check.",
-  attendance: "Selfie check-ins and missed clock-outs.",
-  appeals: "Penalty appeals to decide.",
-  invoices: "Transfers to confirm against the bank.",
-  payouts: "PayNow numbers to match to a name.",
-};
-
 // Home: a to-do list of everything waiting on staff, then the people who have
-// waited longest in the three biggest queues. Counts come from the same request
-// as the sidebar badges, so the two always agree.
-
-/** One line per queue on the to-do list, in the order they appear under To review. */
-const TODO: { label: string; note: string; url: string; count: keyof AdminCounts }[] = [
-  ...REVIEW_TABS.map((tab) => ({ ...tab, note: REVIEW_NOTES[tab.count] ?? "" })),
-  {
-    label: "Inbox",
-    note: "Questions from candidates and employers.",
-    url: "/dashboard/inbox/candidates",
-    count: "support",
-  },
-];
+// waited longest in the three biggest queues.
+//
+// THE LIST ITSELF IS SHARED with the bell in the header — see
+// components/dashboard/work-queues. It used to be written out here as well, and
+// two copies of "what is waiting" is a bell that says 4 above a list that says 5.
 
 function TodoList() {
-  const { data: counts, isLoading } = useQuery({ queryKey: ["admin", "counts"], queryFn: adminCounts });
-  const waiting = TODO.reduce((sum, row) => sum + (counts?.[row.count] ?? 0), 0);
+  // The same polled request as the sidebar and the bell, so all three agree and
+  // this page fills in while it is open rather than at the moment it loaded.
+  const { data: counts, isLoading } = useAdminCounts();
+  const waiting = workTotal(counts);
 
   return (
     <Card>
@@ -64,7 +48,7 @@ function TodoList() {
       </CardHeader>
       <CardContent className="p-0">
         <ul className="divide-y border-t">
-          {TODO.map((row) => {
+          {WORK_QUEUES.map((row) => {
             const count = counts?.[row.count] ?? 0;
 
             return (

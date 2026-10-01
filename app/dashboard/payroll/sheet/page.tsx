@@ -29,6 +29,7 @@ import {
   TableShell,
   initials,
 } from "@/components/dashboard/data-views";
+import { RevealNumber } from "@/components/dashboard/reveal-number";
 import {
   byCandidate,
   currentMonth,
@@ -44,6 +45,9 @@ import {
   rangeText,
   recentMonths,
   sheetCsv,
+  isReferralRow,
+  referralCentsOf,
+  shiftCountOf,
   today,
   weekRange,
   type CandidateSheet,
@@ -79,7 +83,8 @@ const MODES: { value: Mode; label: string }[] = [
 export default function PayoutSheetPage() {
   const queryClient = useQueryClient();
 
-  const [mode, setMode] = useState<Mode>("week");
+  // A month by default, so one pay run covers everything owed.
+  const [mode, setMode] = useState<Mode>("month");
   // ONE anchor for all three modes rather than a date per mode. Switching from
   // Day to Week then means "the week around the day I was looking at", which is
   // the move somebody actually makes — a second date that silently reset would
@@ -116,7 +121,8 @@ export default function PayoutSheetPage() {
       ready: shown.reduce((sum, person) => sum + person.readyCents, 0),
       paid: shown.reduce((sum, person) => sum + person.paidCents, 0),
       awaiting: shown.reduce((sum, person) => sum + person.awaitingCents, 0),
-      shifts: shown.reduce((sum, person) => sum + person.shifts.length, 0),
+      shifts: shown.reduce((sum, person) => sum + shiftCountOf(person.shifts), 0),
+      referral: shown.reduce((sum, person) => sum + referralCentsOf(person), 0),
     }),
     [shown],
   );
@@ -142,11 +148,7 @@ export default function PayoutSheetPage() {
       // crosses the 1st is not either month, so the numbers on screen have to
       // come from a refetch rather than from `result.totals`.
       queryClient.invalidateQueries({ queryKey: ["payroll"] });
-      toast.success(
-        result.marked === 1
-          ? "1 shift marked as paid"
-          : `${result.marked} shifts marked as paid`,
-      );
+      toast.success(`Marked ${result.marked} as paid`);
     },
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "Could not save that"),
@@ -266,6 +268,12 @@ export default function PayoutSheetPage() {
         />
       </div>
 
+      {totals.referral > 0 && (
+        <p className="-mt-3 text-sm text-muted-foreground">
+          Includes {money(totals.referral)} in referral bonuses, paid with wages.
+        </p>
+      )}
+
       {stuck.length > 0 && (
         <Card className="border-amber-300 dark:border-amber-800">
           <CardHeader>
@@ -288,7 +296,7 @@ export default function PayoutSheetPage() {
                   {person.name}
                   <span className="text-muted-foreground">
                     {person.phone ? ` · ${person.phone}` : ""}
-                    {` · ${person.shifts.length} ${person.shifts.length === 1 ? "shift" : "shifts"}`}
+                    {` · ${shiftCountOf(person.shifts)} ${shiftCountOf(person.shifts) === 1 ? "shift" : "shifts"}`}
                   </span>
                 </span>
                 <span className="font-medium tabular-nums">
@@ -343,7 +351,9 @@ export default function PayoutSheetPage() {
             />
           ) : (
             <TableShell
-              headers={["", "Candidate", "Pay to", "Shifts", "Hours", "Ready", "Waiting", ""]}
+              headers={["", "Candidate", "Pay to", "Shifts", "Hours", "To pay", "Waiting", ""]}
+              // This page has its own Export Excel above, with every shift in it.
+              exportable={false}
               // Pay to gets the widest share after the name: it carries a full
               // account number now, and a truncated one is worse than none.
               widths={[
@@ -389,6 +399,8 @@ function PersonRows({
   isPending: boolean;
 }) {
   const readyShifts = person.shifts.filter((shift) => shift.status === "ready");
+  const shiftCount = shiftCountOf(person.shifts);
+  const referral = referralCentsOf(person);
 
   return (
     <>
@@ -435,9 +447,7 @@ function PersonRows({
               <span className="truncate text-xs text-muted-foreground">
                 {person.payout.method}
               </span>
-              <span className="truncate font-mono text-xs select-all">
-                {person.payout.number}
-              </span>
+              <RevealNumber value={person.payout.number} />
               {person.payout.kind === "bank" && person.payout.holder && (
                 <span className="truncate text-xs text-muted-foreground">
                   {person.payout.holder}
@@ -449,12 +459,15 @@ function PersonRows({
           )}
         </td>
 
-        <td className="px-4 py-3 tabular-nums">{person.shifts.length}</td>
+        <td className="px-4 py-3 tabular-nums">{shiftCount}</td>
 
         <td className="px-4 py-3 tabular-nums">{hours(person.minutes)}</td>
 
         <td className="px-4 py-3 text-right tabular-nums">
           <span className="font-medium">{money(person.readyCents)}</span>
+          {referral > 0 && (
+            <div className="text-xs text-primary">incl. {money(referral)} referral</div>
+          )}
           {person.paidCents > 0 && (
             <div className="text-xs text-sky-600">
               {money(person.paidCents)} paid
@@ -497,31 +510,48 @@ function PersonRows({
             <td />
 
             <td className="px-4 py-2 pl-10">
-              <div className="flex min-w-0 flex-col">
-                <span className="truncate text-sm">{shift.companyName}</span>
-                <span className="truncate text-xs text-muted-foreground">
-                  {shift.roleName}
-                </span>
-              </div>
+              {isReferralRow(shift) ? (
+                <div className="flex min-w-0 flex-col">
+                  <span className="truncate text-sm font-medium text-primary">Referral bonus</span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    {shift.roleName} · {shift.companyName}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex min-w-0 flex-col">
+                  <span className="truncate text-sm">{shift.companyName}</span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    {shift.roleName}
+                  </span>
+                </div>
+              )}
             </td>
 
             <td className="px-4 py-2">
               <div className="flex min-w-0 flex-col">
                 <span className="truncate text-xs">{date(shift.shiftOnDate)}</span>
                 <span className="truncate text-xs text-muted-foreground">
-                  {shift.scheduledStart}–{shift.scheduledEnd}
+                  {isReferralRow(shift)
+                    ? "Friend's shift"
+                    : `${shift.scheduledStart}–${shift.scheduledEnd}`}
                 </span>
               </div>
             </td>
 
-            <td className="px-4 py-2 text-xs text-muted-foreground">
-              {/* The rate, so the total is checkable: hours × rate. Sent by the
-                  API from the role rather than divided out of the amount —
-                  see payPerHourCents in lib/reports. */}
-              {money(shift.payPerHourCents)}/h
-            </td>
+            <td />
 
-            <td className="px-4 py-2 text-xs tabular-nums">{hours(shift.minutes)}</td>
+            {/* The working, so the amount can be checked: hours × hourly rate.
+                The rate comes from the role, not divided out of the amount. */}
+            <td className="px-4 py-2 text-xs tabular-nums">
+              {isReferralRow(shift) ? (
+                <span className="text-muted-foreground">Bonus</span>
+              ) : (
+                <>
+                  {hours(shift.minutes)}{" "}
+                  <span className="text-muted-foreground">× {money(shift.payPerHourCents)}/h</span>
+                </>
+              )}
+            </td>
 
             <td className="px-4 py-2 text-right text-xs tabular-nums">
               {shift.status === "awaiting_signoff" ? (
@@ -547,6 +577,28 @@ function PersonRows({
             <td />
           </tr>
         ))}
+
+      {/* The subtotal under the breakdown, matching the person's row above. */}
+      {open && (
+        <tr className="border-b bg-muted/50 text-xs font-medium last:border-0">
+          <td />
+          <td colSpan={3} className="px-4 py-2 pl-10">
+            Total for {person.name} · {shiftCount} {shiftCount === 1 ? "shift" : "shifts"}
+            {referral > 0 && ` + ${money(referral)} referral`}
+          </td>
+          <td className="px-4 py-2 tabular-nums">{hours(person.minutes)}</td>
+          <td className="px-4 py-2 text-right tabular-nums">
+            {money(person.readyCents)} to pay
+            {person.paidCents > 0 && (
+              <div className="font-normal text-sky-600">{money(person.paidCents)} already paid</div>
+            )}
+          </td>
+          <td className="px-4 py-2 text-right tabular-nums text-amber-600">
+            {person.awaitingCents > 0 ? money(person.awaitingCents) : ""}
+          </td>
+          <td />
+        </tr>
+      )}
     </>
   );
 }

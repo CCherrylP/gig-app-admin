@@ -19,6 +19,7 @@ import {
 } from "@hugeicons/core-free-icons";
 
 import { Button } from "@/components/ui/button";
+import { ReferredByField, suggestedReferralCode } from "@/components/dashboard/referred-by-field";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -204,10 +205,12 @@ function Detail({
     mutationFn: ({
       status,
       companyVerified,
+      referralCode,
     }: {
       status: "approved" | "rejected";
       companyVerified?: boolean;
-    }) => decideEmployer(employer.userId, status, companyVerified),
+      referralCode?: string;
+    }) => decideEmployer(employer.userId, status, companyVerified, referralCode),
     onSuccess: (_result, { status }) => {
       toast.success(
         status === "approved" ? "Employer approved" : "Employer rejected",
@@ -696,11 +699,13 @@ function DecisionBand({
     mutate: (input: {
       status: "approved" | "rejected";
       companyVerified?: boolean;
+      referralCode?: string;
     }) => void;
     isPending: boolean;
   };
 }) {
   const approved = employer.status === "approved";
+  const [referralCode, setReferralCode] = useState(() => suggestedReferralCode(employer));
   const companyBlocked = employer.companyVerificationStatus !== "verified";
 
   // The "no approval without an agreed rate" gate is gone, here and in the API.
@@ -759,6 +764,7 @@ function DecisionBand({
                 decide.mutate({
                   status: "approved",
                   companyVerified: verifyCompanyToo,
+                  referralCode: referralCode.trim() || undefined,
                 })
               }
               disabled={decide.isPending}
@@ -782,6 +788,19 @@ function DecisionBand({
           </span>{" "}
           verified — it is currently {employer.companyVerificationStatus}, and
           both halves have to pass before anyone at this UEN can post.
+        </p>
+      )}
+
+      {!approved && (
+        <div className="max-w-sm">
+          <ReferredByField employer={employer} value={referralCode} onChange={setReferralCode} />
+        </div>
+      )}
+
+      {approved && employer.referredBy && (
+        <p className="text-xs text-muted-foreground">
+          Referred by {employer.referredBy.name ?? "someone"}
+          {employer.referredBy.companyName ? ` (${employer.referredBy.companyName})` : ""}.
         </p>
       )}
     </div>
