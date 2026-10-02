@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAdminCounts } from "@/hooks/use-admin-counts";
+import { CountBadge, CountDot } from "@/components/dashboard/count-badge";
 import {
   WORK_QUEUES,
   arrivalSentence,
@@ -70,16 +71,24 @@ export function WorkWaiting() {
           />
         }
       >
-        <HugeiconsIcon icon={Notification03Icon} strokeWidth={2} />
-        {/* THE NUMBER IS IN THE BUTTON, not only in a dot on the corner of it. A
-            dot says "something"; the number is what decides whether somebody
-            stops what they are doing. */}
+        {/* BOTH THE DOT AND THE NUMBER, and they are not redundant.
+            The dot on the corner of the bell is the thing peripheral vision
+            catches — it is what "there is something" looks like anywhere on the
+            web, and it is the half this screen was missing. The number beside it
+            is what decides whether somebody stops what they are doing, because
+            one certificate and fourteen are different mornings. */}
+        <span className="relative inline-flex">
+          <HugeiconsIcon icon={Notification03Icon} strokeWidth={2} />
+          <CountDot count={total} className="absolute -right-1.5 -top-1.5" />
+        </span>
+
         {isLoading ? (
           <span className="text-xs text-muted-foreground">…</span>
         ) : total > 0 ? (
-          <span className="min-w-5 rounded-full bg-amber-100 px-1.5 text-center text-xs font-medium tabular-nums text-amber-900 dark:bg-amber-900/40 dark:text-amber-200">
-            {total}
-          </span>
+          // AMBER here beside a red dot, not a second red one. The dot is the
+          // alarm and this is the number it is about; two reds side by side would
+          // be the same shout twice and the figure is the part being read.
+          <CountBadge count={total} tone="amber" />
         ) : (
           <span className="text-xs text-muted-foreground">All clear</span>
         )}
@@ -137,9 +146,7 @@ export function WorkWaiting() {
                     {queue.label}
                   </span>
                   {count > 0 ? (
-                    <span className="min-w-5 rounded-full bg-amber-100 px-1.5 text-center text-xs font-medium tabular-nums text-amber-900 dark:bg-amber-900/40 dark:text-amber-200">
-                      {count}
-                    </span>
+                    <CountBadge count={count} tone="amber" />
                   ) : (
                     <span className="text-xs text-muted-foreground">—</span>
                   )}

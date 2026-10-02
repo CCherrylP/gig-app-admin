@@ -59,3 +59,36 @@ export function decidePostReport(postId: string, action: "keep" | "remove") {
     body: JSON.stringify({ action }),
   });
 }
+
+// --- reported comments (mirrors CommentReportReviewDTO) ---------------------------
+
+export interface ReportedComment {
+  commentId: string;
+  body: string;
+  postedAt: string;
+  hiddenAt: string | null;
+  author: { id: string; name: string; avatar: string | null };
+  /** The post it was left on, for context. */
+  post: { id: string; caption: string | null; authorName: string };
+  reportCount: number;
+  openCount: number;
+  reasons: { reason: PostReportReason; count: number }[];
+  reports: PostReportEntry[];
+  lastReportedAt: string;
+}
+
+export interface CommentReportsResponse {
+  comments: ReportedComment[];
+  openCount: number;
+}
+
+export function listCommentReports(status: PostReportFilter = "open") {
+  return fetchWithAuth<CommentReportsResponse>(`/admin/comment-reports?status=${status}`);
+}
+
+export function decideCommentReport(commentId: string, action: "keep" | "remove") {
+  return fetchWithAuth<CommentReportsResponse>(`/admin/comment-reports/${commentId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ action }),
+  });
+}

@@ -17,6 +17,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { QueuePanel } from "@/components/dashboard/data-views";
+import { CountBadge } from "@/components/dashboard/count-badge";
 import { WORK_QUEUES, workTotal } from "@/components/dashboard/work-queues";
 import { useAdminCounts } from "@/hooks/use-admin-counts";
 import { listCertificates } from "@/lib/certificates";
@@ -61,10 +62,11 @@ function TodoList() {
                     <p className={count > 0 ? "font-medium" : "text-muted-foreground"}>{row.label}</p>
                     <p className="truncate text-sm text-muted-foreground">{row.note}</p>
                   </div>
+                  {/* Amber, like the tab bars — this is a list somebody is
+                      reading, not a mark to be caught out of the corner of an
+                      eye. The red one lives on the nav and the bell. */}
                   {count > 0 ? (
-                    <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-sm font-medium text-amber-900 tabular-nums">
-                      {count}
-                    </span>
+                    <CountBadge count={count} tone="amber" className="px-2.5 text-sm" />
                   ) : (
                     <span className="text-sm text-muted-foreground">Done</span>
                   )}

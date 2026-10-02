@@ -23,13 +23,26 @@ import {
 } from "@/components/dashboard/data-views";
 import {
   REASON_LABELS,
+  decideCommentReport,
   decidePostReport,
+  listCommentReports,
   listPostReports,
+  type PostReportEntry,
   type PostReportFilter,
+  type PostReportReason,
+  type ReportedComment,
   type ReportedPost,
 } from "@/lib/post-reports";
 import { openFreshDocument } from "@/lib/documents";
 import { relative } from "@/lib/format";
+
+// Reported posts and reported comments. Two queues because they carry different columns.
+type Queue = "posts" | "comments";
+
+const QUEUES: { value: Queue; label: string }[] = [
+  { value: "posts", label: "Posts" },
+  { value: "comments", label: "Comments" },
+];
 
 const FILTERS: { value: PostReportFilter; label: string }[] = [
   { value: "open", label: "Open" },
@@ -43,32 +56,42 @@ const STATE_STYLES: Record<string, string> = {
   REVIEWED: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
 };
 
-type Decision = { post: ReportedPost; action: "keep" | "remove" };
+type Decision =
+  | { kind: "post"; item: ReportedPost; action: "keep" | "remove" }
+  | { kind: "comment"; item: ReportedComment; action: "keep" | "remove" };
 
-export default function PostReportsPage() {
+export default function SocialReportsPage() {
   const queryClient = useQueryClient();
+  const [queue, setQueue] = useState<Queue>("posts");
   const [filter, setFilter] = useState<PostReportFilter>("open");
   const [search, setSearch] = useState("");
   const [decision, setDecision] = useState<Decision | null>(null);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["post-reports", filter],
-    queryFn: () => listPostReports(filter),
+  // Both load, so the badge on the other queue stays live.
+  const postsQuery = useQuery({ queryKey: ["post-reports", filter], queryFn: () => listPostReports(filter) });
+  const commentsQuery = useQuery({
+    queryKey: ["comment-reports", filter],
+    queryFn: () => listCommentReports(filter),
   });
 
   const mutation = useMutation({
-    mutationFn: ({ post, action }: Decision) => decidePostReport(post.postId, action),
-    onSuccess: (_result, { action }) => {
-      queryClient.invalidateQueries({ queryKey: ["post-reports"] });
-      // The sidebar badge counts open reports.
+    mutationFn: async (choice: Decision): Promise<void> => {
+      if (choice.kind === "post") await decidePostReport(choice.item.postId, choice.action);
+      else await decideCommentReport(choice.item.commentId, choice.action);
+    },
+    onSuccess: (_result, choice) => {
+      queryClient.invalidateQueries({ queryKey: [choice.kind === "post" ? "post-reports" : "comment-reports"] });
       queryClient.invalidateQueries({ queryKey: ["admin", "counts"] });
       setDecision(null);
-      toast.success(action === "remove" ? "Post removed" : "Post kept");
+      toast.success(
+        `${choice.kind === "post" ? "Post" : "Comment"} ${choice.action === "remove" ? "removed" : "kept"}`,
+      );
     },
     onError: (error: Error) => {
       toast.error(error.message || "Could not record that decision");
       setDecision(null);
       queryClient.invalidateQueries({ queryKey: ["post-reports"] });
+      queryClient.invalidateQueries({ queryKey: ["comment-reports"] });
     },
   });
 
@@ -83,55 +106,69 @@ export default function PostReportsPage() {
     });
   }
 
-  const posts = useMemo(() => {
-    const all = data?.posts ?? [];
-    const term = search.trim().toLowerCase();
-    if (!term) return all;
+  const term = search.trim().toLowerCase();
+  const matches = (parts: string[]) => !term || parts.join(" ").toLowerCase().includes(term);
 
-    return all.filter((post) =>
-      [post.author.name, post.caption ?? "", ...post.reports.map((report) => report.note ?? "")]
-        .join(" ")
-        .toLowerCase()
-        .includes(term),
-    );
-  }, [data, search]);
+  const posts = useMemo(
+    () =>
+      (postsQuery.data?.posts ?? []).filter((post) =>
+        matches([post.author.name, post.caption ?? "", ...post.reports.map((r) => r.note ?? "")]),
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [postsQuery.data, term],
+  );
+
+  const comments = useMemo(
+    () =>
+      (commentsQuery.data?.comments ?? []).filter((comment) =>
+        matches([comment.author.name, comment.body, ...comment.reports.map((r) => r.note ?? "")]),
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [commentsQuery.data, term],
+  );
+
+  const loading = queue === "posts" ? postsQuery.isLoading : commentsQuery.isLoading;
+  const empty = queue === "posts" ? posts.length === 0 : comments.length === 0;
 
   return (
     <div className="flex flex-col gap-6 p-6">
       <ReviewTabs />
       <PageHeader
-        title="Reported posts"
-        description="Feed posts people flagged. Three reports hide a post from everyone but its author until you decide. Keep it if it is fine, or remove it."
+        title="Social posting reports"
+        description="Feed posts and comments people flagged. Three reports hide one from everyone but its writer until you decide. Keep it if it is fine, or remove it."
       >
         <SearchInput
           value={search}
           onChange={setSearch}
-          placeholder="Search author, caption or note…"
+          placeholder="Search writer, text or note…"
           className="w-full sm:w-72"
         />
       </PageHeader>
 
-      <FilterTabs
-        options={FILTERS.map((option) => ({
-          ...option,
-          count: option.value === "open" ? data?.openCount : undefined,
-        }))}
-        value={filter}
-        onChange={setFilter}
-      />
+      <div className="flex flex-wrap items-center gap-3">
+        <FilterTabs
+          options={QUEUES.map((option) => ({
+            ...option,
+            count: option.value === "posts" ? postsQuery.data?.openCount : commentsQuery.data?.openCount,
+          }))}
+          value={queue}
+          onChange={setQueue}
+        />
+        <FilterTabs options={FILTERS} value={filter} onChange={setFilter} />
+      </div>
 
       <Card>
         <CardContent className="p-0">
-          {isLoading ? (
+          {loading ? (
             <TableSkeleton />
-          ) : posts.length === 0 ? (
+          ) : empty ? (
             <EmptyState
               icon={Alert02Icon}
-              message={search ? "Nothing matches that search." : "No reported posts here."}
+              message={search ? "Nothing matches that search." : `No reported ${queue} here.`}
             />
-          ) : (
+          ) : queue === "posts" ? (
             <TableShell
-              headers={["Post", "Author", "Reports", "What they said", "State", "Decision"]}
+              headers={["Post", "Writer", "Reports", "What they said", "State", "Decision"]}
               widths={["w-[26%]", "w-[14%]", "w-[16%]", "w-[20%]", "w-[9%]", "w-[15%]"]}
             >
               {posts.map((post) => (
@@ -139,7 +176,20 @@ export default function PostReportsPage() {
                   key={post.postId}
                   post={post}
                   onOpenPhoto={(index) => openPhoto(post.postId, index)}
-                  onDecide={(action) => setDecision({ post, action })}
+                  onDecide={(action) => setDecision({ kind: "post", item: post, action })}
+                />
+              ))}
+            </TableShell>
+          ) : (
+            <TableShell
+              headers={["Comment", "Writer", "Reports", "What they said", "State", "Decision"]}
+              widths={["w-[26%]", "w-[14%]", "w-[16%]", "w-[20%]", "w-[9%]", "w-[15%]"]}
+            >
+              {comments.map((comment) => (
+                <CommentRow
+                  key={comment.commentId}
+                  comment={comment}
+                  onDecide={(action) => setDecision({ kind: "comment", item: comment, action })}
                 />
               ))}
             </TableShell>
@@ -159,6 +209,78 @@ export default function PostReportsPage() {
   );
 }
 
+const stateOf = (item: { openCount: number; hiddenAt: string | null }) =>
+  item.openCount === 0 ? "reviewed" : item.hiddenAt ? "hidden" : "visible";
+
+function Writer({ id, name }: { id: string; name: string }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <InitialsAvatar seed={id} label={initials(name)} className="size-8" />
+      <span className="truncate font-medium">{name}</span>
+    </div>
+  );
+}
+
+function ReportsCell({
+  reportCount,
+  openCount,
+  reasons,
+  lastReportedAt,
+}: {
+  reportCount: number;
+  openCount: number;
+  reasons: { reason: PostReportReason; count: number }[];
+  lastReportedAt: string;
+}) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="font-medium">
+        {reportCount} report{reportCount === 1 ? "" : "s"}
+        {openCount > 0 && openCount !== reportCount && ` · ${openCount} open`}
+      </span>
+      {reasons.map((entry) => (
+        <span key={entry.reason} className="text-xs text-muted-foreground">
+          {REASON_LABELS[entry.reason]} × {entry.count}
+        </span>
+      ))}
+      <span className="text-xs text-muted-foreground">Last {relative(lastReportedAt)}</span>
+    </div>
+  );
+}
+
+function NotesCell({ reports }: { reports: PostReportEntry[] }) {
+  const notes = reports.filter((report) => report.note);
+
+  if (notes.length === 0) return <span className="text-xs text-muted-foreground">No notes</span>;
+
+  return (
+    <div className="flex flex-col gap-1">
+      {notes.slice(0, 3).map((report) => (
+        <span key={report.id} className="line-clamp-2 text-xs italic text-foreground/80">
+          “{report.note}” <span className="not-italic text-muted-foreground">({report.reporterName})</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function Actions({ show, onDecide }: { show: boolean; onDecide: (action: "keep" | "remove") => void }) {
+  if (!show) return null;
+
+  return (
+    <div className="flex items-center justify-end gap-1.5">
+      <Button variant="destructive" size="xs" onClick={() => onDecide("remove")}>
+        <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
+        Remove
+      </Button>
+      <Button size="xs" onClick={() => onDecide("keep")}>
+        <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} />
+        Keep
+      </Button>
+    </div>
+  );
+}
+
 function PostRow({
   post,
   onOpenPhoto,
@@ -168,9 +290,6 @@ function PostRow({
   onOpenPhoto: (index: number) => void;
   onDecide: (action: "keep" | "remove") => void;
 }) {
-  const state = post.openCount === 0 ? "reviewed" : post.hiddenAt ? "hidden" : "visible";
-  const notes = post.reports.filter((report) => report.note);
-
   return (
     <tr className="align-top">
       <td className="px-4 py-3">
@@ -205,60 +324,59 @@ function PostRow({
           </span>
         </div>
       </td>
-
       <td className="px-4 py-3">
-        <div className="flex items-center gap-2.5">
-          <InitialsAvatar seed={post.author.id} label={initials(post.author.name)} className="size-8" />
-          <span className="truncate font-medium">{post.author.name}</span>
-        </div>
+        <Writer id={post.author.id} name={post.author.name} />
       </td>
-
       <td className="px-4 py-3">
-        <div className="flex flex-col gap-0.5">
-          <span className="font-medium">
-            {post.reportCount} report{post.reportCount === 1 ? "" : "s"}
-            {post.openCount > 0 && post.openCount !== post.reportCount && ` · ${post.openCount} open`}
+        <ReportsCell {...post} />
+      </td>
+      <td className="px-4 py-3">
+        <NotesCell reports={post.reports} />
+      </td>
+      <td className="px-4 py-3">
+        <StatusPill status={stateOf(post)} styles={STATE_STYLES} />
+      </td>
+      <td className="px-4 py-3">
+        <Actions show={post.openCount > 0} onDecide={onDecide} />
+      </td>
+    </tr>
+  );
+}
+
+function CommentRow({
+  comment,
+  onDecide,
+}: {
+  comment: ReportedComment;
+  onDecide: (action: "keep" | "remove") => void;
+}) {
+  return (
+    <tr className="align-top">
+      <td className="px-4 py-3">
+        <div className="flex flex-col gap-1.5">
+          <span className="line-clamp-4 text-sm">{comment.body}</span>
+          {/* The post it was left on, for context. */}
+          <span className="line-clamp-2 text-xs text-muted-foreground">
+            On {comment.post.authorName}&apos;s post
+            {comment.post.caption ? `: “${comment.post.caption}”` : ""}
           </span>
-          {post.reasons.map((entry) => (
-            <span key={entry.reason} className="text-xs text-muted-foreground">
-              {REASON_LABELS[entry.reason]} × {entry.count}
-            </span>
-          ))}
-          <span className="text-xs text-muted-foreground">Last {relative(post.lastReportedAt)}</span>
+          <span className="text-xs text-muted-foreground">Written {relative(comment.postedAt)}</span>
         </div>
       </td>
-
       <td className="px-4 py-3">
-        {notes.length === 0 ? (
-          <span className="text-xs text-muted-foreground">No notes</span>
-        ) : (
-          <div className="flex flex-col gap-1">
-            {notes.slice(0, 3).map((report) => (
-              <span key={report.id} className="line-clamp-2 text-xs italic text-foreground/80">
-                “{report.note}” <span className="not-italic text-muted-foreground">({report.reporterName})</span>
-              </span>
-            ))}
-          </div>
-        )}
+        <Writer id={comment.author.id} name={comment.author.name} />
       </td>
-
       <td className="px-4 py-3">
-        <StatusPill status={state} styles={STATE_STYLES} />
+        <ReportsCell {...comment} />
       </td>
-
       <td className="px-4 py-3">
-        {post.openCount > 0 && (
-          <div className="flex items-center justify-end gap-1.5">
-            <Button variant="destructive" size="xs" onClick={() => onDecide("remove")}>
-              <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
-              Remove
-            </Button>
-            <Button size="xs" onClick={() => onDecide("keep")}>
-              <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} />
-              Keep
-            </Button>
-          </div>
-        )}
+        <NotesCell reports={comment.reports} />
+      </td>
+      <td className="px-4 py-3">
+        <StatusPill status={stateOf(comment)} styles={STATE_STYLES} />
+      </td>
+      <td className="px-4 py-3">
+        <Actions show={comment.openCount > 0} onDecide={onDecide} />
       </td>
     </tr>
   );
@@ -276,20 +394,21 @@ function DecisionDialog({
   isPending: boolean;
 }) {
   const removing = decision?.action === "remove";
+  const noun = decision?.kind === "comment" ? "comment" : "post";
 
   return (
     <Dialog open={!!decision} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{removing ? "Remove this post" : "Keep this post"}</DialogTitle>
+          <DialogTitle>{removing ? `Remove this ${noun}` : `Keep this ${noun}`}</DialogTitle>
           <DialogDescription>
             {decision && (
               <>
-                A post by <span className="font-medium text-foreground">{decision.post.author.name}</span> with{" "}
-                {decision.post.openCount} open report{decision.post.openCount === 1 ? "" : "s"}.{" "}
+                A {noun} by <span className="font-medium text-foreground">{decision.item.author.name}</span> with{" "}
+                {decision.item.openCount} open report{decision.item.openCount === 1 ? "" : "s"}.{" "}
                 {removing
-                  ? "The post and its photos are deleted for good, and the author is told it was removed for breaking the community rules. This cannot be undone."
-                  : "Its reports are marked reviewed. If it was hidden, it shows in the feed again. People who reported it still won't see it."}
+                  ? `The ${noun} is deleted for good, and its writer is told it was removed for breaking the community rules. This cannot be undone.`
+                  : `Its reports are marked reviewed. If it was hidden, it shows again. People who reported it still won't see it.`}
               </>
             )}
           </DialogDescription>
@@ -299,7 +418,7 @@ function DecisionDialog({
             Back
           </Button>
           <Button variant={removing ? "destructive" : "default"} size="sm" onClick={onConfirm} disabled={isPending}>
-            {isPending ? "Saving…" : removing ? "Remove post" : "Keep post"}
+            {isPending ? "Saving…" : removing ? `Remove ${noun}` : `Keep ${noun}`}
           </Button>
         </div>
       </DialogContent>

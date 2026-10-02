@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/collapsible";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import { CountBadge, CountDot } from "@/components/dashboard/count-badge";
 import { cn } from "@/lib/utils";
 
 export interface NavItem {
@@ -56,13 +57,37 @@ export function NavMain({
               <SidebarMenuButton
                 render={<Link href={item.url} />}
                 isActive={pathname === item.url || Boolean(item.match?.includes(pathname))}
-                tooltip={item.title}
+                tooltip={
+                  // The COUNT IS IN THE TOOLTIP as well, because the tooltip is
+                  // the only label a collapsed rail has: the dot beside the icon
+                  // says there is something, and hovering is where "four
+                  // employers to verify" can actually be read.
+                  item.badge && item.badge > 0
+                    ? `${item.title} — ${item.badge} waiting`
+                    : item.title
+                }
               >
                 {item.icon}
                 <span>{item.title}</span>
               </SidebarMenuButton>
+
+              {/* TWO RENDERINGS OF ONE NUMBER, and which shows depends on the
+                  rail. SidebarMenuBadge carries `group-data-[collapsible=icon]:
+                  hidden` from the kit — sensible, since a pill at the right edge
+                  of a 48px rail has nowhere to be — so a collapsed sidebar used
+                  to show nothing at all. That was the whole bug: staff who work
+                  with the rail collapsed had no pending indicator anywhere. */}
               {item.badge != null && item.badge > 0 && (
-                <SidebarMenuBadge>{item.badge}</SidebarMenuBadge>
+                <>
+                  <SidebarMenuBadge className="bg-transparent p-0">
+                    <CountBadge count={item.badge} />
+                  </SidebarMenuBadge>
+
+                  <CountDot
+                    count={item.badge}
+                    className="absolute -top-0.5 right-0 hidden ring-sidebar group-data-[collapsible=icon]:inline-flex"
+                  />
+                </>
               )}
             </SidebarMenuItem>
           ),
@@ -96,7 +121,14 @@ function NavCollapsible({
       <SidebarMenuItem>
         <CollapsibleTrigger
           render={
-            <SidebarMenuButton isActive={childActive} tooltip={item.title}>
+            <SidebarMenuButton
+              isActive={childActive}
+              tooltip={
+                item.badge && item.badge > 0
+                  ? `${item.title} — ${item.badge} waiting`
+                  : item.title
+              }
+            >
               {item.icon}
               <span>{item.title}</span>
               {/* The badge sits INSIDE the trigger here, unlike the plain menu
@@ -104,11 +136,7 @@ function NavCollapsible({
                   row already owns its right-hand edge for the chevron, and a
                   positioned badge would land underneath it.
                   `ml-auto` moves to the badge so the chevron stays last. */}
-              {item.badge != null && item.badge > 0 && (
-                <span className="ml-auto inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-sidebar-primary px-1.5 py-0.5 text-xs font-medium text-sidebar-primary-foreground tabular-nums">
-                  {item.badge}
-                </span>
-              )}
+              <CountBadge count={item.badge} className="ml-auto" />
               <HugeiconsIcon
                 icon={ArrowRight01Icon}
                 strokeWidth={2}
@@ -122,6 +150,15 @@ function NavCollapsible({
             </SidebarMenuButton>
           }
         />
+
+        {/* The collapsed rail again: the pill inside the trigger is clipped to
+            nothing at 48px wide, so the dot takes over. Same rule as the plain
+            item above. */}
+        <CountDot
+          count={item.badge}
+          className="absolute -top-0.5 right-0 hidden ring-sidebar group-data-[collapsible=icon]:inline-flex"
+        />
+
         <CollapsibleContent>
           <SidebarMenuSub>
             {children.map((child) => (

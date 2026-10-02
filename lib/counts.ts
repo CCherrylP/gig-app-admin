@@ -35,7 +35,7 @@ export interface AdminCounts {
   supportEmployers?: number;
   /** PayNow proofs waiting for a check. Missing on an older API. */
   payouts?: number;
-  /** Feed posts with a report nobody has reviewed. Missing on an older API. */
+  /** Feed posts and comments with a report nobody has reviewed. Missing on an older API. */
   postReports?: number;
 }
 

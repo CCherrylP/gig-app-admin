@@ -12,7 +12,7 @@ export const REVIEW_TABS: { label: string; url: string; count: keyof AdminCounts
   { label: "Appeals", url: "/dashboard/appeals", count: "appeals" },
   { label: "Payments", url: "/dashboard/payments", count: "invoices" },
   { label: "PayNow checks", url: "/dashboard/payroll/payouts", count: "payouts" },
-  { label: "Reported posts", url: "/dashboard/post-reports", count: "postReports" },
+  { label: "Social posting reports", url: "/dashboard/post-reports", count: "postReports" },
 ];
 
 export const REVIEW_URLS = REVIEW_TABS.map((tab) => tab.url);

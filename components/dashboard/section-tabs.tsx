@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { useAdminCounts } from "@/hooks/use-admin-counts";
+import { CountBadge } from "@/components/dashboard/count-badge";
 import type { AdminCounts } from "@/lib/counts";
 import { cn } from "@/lib/utils";
 
@@ -55,15 +56,20 @@ export function SectionTabs({ title, tabs }: { title: string; tabs: SectionTab[]
               )}
             >
               {tab.label}
+              {/* AMBER, not the red mark — a tab bar is somewhere the eye is
+                  already looking, and eight red pills in a row would make none of
+                  them read as the alarm. On the ACTIVE tab it goes translucent
+                  instead: amber on a filled primary pill is unreadable, and the
+                  tab you are already on does not need shouting at.
+                  See components/dashboard/count-badge. */}
               {waiting > 0 && (
-                <span
+                <CountBadge
+                  count={waiting}
+                  tone="amber"
                   className={cn(
-                    "min-w-5 rounded-full px-1.5 text-center text-xs font-medium tabular-nums",
-                    active ? "bg-primary-foreground/20" : "bg-amber-100 text-amber-900",
+                    active && "bg-primary-foreground/20 text-primary-foreground dark:bg-primary-foreground/20 dark:text-primary-foreground",
                   )}
-                >
-                  {waiting}
-                </span>
+                />
               )}
             </Link>
           );
