@@ -21,6 +21,8 @@ export interface EmployerReview {
   /** The PERSON's Singpass check — a different question from the business's. */
   personVerified: boolean;
   status: EmployerStatus;
+  /** `admin` tops up coins and manages the company's team. */
+  companyRole: "admin" | "member";
   reviewedAt: string | null;
   createdAt: string;
 
@@ -120,6 +122,14 @@ export function updateEmployerDetails(
   return fetchWithAuth<EmployersResponse>(
     `/admin/employers/${userId}/details`,
     { method: "PATCH", body: JSON.stringify(details) },
+  );
+}
+
+/** Make someone company admin, or back to member. The API refuses to leave a company with no admin. */
+export function setCompanyRole(userId: string, companyRole: "admin" | "member") {
+  return fetchWithAuth<{ userId: string; companyRole: "admin" | "member" }>(
+    `/admin/employers/${userId}/role`,
+    { method: "PATCH", body: JSON.stringify({ companyRole }) },
   );
 }
 

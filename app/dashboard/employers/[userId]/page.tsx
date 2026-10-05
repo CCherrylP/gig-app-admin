@@ -41,6 +41,7 @@ import {
   createTopUp,
   decideEmployer,
   listEmployers,
+  setCompanyRole,
   updateEmployerDetails,
   MAX_TOPUP_COINS,
   MIN_TOPUP_COINS,
@@ -201,6 +202,17 @@ function Detail({
       toast.error(error.message || "Could not save those details"),
   });
 
+  const role = useMutation({
+    mutationFn: (companyRole: "admin" | "member") =>
+      setCompanyRole(employer.userId, companyRole),
+    onSuccess: (_result, companyRole) => {
+      queryClient.invalidateQueries({ queryKey: ["employers"] });
+      toast.success(companyRole === "admin" ? "Now company admin" : "Now a member");
+    },
+    onError: (error: Error) =>
+      toast.error(error.message || "Could not change their role"),
+  });
+
   const decide = useMutation({
     mutationFn: ({
       status,
@@ -285,6 +297,24 @@ function Detail({
               value={employer.companyEaLicenceNo ?? "Missing, ask on the call"}
             />
           )}
+          <Meta
+            label="Company role"
+            value={
+              employer.companyRole === "admin"
+                ? "Company admin (tops up coins, manages the team)"
+                : "Member"
+            }
+          />
+          <Button
+            variant="outline"
+            size="xs"
+            disabled={role.isPending}
+            onClick={() =>
+              role.mutate(employer.companyRole === "admin" ? "member" : "admin")
+            }
+          >
+            {employer.companyRole === "admin" ? "Make member" : "Make company admin"}
+          </Button>
         </div>
       </div>
 
