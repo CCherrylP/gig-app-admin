@@ -339,6 +339,13 @@ function Detail({
                 value={employer.companyUen}
                 hint="ACRA's answer, and the identity joining by UEN rests on."
               />
+              {employer.companyIsAgency && (
+                <ReadOnly
+                  label="EA licence"
+                  value={employer.companyEaLicenceNo ?? "Missing, ask on the call"}
+                  hint="This business signed up as an employment agency."
+                />
+              )}
             </div>
 
             <TextField
