@@ -363,6 +363,11 @@ function EmployerRow({
               Business {employer.companyVerificationStatus}
             </span>
           )}
+          {employer.companyIsAgency && (
+            <span className="truncate text-[11px] font-medium text-violet-600 dark:text-violet-400">
+              Agency · EA {employer.companyEaLicenceNo ?? "missing"}
+            </span>
+          )}
         </div>
       </td>
 

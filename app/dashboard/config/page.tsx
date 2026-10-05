@@ -113,6 +113,20 @@ const FIELDS: {
     invalid: (value) => boundsError("placementFeeCents", value),
   },
   {
+    key: "agencyFeeCents",
+    group: "money",
+    label: "Agency platform fee",
+    help: "The platform fee for employment agencies, instead of the one above. Urgent listings still add the urgent fee on top.",
+    unit: "cents / hour",
+    toStored: (typed) => typed,
+    toTyped: (stored) => stored,
+    format: (value) =>
+      value === 0
+        ? "No platform fee for agencies"
+        : `${money(value)} per hour of shift`,
+    invalid: (value) => boundsError("agencyFeeCents", value),
+  },
+  {
     key: "invoiceTermsDays",
     group: "money",
     label: "Invoice terms",

@@ -39,6 +39,8 @@ export interface PlatformSettings {
    *  when the fee moved to money. The PATCH body is strict, so the old name was
    *  silently rejected and the fee could not be edited from this screen at all. */
   placementFeeCents: number;
+  /** The same fee for agencies, in cents per hour. 50 — fifty cents. */
+  agencyFeeCents: number;
   /** Days an invoiced top-up has to be settled in. */
   invoiceTermsDays: number;
 
@@ -89,6 +91,7 @@ export type PlatformSettingsPatch = Partial<
     PlatformSettings,
     | "coinPriceCents"
     | "placementFeeCents"
+    | "agencyFeeCents"
     | "invoiceTermsDays"
     | "maxDailyMinutes"
     | "maxWeeklyMinutes"
@@ -129,6 +132,7 @@ export function updateSettings(patch: PlatformSettingsPatch) {
 export const BOUNDS = {
   coinPriceCents: { min: 10, max: 200 },
   placementFeeCents: { min: 0, max: 5000 },
+  agencyFeeCents: { min: 0, max: 5000 },
   invoiceTermsDays: { min: 1, max: 90 },
   // Minutes. Zero is allowed as "no cap" and is why the floor is not 60 —
   // between 1 and 59 is refused by the API, because a cap shorter than any real

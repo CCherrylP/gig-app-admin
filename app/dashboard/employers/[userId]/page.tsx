@@ -279,6 +279,12 @@ function Detail({
             label="Seats at this UEN"
             value={`${employer.companySeats}`}
           />
+          {employer.companyIsAgency && (
+            <Meta
+              label="Employment agency · EA licence"
+              value={employer.companyEaLicenceNo ?? "Missing, ask on the call"}
+            />
+          )}
         </div>
       </div>
 

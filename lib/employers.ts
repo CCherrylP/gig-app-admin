@@ -38,6 +38,9 @@ export interface EmployerReview {
   companyBillingAddress: string | null;
   /** The BUSINESS's own check. Both halves gate posting, and they can disagree. */
   companyVerificationStatus: VerificationStatus;
+  /** An employment agency. Check the EA licence number on MOM's EA directory before approving. */
+  companyIsAgency: boolean;
+  companyEaLicenceNo: string | null;
   /** How many people already hold a seat at this UEN. */
   companySeats: number;
   /** Who referred this company, or null. Set on the approval call. */
