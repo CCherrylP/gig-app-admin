@@ -15,6 +15,7 @@ export type SelfieReview = "pending" | "approved" | "rejected";
 export type AttendanceFilter =
   | "attention"
   | "missing"
+  | "unapproved"
   | "upcoming"
   | "reviewed"
   | "all";
@@ -73,6 +74,8 @@ export interface AttendanceResponse {
   missingCount: number;
   /** Bookings still to run, or running now. A diary, not a work pile. */
   upcomingCount: number;
+  /** Clocked out at both ends, still waiting on the employer's sign-off. */
+  unapprovedCount: number;
 }
 
 /** When a shift actually finishes, overnight included.

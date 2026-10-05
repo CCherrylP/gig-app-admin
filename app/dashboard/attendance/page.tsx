@@ -66,6 +66,7 @@ const FILTERS: { value: AttendanceFilter; label: string }[] = [
   { value: "all", label: "All" },
   { value: "attention", label: "Needs a look" },
   { value: "missing", label: "Missing clock in/out" },
+  { value: "unapproved", label: "Waiting on employer" },
   { value: "upcoming", label: "Not started yet" },
   { value: "reviewed", label: "Reviewed" },
 ];
@@ -78,6 +79,7 @@ const EMPTY: Record<AttendanceFilter, string> = {
   attention: "Nothing here. Every check-in was a scanned code inside the fence.",
   missing:
     "No shift has lost its clock. Every shift that has run was clocked at both ends, or has been settled.",
+  unapproved: "No finished shift is waiting on an employer to approve it.",
   upcoming: "Nothing booked that has not already run.",
   reviewed: "No selfie check-in has been decided yet.",
 };
@@ -135,7 +137,7 @@ export default function AttendancePage() {
       queryClient.invalidateQueries({ queryKey: ["attendance"] });
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       setReleasing(null);
-      toast.success("Hours signed off, the candidate has been told");
+      toast.success("Hours signed off. The candidate and employer have been told.");
     },
     onError: (error: Error) => {
       // ALREADY_APPROVED is the one that matters: two admins on the same row,
@@ -178,7 +180,7 @@ export default function AttendancePage() {
       <ReviewTabs />
       <PageHeader
         title="Clock-ins"
-        description="Check selfie clock-ins and fix shifts with a missing clock-out. Scanned codes are already confirmed."
+        description="Check selfie clock-ins, fix missing clock-outs, and approve shifts an employer has left waiting. Scanned codes are already confirmed."
       >
         <SearchInput
           value={search}
@@ -196,9 +198,11 @@ export default function AttendancePage() {
               ? data?.attentionCount
               : f.value === "missing"
                 ? data?.missingCount
-                : f.value === "upcoming"
-                  ? data?.upcomingCount
-                  : undefined,
+                : f.value === "unapproved"
+                  ? data?.unapprovedCount
+                  : f.value === "upcoming"
+                    ? data?.upcomingCount
+                    : undefined,
         }))}
         value={filter}
         onChange={setFilter}
@@ -293,14 +297,33 @@ function ReleaseDialog({
   const tooShort = reason.trim().length < 10;
   const minutes = record?.scheduledMinutes ?? 0;
   const amount = record ? wagesFor(minutes, record.payPerHourCents) : 0;
+  // Both ends clocked means the employer just has not signed it off.
+  const force = !!record?.checkInAt && !!record?.clockOutAt;
 
   return (
     <Dialog open={!!record} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Release the full shift</DialogTitle>
+          <DialogTitle>{force ? "Force approve this shift" : "Release the full shift"}</DialogTitle>
           <DialogDescription>
-            {record && (
+            {record && force ? (
+              <>
+                The employer has not approved this shift. This pays{" "}
+                <span className="font-medium text-foreground">
+                  {record.candidateName ?? "this candidate"}
+                </span>{" "}
+                the full scheduled{" "}
+                <span className="font-medium text-foreground">
+                  {formatHours(minutes)}
+                </span>{" "}
+                of their {record.roleName} shift,{" "}
+                <span className="font-medium text-foreground">
+                  {money(amount)}
+                </span>
+                . The employer is told, any unused hold is refunded to them, and
+                this cannot be undone.
+              </>
+            ) : record && (
               <>
                 Pays{" "}
                 <span className="font-medium text-foreground">
@@ -331,7 +354,11 @@ function ReleaseDialog({
             id="release-reason"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder="Phone died before clock-out; supervisor confirmed by phone"
+            placeholder={
+              force
+                ? "Candidate wrote in, employer did not reply after 2 reminders"
+                : "Phone died before clock-out; supervisor confirmed by phone"
+            }
             autoFocus
           />
           <p
@@ -361,7 +388,11 @@ function ReleaseDialog({
             disabled={isPending || tooShort}
             onClick={() => onConfirm(reason.trim())}
           >
-            {isPending ? "Releasing…" : `Release ${money(amount)}`}
+            {isPending
+              ? "Releasing…"
+              : force
+                ? `Approve ${money(amount)}`
+                : `Release ${money(amount)}`}
           </Button>
         </div>
       </DialogContent>
@@ -397,6 +428,9 @@ function AttendanceRow({
   // SHIFT_NOT_OVER, and the button should never have been there to press.
   const missingClock =
     ended && !record.approvedAt && (!record.checkInAt || !record.clockOutAt);
+  // Fully clocked, but the employer has not signed it off.
+  const waitingOnEmployer =
+    ended && !record.approvedAt && !missingClock && record.status === "completed";
   const late = lateness(record.minutesLate);
   // Beyond the geofence is the one automatic signal on a route with no
   // supervisor in it, so it is called out rather than left as a number.
@@ -571,6 +605,12 @@ function AttendanceRow({
             <Button size="xs" onClick={onRelease}>
               <HugeiconsIcon icon={MoneyBag02Icon} strokeWidth={2} />
               Release {formatHours(record.scheduledMinutes)}
+            </Button>
+          )}
+          {waitingOnEmployer && (
+            <Button size="xs" onClick={onRelease}>
+              <HugeiconsIcon icon={MoneyBag02Icon} strokeWidth={2} />
+              Force approve
             </Button>
           )}
           {record.approvedAt && record.earnedCents !== null && (

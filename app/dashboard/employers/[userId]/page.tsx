@@ -541,8 +541,7 @@ function CoinsAndPayments({ employer }: { employer: EmployerReview }) {
 
           {/* The same four shortcuts the app's own top-up sheet offers, so staff
               on the phone and the employer in the app are looking at the same
-              numbers. They are amounts, not packs — 10,000 is ten times 1,000
-              and buys nothing extra. */}
+              numbers. They are amounts, not packs, and buy nothing extra. */}
           <div className="flex flex-wrap gap-1.5">
             {QUICK_TOPUP_COINS.map((amount) => (
               <Button
@@ -598,8 +597,8 @@ function CoinsAndPayments({ employer }: { employer: EmployerReview }) {
           {!valid ? (
             <>
               Between {MIN_TOPUP_COINS.toLocaleString("en-SG")} and{" "}
-              {MAX_TOPUP_COINS.toLocaleString("en-SG")} whole coins. Anything less
-              buys less than a single shift.
+              {MAX_TOPUP_COINS.toLocaleString("en-SG")} whole coins, the same
+              limits employers get in the app.
             </>
           ) : (
             <>

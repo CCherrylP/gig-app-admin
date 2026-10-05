@@ -123,21 +123,14 @@ export function updateEmployerDetails(
   );
 }
 
-/** The floor and ceiling the API enforces, mirrored so the form can say no
- *  before a round trip does. MIN_COINS matches the app's own smallest top-up:
- *  one shift costs more than a few hundred coins once wages and the hourly fee
- *  are in it, so anything less buys nothing. */
-export const MIN_TOPUP_COINS = 1000;
-export const MAX_TOPUP_COINS = 1_000_000;
+/** Mirrors MIN_COINS / MAX_COINS in the API's invoice controller and MIN_TOPUP
+ *  in the app's data/coins. Change all three together. */
+export const MIN_TOPUP_COINS = 50_000;
+export const MAX_TOPUP_COINS = 50_000_000;
 
-/** The round amounts offered as one tap, copied from QUICK_AMOUNTS in the app's
- *  data/coins so staff and employers are working from the same shortcuts.
- *
- *  They are the numbers people actually type, NOT products: there are no packs
- *  and no bonus coins, so 10,000 is ten times 1,000 and nothing else. A pack
- *  that paid a bonus would make the price of a shift depend on how the wallet
- *  was topped up. */
-export const QUICK_TOPUP_COINS = [1000, 2000, 5000, 10000];
+/** The one-tap amounts, copied from QUICK_AMOUNTS in the app's data/coins.
+ *  Amounts, not packs: there are no bonus coins. */
+export const QUICK_TOPUP_COINS = [50_000, 100_000, 250_000, 500_000];
 
 /** Singapore's GST, in basis points. 900 = 9%.
  *
