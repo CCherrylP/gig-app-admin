@@ -26,12 +26,14 @@ import {
 import {
   EmptyState,
   FilterTabs,
+  InitialsAvatar,
   PageHeader,
   SearchInput,
   StatCard,
   StatusPill,
   TableShell,
   TableSkeleton,
+  initials,
 } from "@/components/dashboard/data-views";
 import {
   decideInvoice,
@@ -212,24 +214,23 @@ function InvoiceQueue() {
             />
           ) : (
             <TableShell
+              // FIVE COLUMNS, down from seven.
+              //
+              // The company is who the row is about, so it leads, and the
+              // invoice number and issue date ride under it rather than taking a
+              // column of their own. The due date moved under the status, where
+              // "overdue" is a qualifier on the state rather than a fact four
+              // cells away from it. Coins and Amount keep their own columns —
+              // they are the numbers somebody adds down the page, and the export
+              // only sums a cell that holds nothing but the number.
               headers={[
-                "Invoice",
                 "Company",
-                "Coins",
-                "Amount",
-                "Due",
+                <span key="coins" className="block text-right">Coins</span>,
+                <span key="amount" className="block text-right">Amount</span>,
                 "Status",
                 "Actions",
               ]}
-              widths={[
-                "w-[15%]",
-                "w-[19%]",
-                "w-[8%]",
-                "w-[11%]",
-                "w-[11%]",
-                "w-[11%]",
-                "w-[25%]",
-              ]}
+              widths={["w-[30%]", "w-[9%]", "w-[12%]", "w-[15%]", "w-[34%]"]}
             >
               {invoices.map((invoice) => (
                 <InvoiceRow
@@ -265,49 +266,45 @@ function InvoiceRow({
   const overdue = invoice.status === "unpaid" && isPast(invoice.dueAt);
 
   return (
-    <tr className="align-middle">
+    <tr className="align-top">
       <td className="px-4 py-3">
-        <div className="flex min-w-0 flex-col">
-          <span className="truncate font-medium tabular-nums">
-            {invoice.number}
-          </span>
-          <span className="truncate text-xs text-muted-foreground">
-            Issued {date(invoice.issuedAt)}
-          </span>
+        <div className="flex items-center gap-2.5">
+          <InitialsAvatar
+            seed={invoice.companyId}
+            label={initials(invoice.companyName)}
+            className="size-8"
+          />
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate font-medium">{invoice.companyName}</span>
+            <span className="truncate text-xs text-muted-foreground">
+              {invoice.companyUen ? `UEN ${invoice.companyUen}` : "No UEN"}
+            </span>
+            {/* The invoice itself, folded in from what was its own column. */}
+            <span className="truncate text-xs tabular-nums text-muted-foreground">
+              {invoice.number} · Issued {date(invoice.issuedAt)}
+            </span>
+          </div>
         </div>
       </td>
 
-      <td className="px-4 py-3">
-        <div className="flex min-w-0 flex-col">
-          <span className="truncate font-medium">{invoice.companyName}</span>
-          <span className="truncate text-xs text-muted-foreground">
-            {invoice.companyUen ?? "No UEN"}
-          </span>
-        </div>
-      </td>
+      <td className="px-4 py-3 text-right tabular-nums">{coins(invoice.coins)}</td>
 
-      <td className="px-4 py-3 tabular-nums">{coins(invoice.coins)}</td>
-
-      <td className="px-4 py-3 font-medium tabular-nums">
+      <td className="px-4 py-3 text-right font-medium tabular-nums">
         {money(invoice.totalCents)}
-      </td>
-
-      <td className="px-4 py-3">
-        <span
-          className={
-            overdue
-              ? "text-xs font-medium text-destructive"
-              : "text-xs text-muted-foreground"
-          }
-        >
-          {date(invoice.dueAt)}
-          {overdue && <span className="mt-0.5 block">overdue</span>}
-        </span>
       </td>
 
       <td className="px-4 py-3">
         <div className="flex flex-col items-start gap-1">
           <StatusPill status={invoice.status} styles={INVOICE_STATUS_STYLES} />
+          <span
+            className={
+              overdue
+                ? "text-[11px] font-medium text-destructive"
+                : "text-[11px] text-muted-foreground"
+            }
+          >
+            {overdue ? "Overdue since" : "Due"} {date(invoice.dueAt)}
+          </span>
           {invoice.paymentProofAt && invoice.status === "unpaid" && (
             <span className="text-[11px] text-muted-foreground">
               Receipt {relative(invoice.paymentProofAt)}
@@ -317,7 +314,7 @@ function InvoiceRow({
       </td>
 
       <td className="px-4 py-3">
-        <div className="flex items-center justify-end gap-1.5">
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
           <Button
             variant="ghost"
             size="xs"

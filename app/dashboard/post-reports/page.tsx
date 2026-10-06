@@ -167,9 +167,13 @@ export default function SocialReportsPage() {
               message={search ? "Nothing matches that search." : `No reported ${queue} here.`}
             />
           ) : queue === "posts" ? (
+            // FIVE COLUMNS, down from six. The writer leads, as a person does on
+            // every other queue, and "What they said" moved under the report
+            // counts: the notes are the reasons in the reporters' own words, and
+            // read best directly beneath the tally they explain.
             <TableShell
-              headers={["Post", "Writer", "Reports", "What they said", "State", "Decision"]}
-              widths={["w-[26%]", "w-[14%]", "w-[16%]", "w-[20%]", "w-[9%]", "w-[15%]"]}
+              headers={["Writer", "Post", "Reports", "State", "Actions"]}
+              widths={["w-[18%]", "w-[32%]", "w-[25%]", "w-[10%]", "w-[15%]"]}
             >
               {posts.map((post) => (
                 <PostRow
@@ -182,8 +186,8 @@ export default function SocialReportsPage() {
             </TableShell>
           ) : (
             <TableShell
-              headers={["Comment", "Writer", "Reports", "What they said", "State", "Decision"]}
-              widths={["w-[26%]", "w-[14%]", "w-[16%]", "w-[20%]", "w-[9%]", "w-[15%]"]}
+              headers={["Writer", "Comment", "Reports", "State", "Actions"]}
+              widths={["w-[18%]", "w-[32%]", "w-[25%]", "w-[10%]", "w-[15%]"]}
             >
               {comments.map((comment) => (
                 <CommentRow
@@ -212,11 +216,17 @@ export default function SocialReportsPage() {
 const stateOf = (item: { openCount: number; hiddenAt: string | null }) =>
   item.openCount === 0 ? "reviewed" : item.hiddenAt ? "hidden" : "visible";
 
-function Writer({ id, name }: { id: string; name: string }) {
+/** The identity cell. `detail` is the when-and-who-sees-it line that used to sit
+ *  at the bottom of the content cell — a fact about the writing, kept beside the
+ *  writer the way the employers queue keeps "Signed up" beside the name. */
+function Writer({ id, name, detail }: { id: string; name: string; detail: string }) {
   return (
     <div className="flex items-center gap-2.5">
       <InitialsAvatar seed={id} label={initials(name)} className="size-8" />
-      <span className="truncate font-medium">{name}</span>
+      <div className="flex min-w-0 flex-col">
+        <span className="truncate font-medium">{name}</span>
+        <span className="truncate text-xs text-muted-foreground">{detail}</span>
+      </div>
     </div>
   );
 }
@@ -226,35 +236,40 @@ function ReportsCell({
   openCount,
   reasons,
   lastReportedAt,
+  reports,
 }: {
   reportCount: number;
   openCount: number;
   reasons: { reason: PostReportReason; count: number }[];
   lastReportedAt: string;
+  reports: PostReportEntry[];
 }) {
   return (
-    <div className="flex flex-col gap-0.5">
-      <span className="font-medium">
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <span className="font-medium tabular-nums">
         {reportCount} report{reportCount === 1 ? "" : "s"}
         {openCount > 0 && openCount !== reportCount && ` · ${openCount} open`}
       </span>
       {reasons.map((entry) => (
-        <span key={entry.reason} className="text-xs text-muted-foreground">
+        <span key={entry.reason} className="truncate text-xs tabular-nums text-muted-foreground">
           {REASON_LABELS[entry.reason]} × {entry.count}
         </span>
       ))}
       <span className="text-xs text-muted-foreground">Last {relative(lastReportedAt)}</span>
+      <Notes reports={reports} />
     </div>
   );
 }
 
-function NotesCell({ reports }: { reports: PostReportEntry[] }) {
+/** What the reporters wrote, once a column of its own and now the tail of the
+ *  reports cell — see the comment on the table. */
+function Notes({ reports }: { reports: PostReportEntry[] }) {
   const notes = reports.filter((report) => report.note);
 
   if (notes.length === 0) return <span className="text-xs text-muted-foreground">No notes</span>;
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className="mt-1 flex flex-col gap-1">
       {notes.slice(0, 3).map((report) => (
         <span key={report.id} className="line-clamp-2 text-xs italic text-foreground/80">
           “{report.note}” <span className="not-italic text-muted-foreground">({report.reporterName})</span>
@@ -268,7 +283,7 @@ function Actions({ show, onDecide }: { show: boolean; onDecide: (action: "keep" 
   if (!show) return null;
 
   return (
-    <div className="flex items-center justify-end gap-1.5">
+    <div className="flex flex-wrap items-center justify-end gap-1.5">
       <Button variant="destructive" size="xs" onClick={() => onDecide("remove")}>
         <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
         Remove
@@ -293,7 +308,14 @@ function PostRow({
   return (
     <tr className="align-top">
       <td className="px-4 py-3">
-        <div className="flex flex-col gap-2">
+        <Writer
+          id={post.author.id}
+          name={post.author.name}
+          detail={`${post.visibility === "public" ? "Public" : "Friends only"} · posted ${relative(post.postedAt)}`}
+        />
+      </td>
+      <td className="px-4 py-3">
+        <div className="flex min-w-0 flex-col gap-2">
           {post.photoUrls.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {post.photoUrls.slice(0, 4).map((url, index) => (
@@ -319,19 +341,10 @@ function PostRow({
           ) : (
             <span className="text-xs text-muted-foreground">No caption</span>
           )}
-          <span className="text-xs text-muted-foreground">
-            {post.visibility === "public" ? "Public" : "Friends only"} · posted {relative(post.postedAt)}
-          </span>
         </div>
       </td>
       <td className="px-4 py-3">
-        <Writer id={post.author.id} name={post.author.name} />
-      </td>
-      <td className="px-4 py-3">
         <ReportsCell {...post} />
-      </td>
-      <td className="px-4 py-3">
-        <NotesCell reports={post.reports} />
       </td>
       <td className="px-4 py-3">
         <StatusPill status={stateOf(post)} styles={STATE_STYLES} />
@@ -353,24 +366,24 @@ function CommentRow({
   return (
     <tr className="align-top">
       <td className="px-4 py-3">
-        <div className="flex flex-col gap-1.5">
+        <Writer
+          id={comment.author.id}
+          name={comment.author.name}
+          detail={`Written ${relative(comment.postedAt)}`}
+        />
+      </td>
+      <td className="px-4 py-3">
+        <div className="flex min-w-0 flex-col gap-1.5">
           <span className="line-clamp-4 text-sm">{comment.body}</span>
           {/* The post it was left on, for context. */}
           <span className="line-clamp-2 text-xs text-muted-foreground">
             On {comment.post.authorName}&apos;s post
             {comment.post.caption ? `: “${comment.post.caption}”` : ""}
           </span>
-          <span className="text-xs text-muted-foreground">Written {relative(comment.postedAt)}</span>
         </div>
       </td>
       <td className="px-4 py-3">
-        <Writer id={comment.author.id} name={comment.author.name} />
-      </td>
-      <td className="px-4 py-3">
         <ReportsCell {...comment} />
-      </td>
-      <td className="px-4 py-3">
-        <NotesCell reports={comment.reports} />
       </td>
       <td className="px-4 py-3">
         <StatusPill status={stateOf(comment)} styles={STATE_STYLES} />

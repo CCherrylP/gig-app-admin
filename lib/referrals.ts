@@ -9,6 +9,9 @@ export type ReferralKind =
   | "client"
   | "staff_candidate"
   | "candidate"
+  /** An employment agency referred someone. Paid in cash. */
+  | "agency_candidate"
+  | "agency_client"
   /** Old: employers can no longer refer. */
   | "employer_candidate"
   | "employer_client";
@@ -98,12 +101,15 @@ export const KIND_LABEL: Record<ReferralKind, string> = {
   client: "Business",
   staff_candidate: "Worker (TA)",
   candidate: "Worker",
+  agency_candidate: "Worker (agency)",
+  agency_client: "Business (agency)",
   employer_candidate: "Employer (old)",
   employer_client: "Employer (old)",
 };
 
-/** A reward as coins and what they cash out to, e.g. "800 coins · $8.00". */
-export function rewardLabel(row: { coins: number | null; amountCents: number }) {
+/** A reward as coins and what they cash out to, e.g. "800 coins · $8.00". Agency rewards are cash only. */
+export function rewardLabel(row: { kind?: ReferralKind; coins: number | null; amountCents: number }) {
+  if (row.kind === "agency_candidate" || row.kind === "agency_client") return `${money(row.amountCents)} cash`;
   // 1 coin = 1 cent, so an older row without coins still has a count.
   const count = row.coins ?? row.amountCents;
   return `${coins(count)} coin${count === 1 ? "" : "s"} · ${money(row.amountCents)}`;

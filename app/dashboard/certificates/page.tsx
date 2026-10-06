@@ -158,24 +158,14 @@ export default function CertificatesPage() {
             />
           ) : (
             <TableShell
-              headers={[
-                "Candidate",
-                "Certificate",
-                "Expires",
-                "Uploaded",
-                "Status",
-                "Actions",
-              ]}
-              // The decision buttons get the widest share. Everything left of
+              // FOUR COLUMNS, down from six. Expiry moved under the certificate
+              // it is about, and the upload time under the person who uploaded
+              // it — two narrow date columns read better as a line beside the
+              // thing they date.
+              headers={["Candidate", "Certificate", "Status", "Actions"]}
+              // The decision buttons still get a wide share. Everything left of
               // them is context for a judgement that is made on the right.
-              widths={[
-                "w-[20%]",
-                "w-[26%]",
-                "w-[12%]",
-                "w-[10%]",
-                "w-[9%]",
-                "w-[23%]",
-              ]}
+              widths={["w-[26%]", "w-[32%]", "w-[14%]", "w-[28%]"]}
             >
               {reviews.map((review) => (
                 <CertificateRow
@@ -217,7 +207,7 @@ function CertificateRow({
   const name = review.candidateName ?? "Unnamed candidate";
 
   return (
-    <tr className="align-middle">
+    <tr className="align-top">
       <td className="px-4 py-3">
         <div className="flex items-center gap-2.5">
           <InitialsAvatar
@@ -238,6 +228,10 @@ function CertificateRow({
             >
               {review.candidateVerified ? "Verified" : "Not verified"}
             </span>
+            {/* How long it has waited, moved here from a column of its own. */}
+            <span className="truncate text-xs text-muted-foreground">
+              Uploaded {relative(review.uploadedAt)}
+            </span>
           </div>
         </div>
       </td>
@@ -251,33 +245,34 @@ function CertificateRow({
           <span className="truncate text-xs text-muted-foreground">
             {meta?.issuer ?? review.certId}
           </span>
-        </div>
-      </td>
-
-      <td className="px-4 py-3">
-        {review.expiresAt ? (
-          <span
-            className={
-              expired
-                ? "text-xs font-medium text-destructive"
-                : "text-xs text-muted-foreground"
-            }
-          >
-            {date(review.expiresAt)}
-            {expired && (
-              <span className="mt-0.5 flex items-center gap-1">
-                <HugeiconsIcon icon={Alert02Icon} size={12} strokeWidth={2} />
+          {/* Expiry, moved here from its own column — it is a fact about this
+              document, and an expired one should be seen beside its name. */}
+          {review.expiresAt ? (
+            <span
+              className={
                 expired
+                  ? "inline-flex min-w-0 items-center gap-1 text-xs font-medium text-destructive"
+                  : "truncate text-xs text-muted-foreground"
+              }
+            >
+              {expired && (
+                <HugeiconsIcon
+                  icon={Alert02Icon}
+                  size={12}
+                  strokeWidth={2}
+                  className="shrink-0"
+                />
+              )}
+              <span className="truncate">
+                {expired ? "Expired" : "Expires"} {date(review.expiresAt)}
               </span>
-            )}
-          </span>
-        ) : (
-          <span className="text-xs text-muted-foreground">Does not lapse</span>
-        )}
-      </td>
-
-      <td className="px-4 py-3 text-xs text-muted-foreground">
-        {relative(review.uploadedAt)}
+            </span>
+          ) : (
+            <span className="truncate text-xs text-muted-foreground">
+              Does not lapse
+            </span>
+          )}
+        </div>
       </td>
 
       <td className="px-4 py-3">
@@ -285,7 +280,7 @@ function CertificateRow({
       </td>
 
       <td className="px-4 py-3">
-        <div className="flex items-center justify-end gap-1.5">
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
           {/* Signed and short-lived — minutes, not hours. Re-fetch the queue
               rather than keeping this link anywhere. */}
           <Button

@@ -69,6 +69,29 @@ export function relative(iso: string | null | undefined) {
   return rtf.format(value, "year");
 }
 
+/** Hours since an instant, for colouring a wait by how stale it is. Here rather
+ *  than at the call site for the same reason as isPast below. */
+export function hoursSince(iso: string | null | undefined) {
+  if (!iso) return 0;
+  const then = new Date(iso).getTime();
+  return Number.isNaN(then) ? 0 : (Date.now() - then) / 3_600_000;
+}
+
+/** "Good morning" by the clock in Singapore, and the day it is there. */
+export function greeting() {
+  const hour = Number(
+    new Date().toLocaleString("en-SG", { timeZone: SGT, hour: "numeric", hourCycle: "h23" }),
+  );
+  const part = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const day = new Date().toLocaleDateString("en-SG", {
+    timeZone: SGT,
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+  return { part, day };
+}
+
 /** Whether an instant has already passed — an invoice past its due date.
  *
  *  A module function rather than a `Date.now()` at the call site, because the

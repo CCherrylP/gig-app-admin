@@ -55,6 +55,13 @@ const REVIEW_STYLES: Record<string, string> = {
   REJECTED: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
 };
 
+// The same red and grey the block pills were drawn in by hand before they went
+// through StatusPill.
+const BLOCK_STYLES: Record<string, string> = {
+  BLOCKED: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+  LIFTED: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
+};
+
 export default function ReputationPage() {
   const [tab, setTab] = useState<Tab>("blacklist");
   const [search, setSearch] = useState("");
@@ -150,22 +157,13 @@ export default function ReputationPage() {
               />
             ) : (
               <TableShell
-                headers={[
-                  "Candidate",
-                  "Blocked by",
-                  "Reason",
-                  "Blocked",
-                  "Status",
-                  "Elsewhere",
-                ]}
-                widths={[
-                  "w-[20%]",
-                  "w-[20%]",
-                  "w-[26%]",
-                  "w-[12%]",
-                  "w-[11%]",
-                  "w-[11%]",
-                ]}
+                // FOUR COLUMNS, down from six. "Elsewhere" is a fact about the
+                // candidate, so it sits under their name; the date a block was
+                // made is a fact about the employer's act, so it sits under
+                // theirs. No actions column — nothing here decides anything —
+                // so Status is last, and right-aligned to match its header.
+                headers={["Candidate", "Blocked by", "Reason", "Status"]}
+                widths={["w-[26%]", "w-[24%]", "w-[34%]", "w-[16%]"]}
               >
                 {shownBlocks.map((block) => (
                   <BlockRow
@@ -188,22 +186,16 @@ export default function ReputationPage() {
             />
           ) : (
             <TableShell
+              // FOUR COLUMNS, down from six. The shift moved under the subject
+              // it was worked by or for, and the author under the score they
+              // gave — each reads as a line beside the thing it qualifies.
               headers={[
                 tab === "companies" ? "Company" : "Candidate",
-                "Rated by",
                 "Rating",
                 "What they wrote",
-                "Shift",
                 "Status",
               ]}
-              widths={[
-                "w-[18%]",
-                "w-[16%]",
-                "w-[10%]",
-                "w-[26%]",
-                "w-[16%]",
-                "w-[14%]",
-              ]}
+              widths={["w-[26%]", "w-[18%]", "w-[40%]", "w-[16%]"]}
             >
               {shownRatings.map((row) => (
                 <RatingRow key={row.id} row={row} tab={tab} />
@@ -232,7 +224,31 @@ function BlockRow({ block }: { block: BlockedCandidate }) {
             label={initials(name)}
             className="size-8"
           />
-          <span className="truncate font-medium">{name}</span>
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate font-medium">{name}</span>
+            {/* Moved here from an "Elsewhere" column: how many businesses have
+                this person blocked is a fact about the person. */}
+            {pattern ? (
+              <span className="inline-flex min-w-0 items-center gap-1 text-xs font-medium tabular-nums text-amber-600 dark:text-amber-400">
+                <HugeiconsIcon
+                  icon={Alert02Icon}
+                  size={13}
+                  strokeWidth={2}
+                  className="shrink-0"
+                />
+                <span className="truncate">
+                  Blocked by {block.activeBlocksForCandidate} companies
+                </span>
+              </span>
+            ) : (
+              // A lifted row said "—" here before; it says nothing now.
+              !lifted && (
+                <span className="truncate text-xs text-muted-foreground">
+                  Only blocked here
+                </span>
+              )
+            )}
+          </div>
         </div>
       </td>
 
@@ -241,6 +257,10 @@ function BlockRow({ block }: { block: BlockedCandidate }) {
           <span className="truncate font-medium">{block.companyName}</span>
           <span className="truncate text-xs tabular-nums text-muted-foreground">
             UEN {block.companyUen}
+          </span>
+          {/* When, moved here from a column of its own. */}
+          <span className="truncate text-xs text-muted-foreground">
+            Blocked {relative(block.blockedAt)}
           </span>
         </div>
       </td>
@@ -258,36 +278,15 @@ function BlockRow({ block }: { block: BlockedCandidate }) {
         </div>
       </td>
 
-      <td className="px-4 py-3 text-xs text-muted-foreground">
-        {relative(block.blockedAt)}
-      </td>
-
-      <td className="px-4 py-3">
-        {lifted ? (
-          <div className="flex min-w-0 flex-col gap-1">
-            <span className="inline-flex w-fit items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-              Lifted
-            </span>
-            <span className="truncate text-[11px] text-muted-foreground">
-              {relative(block.liftedAt)}
-            </span>
-          </div>
-        ) : (
-          <span className="inline-flex w-fit items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400">
-            Blocked
-          </span>
-        )}
-      </td>
-
-      <td className="px-4 py-3">
-        {pattern ? (
-          <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400">
-            <HugeiconsIcon icon={Alert02Icon} size={13} strokeWidth={2} />
-            {block.activeBlocksForCandidate} companies
-          </span>
-        ) : (
-          <span className="text-xs text-muted-foreground">
-            {lifted ? "—" : "Only here"}
+      {/* Last column, so right-aligned under its header. */}
+      <td className="px-4 py-3 text-right">
+        <StatusPill
+          status={lifted ? "lifted" : "blocked"}
+          styles={BLOCK_STYLES}
+        />
+        {lifted && (
+          <span className="mt-1 block truncate text-[11px] text-muted-foreground">
+            {relative(block.liftedAt)}
           </span>
         )}
       </td>
@@ -320,27 +319,39 @@ function RatingRow({ row, tab }: { row: Rating; tab: Tab }) {
             label={initials(subject)}
             className="size-8"
           />
-          <span className="truncate font-medium">{subject}</span>
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate font-medium">{subject}</span>
+            {/* The shift, moved here from a column of its own: the role and the
+                day are what this review is about. */}
+            <span className="truncate text-xs text-muted-foreground">
+              {row.roleName ?? "—"}
+            </span>
+            <span className="truncate text-xs text-muted-foreground">
+              {row.shiftOnDate ? date(row.shiftOnDate) : "Listing deleted"}
+            </span>
+          </div>
         </div>
       </td>
 
       <td className="px-4 py-3">
-        <span className="truncate text-xs text-muted-foreground">{author}</span>
-      </td>
-
-      <td className="px-4 py-3">
-        {/* A system row carries POINTS DEDUCTED, not a star score — printing
-            "-1.0 ★" would read as a rating below anything the pickers can
-            produce. */}
-        <span
-          className={
-            row.by === "system"
-              ? "text-sm font-medium tabular-nums text-destructive"
-              : "text-sm font-medium tabular-nums"
-          }
-        >
-          {ratingText(row)}
-        </span>
+        <div className="flex min-w-0 flex-col">
+          {/* A system row carries POINTS DEDUCTED, not a star score — printing
+              "-1.0 ★" would read as a rating below anything the pickers can
+              produce. */}
+          <span
+            className={
+              row.by === "system"
+                ? "truncate font-medium tabular-nums text-destructive"
+                : "truncate font-medium tabular-nums"
+            }
+          >
+            {ratingText(row)}
+          </span>
+          {/* Who gave it, moved here from a "Rated by" column. */}
+          <span className="truncate text-xs text-muted-foreground">
+            by {author}
+          </span>
+        </div>
       </td>
 
       <td className="px-4 py-3">
@@ -356,27 +367,17 @@ function RatingRow({ row, tab }: { row: Rating; tab: Tab }) {
         )}
       </td>
 
-      <td className="px-4 py-3">
-        <div className="flex min-w-0 flex-col text-xs">
-          <span className="truncate">{row.roleName ?? "—"}</span>
-          <span className="truncate text-muted-foreground">
-            {row.shiftOnDate ? date(row.shiftOnDate) : "Listing deleted"}
+      {/* Last column, so right-aligned under its header. */}
+      <td className="px-4 py-3 text-right">
+        <StatusPill status={row.status} styles={REVIEW_STYLES} />
+        {/* Only reviews about an EMPLOYER wait on a decision. One about a
+            candidate publishes at once — a private reference the next
+            employer reads, not a public page. */}
+        {row.status === "pending" && row.about === "company" && (
+          <span className="mt-1 block truncate text-[11px] text-muted-foreground">
+            With the employer
           </span>
-        </div>
-      </td>
-
-      <td className="px-4 py-3">
-        <div className="flex min-w-0 flex-col gap-1">
-          <StatusPill status={row.status} styles={REVIEW_STYLES} />
-          {/* Only reviews about an EMPLOYER wait on a decision. One about a
-              candidate publishes at once — a private reference the next
-              employer reads, not a public page. */}
-          {row.status === "pending" && row.about === "company" && (
-            <span className="truncate text-[11px] text-muted-foreground">
-              With the employer
-            </span>
-          )}
-        </div>
+        )}
       </td>
     </tr>
   );

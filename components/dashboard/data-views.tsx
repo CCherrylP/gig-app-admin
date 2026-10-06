@@ -14,8 +14,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Download04Icon, Search01Icon } from "@hugeicons/core-free-icons";
+import {
+  Download04Icon,
+  GridViewIcon,
+  Menu01Icon,
+  Search01Icon,
+} from "@hugeicons/core-free-icons";
 import { cn } from "@/lib/utils";
+import { lookForPath } from "@/components/dashboard/section-look";
 
 export type IconType = Parameters<typeof HugeiconsIcon>[0]["icon"];
 
@@ -112,7 +118,9 @@ export function StatusPill({
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium",
+        // w-fit so a pill stacked in a flex column keeps its own width instead
+        // of being stretched across the cell.
+        "inline-flex w-fit shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium",
         cls,
       )}
     >
@@ -175,15 +183,21 @@ export function StatCard({
   hint?: React.ReactNode;
 }) {
   return (
-    <Card>
+    // The icon sits on a wash of its own colour (bg-current/10), and the card
+    // lifts on hover — a row of these is the first thing on most pages, and a
+    // row of grey boxes was most of why the dashboard read as lifeless.
+    <Card className="transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardDescription>{label}</CardDescription>
-          <HugeiconsIcon
-            icon={icon}
-            strokeWidth={1.5}
-            className={cn("size-5", cls)}
-          />
+          <span
+            className={cn(
+              "flex size-9 items-center justify-center rounded-lg bg-current/10",
+              cls,
+            )}
+          >
+            <HugeiconsIcon icon={icon} strokeWidth={1.8} className="size-4.5" />
+          </span>
         </div>
         <CardTitle className="text-3xl font-semibold tabular-nums">
           {count}
@@ -202,7 +216,17 @@ export type QueueRow = {
   title: string;
   subtitle: string;
   meta: string;
+  /** How long this one has waited, in hours. When given, the meta becomes a
+   *  chip that warms from grey to amber at a day and red at three — the oldest
+   *  row on a panel should not look as calm as the newest. */
+  waitedHours?: number;
 };
+
+function waitTone(hours: number) {
+  if (hours >= 72) return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300";
+  if (hours >= 24) return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300";
+  return "bg-muted text-muted-foreground";
+}
 
 /** A queue as a card: who is waiting, oldest first, with a way through to the
  *  page that works it. The Overview shows several of these cut to three rows;
@@ -216,11 +240,15 @@ export function QueuePanel({
   emptyMessage,
   footer,
   onRowClick,
+  accent,
 }: {
   title: string;
   href: string;
   linkLabel?: string;
   icon: IconType;
+  /** Tint classes for an icon tile beside the title, e.g. the queue's colour on
+   *  Home. Left out, the header is the plain title it always was. */
+  accent?: string;
   rows: QueueRow[];
   emptyMessage: string;
   footer?: string;
@@ -232,9 +260,21 @@ export function QueuePanel({
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle>{title}</CardTitle>
-          <Link href={href} className="text-xs text-primary hover:underline">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            {accent && (
+              <span
+                className={cn(
+                  "flex size-8 shrink-0 items-center justify-center rounded-lg",
+                  accent,
+                )}
+              >
+                <HugeiconsIcon icon={icon} strokeWidth={1.8} className="size-4" />
+              </span>
+            )}
+            <CardTitle className="truncate">{title}</CardTitle>
+          </div>
+          <Link href={href} className="shrink-0 text-xs text-primary hover:underline">
             {linkLabel}
           </Link>
         </div>
@@ -256,9 +296,20 @@ export function QueuePanel({
                       {row.subtitle}
                     </span>
                   </div>
-                  <span className="shrink-0 text-xs text-muted-foreground">
-                    {row.meta}
-                  </span>
+                  {row.waitedHours == null ? (
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {row.meta}
+                    </span>
+                  ) : (
+                    <span
+                      className={cn(
+                        "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium",
+                        waitTone(row.waitedHours),
+                      )}
+                    >
+                      {row.meta}
+                    </span>
+                  )}
                 </>
               );
 
@@ -331,11 +382,27 @@ export function PageHeader({
   description: string;
   children?: React.ReactNode;
 }) {
+  // The section's own colour and icon, picked by address so no page has to
+  // pass it — see section-look.
+  const look = lookForPath(usePathname());
+
   return (
     <div className="flex flex-wrap items-start justify-between gap-4">
-      <div>
-        <h1 className="font-heading text-2xl font-semibold">{title}</h1>
-        <p className="text-sm text-muted-foreground">{description}</p>
+      <div className="flex items-center gap-3">
+        {look && (
+          <span
+            className={cn(
+              "flex size-11 shrink-0 items-center justify-center rounded-xl animate-in fade-in zoom-in-90 duration-300",
+              look.tint,
+            )}
+          >
+            <HugeiconsIcon icon={look.icon} strokeWidth={1.8} className="size-5.5" />
+          </span>
+        )}
+        <div>
+          <h1 className="font-heading text-2xl font-semibold">{title}</h1>
+          <p className="text-sm text-muted-foreground">{description}</p>
+        </div>
       </div>
       {children}
     </div>
@@ -429,6 +496,7 @@ export function TableShell({
   children,
   exportName,
   exportable = true,
+  cardView = true,
 }: {
   headers: React.ReactNode[];
   /** A width per column, e.g. `w-[22%]`. Under `table-fixed` the first row's
@@ -440,11 +508,23 @@ export function TableShell({
   exportName?: string;
   /** False on pages with their own, fuller export. */
   exportable?: boolean;
+  /** False where a row only makes sense as a line in a ledger. */
+  cardView?: boolean;
 }) {
   const last = headers.length - 1;
   const table = React.useRef<HTMLTableElement>(null);
+  const body = React.useRef<HTMLTableSectionElement>(null);
   const pathname = usePathname();
   const [exporting, setExporting] = React.useState(false);
+  const [view, setView] = useTableView(pathname);
+  const cards = cardView && view === "cards";
+
+  // Plain text of each header, for the label above each cell in cards view. A
+  // header can be a node (a right-aligned span), so its text is dug out.
+  useRowDecoration(
+    body,
+    headers.map((header) => (typeof header === "string" ? header : textOf(header))),
+  );
 
   const exportTable = async () => {
     if (!table.current || exporting) return;
@@ -459,14 +539,17 @@ export function TableShell({
   };
 
   return (
-    <div className="overflow-x-auto">
-      {/* Exports the rows on screen, with the current tab, filter and search. */}
-      {exportable && (
-        <div className="flex justify-end border-b px-4 py-2">
-          <Button variant="outline" size="sm" onClick={exportTable} disabled={exporting}>
-            <HugeiconsIcon icon={Download04Icon} strokeWidth={2} />
-            {exporting ? "Exporting…" : "Export to Excel"}
-          </Button>
+    <div className={cards ? undefined : "overflow-x-auto"}>
+      {(exportable || cardView) && (
+        <div className="flex items-center justify-between gap-2 border-b px-4 py-2">
+          {cardView ? <ViewToggle view={view} onChange={setView} /> : <span />}
+          {/* Exports the rows on screen, with the current tab, filter and search. */}
+          {exportable && (
+            <Button variant="outline" size="sm" onClick={exportTable} disabled={exporting}>
+              <HugeiconsIcon icon={Download04Icon} strokeWidth={2} />
+              {exporting ? "Exporting…" : "Export to Excel"}
+            </Button>
+          )}
         </div>
       )}
       {/*
@@ -478,9 +561,12 @@ export function TableShell({
         at its share of it. Below that the table scrolls, which is the honest
         outcome — a queue nobody can read is worse than one that scrolls.
       */}
-      <table ref={table} className="w-full min-w-5xl table-fixed text-sm">
-        <thead>
-          <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
+      <table
+        ref={table}
+        className={cn("w-full text-sm", cards ? "block" : "min-w-5xl table-fixed")}
+      >
+        <thead className={cards ? "hidden" : undefined}>
+          <tr className="border-b bg-muted/30 text-left text-xs uppercase tracking-wide text-muted-foreground">
             {headers.map((header, i) => (
               <th
                 key={i}
@@ -499,8 +585,166 @@ export function TableShell({
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y">{children}</tbody>
+        {/* The hover lives here rather than on each row so every table answers
+            the pointer the same way — it was only the employers queue that did,
+            which made the others feel inert beside it. */}
+        <tbody ref={body} className={cn(ROW_MOTION, cards ? CARD_BODY : TABLE_BODY)}>
+          {children}
+        </tbody>
       </table>
+    </div>
+  );
+}
+
+// ─── Table / cards ────────────────────────────────────────────────────────────
+//
+// THE SAME ROWS, RESTYLED — not a second rendering of them.
+//
+// Every page builds its rows once, as <tr>s. Cards view keeps that markup and
+// lays it out differently: the body becomes a grid, each row a card, each cell a
+// block with its column's name above it. The alternative was a card component
+// per page, fourteen of them, each free to drift from its table — and a card
+// that forgot the Reject button would be a worse bug than any layout. Export to
+// Excel reads the same DOM in both views, so it does not care which is showing.
+
+type TableView = "table" | "cards";
+
+/** The text inside a header node: `<span className="text-right">Amount</span>`
+ *  is "Amount". */
+function textOf(node: React.ReactNode): string {
+  if (node == null || typeof node === "boolean") return "";
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(textOf).join("");
+  if (React.isValidElement<{ children?: React.ReactNode }>(node)) {
+    return textOf(node.props.children);
+  }
+  return "";
+}
+
+const ROW_MOTION =
+  "[&>tr]:animate-in [&>tr]:fade-in [&>tr]:slide-in-from-bottom-2 [&>tr]:duration-500 [&>tr]:[animation-fill-mode:both]";
+
+const TABLE_BODY = "divide-y [&>tr]:transition-colors [&>tr:hover]:bg-muted/40";
+
+const CARD_BODY = cn(
+  "grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3",
+  // the row as a card
+  "[&>tr]:flex [&>tr]:flex-col [&>tr]:gap-3 [&>tr]:rounded-xl [&>tr]:border [&>tr]:bg-card [&>tr]:p-4 [&>tr]:shadow-xs",
+  "[&>tr]:transition-[box-shadow,border-color] [&>tr:hover]:border-primary/30 [&>tr:hover]:shadow-md",
+  // rows that span the table (expanded detail, subtotals) span the grid too
+  "[&>tr[data-span]]:col-span-full",
+  // each cell as a block, its column's name above it
+  "[&>tr>td]:block [&>tr>td]:w-full [&>tr>td]:p-0! [&>tr>td]:text-left!",
+  "[&>tr>td[data-label]]:before:mb-1 [&>tr>td[data-label]]:before:block [&>tr>td[data-label]]:before:text-[10px] [&>tr>td[data-label]]:before:font-medium [&>tr>td[data-label]]:before:uppercase [&>tr>td[data-label]]:before:tracking-wide [&>tr>td[data-label]]:before:text-muted-foreground [&>tr>td[data-label]]:before:content-[attr(data-label)]",
+  // the actions sit along the bottom edge, whatever height the card is
+  "[&>tr>td:last-child:not(:first-child)]:mt-auto [&>tr>td:last-child:not(:first-child)]:border-t [&>tr>td:last-child:not(:first-child)]:pt-3!",
+);
+
+/** Remembered per page, in this browser only. Wrapped, because storage can be
+ *  blocked and a view preference is never worth an error. */
+function useTableView(pathname: string): [TableView, (view: TableView) => void] {
+  const key = `adhoc:view:${pathname}`;
+  const [view, setView] = React.useState<TableView>("table");
+
+  React.useEffect(() => {
+    try {
+      const saved = localStorage.getItem(key);
+      // Read after mount, not in the initializer, so the server render and the
+      // first client render agree and nothing flashes a hydration warning.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (saved === "cards" || saved === "table") setView(saved);
+    } catch {}
+  }, [key]);
+
+  const choose = (next: TableView) => {
+    setView(next);
+    try {
+      localStorage.setItem(key, next);
+    } catch {}
+  };
+
+  return [view, choose];
+}
+
+/** Writes each cell's column name onto it (for the label above it in cards
+ *  view), marks rows that do not line up with the columns, and staggers the
+ *  rows' entrance. Watches the body rather than running once, because some rows
+ *  re-render on their own — an expanded payroll row adds its detail lines
+ *  without the table around it rendering at all. */
+function useRowDecoration(
+  body: React.RefObject<HTMLTableSectionElement | null>,
+  headers: string[],
+) {
+  const labels = headers.join("\u0000");
+
+  React.useLayoutEffect(() => {
+    const tbody = body.current;
+    if (!tbody) return;
+    const names = labels.split("\u0000");
+
+    const decorate = () => {
+      Array.from(tbody.rows).forEach((row, index) => {
+        // Only a row's first appearance is staggered. Setting a delay on a row
+        // that has already arrived would replay it from invisible.
+        if (!row.dataset.arrived) {
+          row.dataset.arrived = "1";
+          row.style.animationDelay = `${Math.min(index, 12) * 35}ms`;
+        }
+
+        if (row.cells.length !== names.length) {
+          row.dataset.span = "1";
+          return;
+        }
+        delete row.dataset.span;
+
+        Array.from(row.cells).forEach((cell, i) => {
+          const name = names[i];
+          // Not on the first column — the name or company IS the card's title
+          // — and not on an unlabelled or Actions column.
+          if (i === 0 || !name || name === "Actions") delete cell.dataset.label;
+          else cell.dataset.label = name;
+        });
+      });
+    };
+
+    decorate();
+    const observer = new MutationObserver(decorate);
+    observer.observe(tbody, { childList: true });
+    return () => observer.disconnect();
+  }, [body, labels]);
+}
+
+function ViewToggle({
+  view,
+  onChange,
+}: {
+  view: TableView;
+  onChange: (view: TableView) => void;
+}) {
+  const options: { value: TableView; label: string; icon: IconType }[] = [
+    { value: "table", label: "Table", icon: Menu01Icon },
+    { value: "cards", label: "Cards", icon: GridViewIcon },
+  ];
+
+  return (
+    <div className="inline-flex items-center gap-0.5 rounded-lg border bg-muted p-0.5">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          aria-pressed={view === option.value}
+          onClick={() => onChange(option.value)}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+            view === option.value
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          <HugeiconsIcon icon={option.icon} strokeWidth={2} className="size-3.5" />
+          {option.label}
+        </button>
+      ))}
     </div>
   );
 }

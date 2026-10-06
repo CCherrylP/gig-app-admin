@@ -5,6 +5,7 @@ import { ReviewTabs } from "@/components/dashboard/review-tabs";
 import { PeopleTabs } from "@/components/dashboard/section-tabs";
 import { ReferredByField, suggestedReferralCode } from "@/components/dashboard/referred-by-field";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -13,8 +14,6 @@ import {
   BuildingIcon,
   Cancel01Icon,
   CheckmarkCircle02Icon,
-  CallIcon,
-  Mail01Icon,
   ArrowRight01Icon,
 } from "@hugeicons/core-free-icons";
 
@@ -164,31 +163,22 @@ export default function EmployersPage() {
             />
           ) : (
             <TableShell
-              headers={[
-                "Person",
-                "Contact",
-                "Company",
-                "Billed to",
-                "Signed up",
-                "Status",
-                "Actions",
-              ]}
-              // The actions get a fifth of the table. Three buttons at ~80px
-              // plus their gaps is ~250px, and anything less makes them spill
-              // over the status pill — which is exactly what it looked like.
+              // FIVE COLUMNS, down from eight.
               //
-              // The "Per coin" column went with the negotiated rate. Its 8% is
-              // spread over Company and Billed to, which are the two that were
-              // truncating.
-              widths={[
-                "w-[15%]",
-                "w-[16%]",
-                "w-[22%]",
-                "w-[18%]",
-                "w-[8%]",
-                "w-[10%]",
-                "w-[11%]",
-              ]}
+              // The three that went — Contact, Billed to, Signed up — were not
+              // wrong, they were just never read HERE. This is a queue: the
+              // questions it answers are "who is this, where do they work, what
+              // state are they in, and do I approve them". An email address and
+              // a billing address are answers to a different question, asked
+              // when somebody is actually looking at one business, and the
+              // detail page already shows both properly rather than truncated
+              // into eighty pixels.
+              //
+              // Nothing was lost. The row opens that page on a click, and the
+              // waiting time moved into the Person cell, where it belongs next
+              // to the name it is about.
+              headers={["Person", "Company", "Status", "Actions"]}
+              widths={["w-[26%]", "w-[30%]", "w-[18%]", "w-[26%]"]}
             >
               {employers.map((employer) => (
                 <EmployerRow
@@ -223,10 +213,22 @@ function EmployerRow({
   employer: EmployerReview;
   onDecide: (status: "approved" | "rejected") => void;
 }) {
+  const router = useRouter();
   const name = employer.name ?? "Unnamed";
+  const href = `/dashboard/employers/${employer.userId}`;
 
+  // THE WHOLE ROW OPENS THE PAGE, not just a link in one cell.
+  //
+  // It is the same gesture the payments queue uses, and making every table work
+  // the same way is most of what "intuitive" means here: a row is a thing, and
+  // clicking a thing opens it. The name stays a real <a> underneath so
+  // middle-click, ctrl-click and "copy link" still behave — a div that merely
+  // calls router.push() takes all of that away and looks identical.
   return (
-    <tr className="align-top">
+    <tr
+      className="cursor-pointer align-top"
+      onClick={() => router.push(href)}
+    >
       <td className="px-4 py-3">
         <div className="flex items-center gap-2.5">
           <InitialsAvatar
@@ -235,11 +237,8 @@ function EmployerRow({
             className="size-8"
           />
           <div className="flex min-w-0 flex-col">
-            {/* The name is the way in. A queue row is decidable from the table
-                for the ordinary call; the page behind this is for the one where
-                the address is wrong or somebody wants the company's invoices. */}
             <Link
-              href={`/dashboard/employers/${employer.userId}`}
+              href={href}
               className="truncate font-medium hover:text-primary hover:underline"
             >
               {name}
@@ -247,36 +246,13 @@ function EmployerRow({
             <span className="truncate text-xs text-muted-foreground">
               {employer.jobTitle ?? "No job title"}
             </span>
-            {/* No Singpass line. An employer is not asked to verify personally —
-                what makes them trustworthy here is the call confirming they work
-                for the business, which is the Status column. Printing "Not
-                verified" against every employer implied a missing step that does
-                not exist, and made a normal account look like a problem. */}
+            {/* How long they have been waiting, moved here from a column of its
+                own. It is a fact about this person and reads better beside
+                their name than four cells away under a heading. */}
+            <span className="truncate text-xs text-muted-foreground">
+              Signed up {relative(employer.createdAt)}
+            </span>
           </div>
-        </div>
-      </td>
-
-      <td className="px-4 py-3">
-        <div className="flex min-w-0 flex-col gap-1 text-xs">
-          <span className="inline-flex items-center gap-1.5">
-            <HugeiconsIcon
-              icon={Mail01Icon}
-              size={13}
-              strokeWidth={2}
-              className="shrink-0 text-muted-foreground"
-            />
-            <span className="truncate">{employer.email ?? "—"}</span>
-          </span>
-          {/* The number to ring. This queue IS a phone call. */}
-          <span className="inline-flex items-center gap-1.5">
-            <HugeiconsIcon
-              icon={CallIcon}
-              size={13}
-              strokeWidth={2}
-              className="shrink-0 text-muted-foreground"
-            />
-            <span className="truncate font-medium">{employer.phone ?? "—"}</span>
-          </span>
         </div>
       </td>
 
@@ -286,66 +262,27 @@ function EmployerRow({
           <span className="truncate text-xs tabular-nums text-muted-foreground">
             UEN {employer.companyUen}
           </span>
-          <span className="truncate text-xs text-muted-foreground">
-            {employer.companyIndustry ?? "No industry given"}
-          </span>
           {/* A first employee at a new business and the fourth at an
               established one are different calls. */}
           <span className="truncate text-xs text-muted-foreground">
             {employer.companySeats} seat
-            {employer.companySeats === 1 ? "" : "s"} at this UEN
+            {employer.companySeats === 1 ? "" : "s"} · {employer.phone ?? "no phone"}
           </span>
+          {/* Referral stays. It is not background detail — it is something the
+              person on the call has to confirm, so it belongs where the call is
+              being prepared. */}
           {employer.referredBy && (
             <span className="truncate text-xs font-medium text-violet-600 dark:text-violet-400">
               Referred by {employer.referredBy.name ?? "someone"}
-              {employer.referredBy.companyName ? ` (${employer.referredBy.companyName})` : ""}
             </span>
           )}
           {!employer.referredBy && employer.signupReferral?.valid && (
             <span className="truncate text-xs font-medium text-amber-600 dark:text-amber-400">
-              From {employer.signupReferral.name ?? "someone"}&apos;s link
-              {employer.signupReferral.companyName ? ` (${employer.signupReferral.companyName})` : ""}
-              . Confirm on the call.
+              From {employer.signupReferral.name ?? "someone"}&apos;s link. Confirm
+              on the call.
             </span>
           )}
         </div>
-      </td>
-
-      {/* Where the BILL goes, which is not where the work is.
-          Null does not mean "nowhere to send it" — it means the invoice is
-          addressed to the outlet address, which is what every bill did before
-          the column existed. Saying that in words stops somebody filling one in
-          because they think the invoices were going nowhere. */}
-      <td className="px-4 py-3">
-        {employer.companyBillingAddress ? (
-          <span
-            className="line-clamp-2 text-xs"
-            title={employer.companyBillingAddress}
-          >
-            {employer.companyBillingAddress}
-          </span>
-        ) : employer.companyAddress ? (
-          <span
-            className="line-clamp-2 text-xs text-muted-foreground"
-            title={employer.companyAddress}
-          >
-            Outlet address
-          </span>
-        ) : (
-          // Neither one. The bill would print no address at all, which is worth
-          // flagging on a row somebody might be about to invoice.
-          <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
-            No address
-          </span>
-        )}
-      </td>
-
-      {/* The "Per coin" column is gone. Every company is on the one published
-          price, so a column that said the same thing on every row was carrying
-          no information. The price itself is on the Config screen. */}
-
-      <td className="px-4 py-3 text-xs text-muted-foreground">
-        {relative(employer.createdAt)}
       </td>
 
       {/* ONE status column, not two.
@@ -357,12 +294,15 @@ function EmployerRow({
           the second column simply went away. So it is shown only then. */}
       <td className="px-4 py-3">
         <div className="flex min-w-0 flex-col gap-1">
+          {/* ONE status, full stop.
+              The person's approval and the business's check are set by the same
+              phone call and say the same thing on every real row, so a second
+              line was the same fact twice however narrowly it was gated. The
+              rare case where they disagree is still visible where somebody is
+              actually looking at that business — the detail page shows a second
+              badge in its header and warns before billing — and the row opens
+              it in one click. */}
           <StatusPill status={employer.status} />
-          {employer.companyVerificationStatus !== "verified" && (
-            <span className="truncate text-[11px] font-medium text-amber-600 dark:text-amber-400">
-              Business {employer.companyVerificationStatus}
-            </span>
-          )}
           {employer.companyIsAgency && (
             <span className="truncate text-[11px] font-medium text-violet-600 dark:text-violet-400">
               Agency · EA {employer.companyEaLicenceNo ?? "missing"}
@@ -371,7 +311,10 @@ function EmployerRow({
         </div>
       </td>
 
-      <td className="px-4 py-3">
+      {/* stopPropagation, or every decision also navigates. The buttons sit
+          inside a row that is itself a link now, and a click that both rejects
+          somebody and leaves the queue is the worst of both. */}
+      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
         <div className="flex flex-wrap items-center justify-end gap-1.5">
           {/* Decided employers can be decided again, unlike a certificate:
               somebody approved in error has to be removable, and a manager who
@@ -392,14 +335,14 @@ function EmployerRow({
               Approve
             </Button>
           )}
-          <Button
-            variant="ghost"
-            size="xs"
-            render={<Link href={`/dashboard/employers/${employer.userId}`} />}
-          >
-            Details
-            <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={2} />
-          </Button>
+          {/* A chevron rather than a "Details" button. The whole row opens it
+              now, so a button competing with that would be two ways to do one
+              thing — this is just the affordance saying the row is openable. */}
+          <HugeiconsIcon
+            icon={ArrowRight01Icon}
+            strokeWidth={2}
+            className="size-4 shrink-0 text-muted-foreground"
+          />
         </div>
       </td>
     </tr>

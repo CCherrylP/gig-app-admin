@@ -8,6 +8,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
+  ArrowRight01Icon,
   Cancel01Icon,
   CheckmarkCircle02Icon,
   Invoice01Icon,
@@ -15,6 +16,7 @@ import {
 } from "@hugeicons/core-free-icons";
 
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -24,9 +26,13 @@ import {
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  EmptyState,
+  InitialsAvatar,
   PageHeader,
-  QueuePanel,
   StatCard,
+  StatusPill,
+  TableShell,
+  initials,
 } from "@/components/dashboard/data-views";
 import {
   decideInvoice,
@@ -34,7 +40,13 @@ import {
   type AdminInvoice,
 } from "@/lib/invoices";
 import { openFreshDocument } from "@/lib/documents";
-import { coins as formatCoins, date, money, relative } from "@/lib/format";
+import {
+  coins as formatCoins,
+  date,
+  isPast,
+  money,
+  relative,
+} from "@/lib/format";
 
 // The payments queue, on its own page.
 //
@@ -149,41 +161,68 @@ function PaymentsQueue() {
       {isLoading ? (
         <Skeleton className="h-56 rounded-xl" />
       ) : (
-        <QueuePanel
-          title="Payments awaiting confirmation"
-          href={
-            term
-              ? `/dashboard/invoices?company=${encodeURIComponent(company)}&status=all`
-              : "/dashboard/invoices"
-          }
-          linkLabel="View all invoices"
-          icon={ReceiptIcon}
-          emptyMessage={
-            term
-              ? "No receipts waiting from this company."
-              : "No receipts waiting on staff."
-          }
-          footer={
-            data
-              ? `${money(outstandingCents)} outstanding across ${unpaidCount} unpaid invoice${
-                  unpaidCount === 1 ? "" : "s"
-                }`
-              : undefined
-          }
-          // The row IS the invoice somebody came to look at, so it opens right
-          // here. Sending them to "all invoices" and asking them to find the
-          // same row again in a longer list was a hop for nothing.
-          onRowClick={(id) =>
-            setOpen(awaiting.find((invoice) => invoice.id === id) ?? null)
-          }
-          rows={awaiting.map((invoice) => ({
-            key: invoice.id,
-            seed: invoice.companyId,
-            title: invoice.companyName,
-            subtitle: `${invoice.number} · ${money(invoice.totalCents)}`,
-            meta: relative(invoice.paymentProofAt),
-          }))}
-        />
+        // A table now, not the Overview's QueuePanel list, so this queue reads
+        // like every other one on the dashboard — same columns, same row hover,
+        // same export. The card's title, its link through to Invoices and the
+        // outstanding footer are the ones the panel carried.
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Payments awaiting confirmation</CardTitle>
+              <Link
+                href={
+                  term
+                    ? `/dashboard/invoices?company=${encodeURIComponent(company)}&status=all`
+                    : "/dashboard/invoices"
+                }
+                className="text-xs text-primary hover:underline"
+              >
+                View all invoices
+              </Link>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            {awaiting.length === 0 ? (
+              <EmptyState
+                icon={ReceiptIcon}
+                message={
+                  term
+                    ? "No receipts waiting from this company."
+                    : "No receipts waiting on staff."
+                }
+              />
+            ) : (
+              <TableShell
+                headers={[
+                  "Company",
+                  "Invoice",
+                  <span key="amount" className="block text-right">Amount</span>,
+                  "Status",
+                  "",
+                ]}
+                widths={["w-[32%]", "w-[24%]", "w-[14%]", "w-[22%]", "w-[8%]"]}
+              >
+                {awaiting.map((invoice) => (
+                  <PaymentRow
+                    key={invoice.id}
+                    invoice={invoice}
+                    // The row IS the invoice somebody came to look at, so it
+                    // opens right here. Sending them to "all invoices" and
+                    // asking them to find the same row again in a longer list
+                    // was a hop for nothing.
+                    onOpen={() => setOpen(invoice)}
+                  />
+                ))}
+              </TableShell>
+            )}
+            {data && (
+              <p className="border-t px-6 py-3 text-xs text-muted-foreground">
+                {money(outstandingCents)} outstanding across {unpaidCount} unpaid
+                invoice{unpaidCount === 1 ? "" : "s"}
+              </p>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       <InvoiceDialog
@@ -193,6 +232,91 @@ function PaymentsQueue() {
         }}
       />
     </div>
+  );
+}
+
+/** One transfer waiting on staff. Nothing to decide in the row itself — the
+ *  decision lives in the dialog beside the receipt — so the whole row opens it
+ *  and the last cell is only the chevron saying so. */
+function PaymentRow({
+  invoice,
+  onOpen,
+}: {
+  invoice: AdminInvoice;
+  onOpen: () => void;
+}) {
+  const overdue = isPast(invoice.dueAt);
+
+  return (
+    <tr className="cursor-pointer align-top" onClick={onOpen}>
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-2.5">
+          <InitialsAvatar
+            seed={invoice.companyId}
+            label={initials(invoice.companyName)}
+            className="size-8"
+          />
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate font-medium">{invoice.companyName}</span>
+            <span className="truncate text-xs text-muted-foreground">
+              {invoice.companyUen ? `UEN ${invoice.companyUen}` : "No UEN"}
+            </span>
+          </div>
+        </div>
+      </td>
+
+      <td className="px-4 py-3">
+        <div className="flex min-w-0 flex-col">
+          <span className="truncate font-medium tabular-nums">
+            {invoice.number}
+          </span>
+          <span className="truncate text-xs tabular-nums text-muted-foreground">
+            {formatCoins(invoice.coins)} coins · Issued {date(invoice.issuedAt)}
+          </span>
+        </div>
+      </td>
+
+      <td className="px-4 py-3 text-right font-medium tabular-nums">
+        {money(invoice.totalCents)}
+      </td>
+
+      <td className="px-4 py-3">
+        <div className="flex flex-col items-start gap-1">
+          <StatusPill
+            status="awaiting"
+            label="Awaiting confirmation"
+            styles={{
+              AWAITING:
+                "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+            }}
+          />
+          <span className="text-[11px] text-muted-foreground">
+            Receipt {relative(invoice.paymentProofAt)}
+          </span>
+          <span
+            className={
+              overdue
+                ? "text-[11px] font-medium text-destructive"
+                : "text-[11px] text-muted-foreground"
+            }
+          >
+            {overdue ? "Overdue since" : "Due"} {date(invoice.dueAt)}
+          </span>
+        </div>
+      </td>
+
+      {/* No stopPropagation: nothing in this cell but the chevron, and clicking
+          it should open the row like anywhere else on it. */}
+      <td className="px-4 py-3">
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
+          <HugeiconsIcon
+            icon={ArrowRight01Icon}
+            strokeWidth={2}
+            className="size-4 shrink-0 text-muted-foreground"
+          />
+        </div>
+      </td>
+    </tr>
   );
 }
 

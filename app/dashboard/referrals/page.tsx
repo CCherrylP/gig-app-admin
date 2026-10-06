@@ -37,10 +37,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   EmptyState,
   FilterTabs,
+  InitialsAvatar,
   PageHeader,
   StatCard,
   StatusPill,
   TableShell,
+  initials,
 } from "@/components/dashboard/data-views";
 import {
   KIND_LABEL,
@@ -194,37 +196,61 @@ function StaffSection() {
             <EmptyState icon={UserMultipleIcon} message="No referral staff yet." />
           ) : (
             <TableShell
-              headers={["Staff", "Team", "Code", "Referrals", "Active", "Pending", "Cashed out", ""]}
-              widths={["w-[24%]", "w-[7%]", "w-[15%]", "w-[10%]", "w-[9%]", "w-[11%]", "w-[11%]", "w-[13%]"]}
+              // Team and Code moved under the name. Both are facts about the
+              // person rather than things anybody compares down a column, and
+              // two narrow columns of "BD" and a short code were most of what
+              // made this table look crowded. The counts and money stay as
+              // columns of their own, because those ARE added up across rows.
+              headers={["Staff", "Referrals", "Active", "Pending", "Cashed out", "Actions"]}
+              widths={["w-[34%]", "w-[12%]", "w-[12%]", "w-[14%]", "w-[14%]", "w-[14%]"]}
             >
-              {staff.map((person) => (
-                <tr key={person.userId}>
-                  <td className="truncate px-4 py-3">
-                    <div className="truncate font-medium">{person.name ?? "Unnamed"}</div>
-                    <div className="truncate text-xs text-muted-foreground">
-                      {person.email ?? "No email"}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">{TEAM_LABEL[person.team]}</td>
-                  <td className="px-4 py-3">
-                    <CodeCell code={person.code} />
-                  </td>
-                  <td className="px-4 py-3 tabular-nums">{person.referrals}</td>
-                  <td className="px-4 py-3 tabular-nums">{person.activeReferrals}</td>
-                  <td className="px-4 py-3 tabular-nums">{money(person.pendingCents)}</td>
-                  <td className="px-4 py-3 tabular-nums">{money(person.paidCents)}</td>
-                  <td className="px-4 py-3 text-right">
-                    <Button
-                      variant="outline"
-                      size="xs"
-                      disabled={!person.email}
-                      onClick={() => setRemoving(person)}
-                    >
-                      Remove
-                    </Button>
-                  </td>
-                </tr>
-              ))}
+              {staff.map((person) => {
+                const name = person.name ?? "Unnamed";
+                return (
+                  <tr key={person.userId} className="align-top">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2.5">
+                        <InitialsAvatar
+                          seed={person.userId}
+                          label={initials(name)}
+                          className="size-8"
+                        />
+                        <div className="flex min-w-0 flex-col">
+                          <span className="truncate font-medium">{name}</span>
+                          <span className="truncate text-xs text-muted-foreground">
+                            {person.email ?? "No email"}
+                          </span>
+                          <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+                            <span className="shrink-0">{TEAM_LABEL[person.team]} ·</span>
+                            <CodeCell code={person.code} />
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 tabular-nums">{person.referrals}</td>
+                    <td className="px-4 py-3 tabular-nums">{person.activeReferrals}</td>
+                    <td className="px-4 py-3 font-medium tabular-nums">
+                      {money(person.pendingCents)}
+                    </td>
+                    <td className="px-4 py-3 font-medium tabular-nums">
+                      {money(person.paidCents)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap items-center justify-end gap-1.5">
+                        <Button
+                          variant="outline"
+                          size="xs"
+                          disabled={!person.email}
+                          onClick={() => setRemoving(person)}
+                        >
+                          <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
+                          Remove
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </TableShell>
           )}
         </CardContent>
@@ -263,7 +289,7 @@ function CodeCell({ code }: { code: string }) {
   };
 
   return (
-    <span className="flex items-center gap-1">
+    <span className="flex min-w-0 items-center gap-1">
       <span className="truncate font-mono text-xs select-all">{code}</span>
       <Button variant="ghost" size="icon-xs" aria-label={`Copy ${code}`} onClick={copy}>
         <HugeiconsIcon icon={Copy01Icon} strokeWidth={2} />
@@ -371,53 +397,89 @@ function ReferralsSection() {
             <EmptyState icon={UserMultipleIcon} message="No referrals yet." />
           ) : (
             <TableShell
-              headers={["Kind", "Referrer", "Referred", "Started", "Ends", "Status", "Shifts", "Earned", ""]}
-              widths={["w-[10%]", "w-[16%]", "w-[16%]", "w-[10%]", "w-[10%]", "w-[13%]", "w-[7%]", "w-[10%]", "w-[8%]"]}
+              // Six columns, down from nine. A referral is a pair of people, so
+              // it reads as two identity cells side by side; Kind went under the
+              // referred account it describes, and Started/Ends became one
+              // "from → to" line under the status, since the window is what
+              // decides whether the row is Active at all. Shifts and Earned keep
+              // their own columns because those get added up.
+              headers={["Referrer", "Referred", "Status", "Shifts", "Earned", "Actions"]}
+              widths={["w-[24%]", "w-[24%]", "w-[22%]", "w-[8%]", "w-[12%]", "w-[10%]"]}
             >
-              {referrals.map((row) => (
-                <tr key={row.id}>
-                  <td className="truncate px-4 py-3">{KIND_LABEL[row.kind]}</td>
-                  <td className="truncate px-4 py-3">
-                    <div className="truncate font-medium">{row.referrer.name ?? "Unnamed"}</div>
-                    <div className="truncate font-mono text-xs text-muted-foreground">
-                      {row.referrer.code ?? "No code"}
-                      {row.referrer.team ? ` · ${TEAM_LABEL[row.referrer.team]}` : ""}
-                    </div>
-                  </td>
-                  <td className="truncate px-4 py-3">
-                    <div className="truncate">{row.referred.name ?? "Unnamed"}</div>
-                    <div className="truncate text-xs text-muted-foreground">
-                      {row.referred.type === "company" ? "Company" : "Candidate"}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">{sgDay(row.startedAt)}</td>
-                  <td className="px-4 py-3">{sgDay(row.endsAt)}</td>
-                  <td className="px-4 py-3">
-                    <span className="flex flex-wrap gap-1">
-                      <StatusPill
-                        status={row.active ? "active" : "ended"}
-                        label={row.active ? "Active" : "Ended"}
-                        styles={PILL_STYLES}
-                      />
-                      {row.manual && (
-                        <StatusPill status="manual" label="Manual" styles={PILL_STYLES} />
-                      )}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 tabular-nums">{row.shifts}</td>
-                  <td className="px-4 py-3 tabular-nums">{money(row.earnedCents)}</td>
-                  <td className="px-4 py-3 text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Delete this referral"
-                      onClick={() => setDeleting(row)}
-                    >
-                      <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
-                    </Button>
-                  </td>
-                </tr>
-              ))}
+              {referrals.map((row) => {
+                const referrerName = row.referrer.name ?? "Unnamed";
+                const referredName = row.referred.name ?? "Unnamed";
+                return (
+                  <tr key={row.id} className="align-top">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2.5">
+                        <InitialsAvatar
+                          seed={row.referrer.id}
+                          label={initials(referrerName)}
+                          className="size-8"
+                        />
+                        <div className="flex min-w-0 flex-col">
+                          <span className="truncate font-medium">{referrerName}</span>
+                          <span className="truncate text-xs text-muted-foreground">
+                            <span className="font-mono">{row.referrer.code ?? "No code"}</span>
+                            {row.referrer.team ? ` · ${TEAM_LABEL[row.referrer.team]}` : ""}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2.5">
+                        <InitialsAvatar
+                          seed={row.referred.id}
+                          label={initials(referredName)}
+                          className="size-8"
+                        />
+                        <div className="flex min-w-0 flex-col">
+                          <span className="truncate font-medium">{referredName}</span>
+                          <span className="truncate text-xs text-muted-foreground">
+                            {row.referred.type === "company" ? "Company" : "Candidate"} ·{" "}
+                            {KIND_LABEL[row.kind]}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex min-w-0 flex-col items-start gap-1">
+                        <StatusPill
+                          status={row.active ? "active" : "ended"}
+                          label={row.active ? "Active" : "Ended"}
+                          styles={PILL_STYLES}
+                        />
+                        {row.manual && (
+                          <span className="truncate text-[11px] font-medium text-violet-600 dark:text-violet-400">
+                            Manual
+                          </span>
+                        )}
+                        <span className="truncate text-xs text-muted-foreground">
+                          {sgDay(row.startedAt)} → {sgDay(row.endsAt)}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 tabular-nums">{row.shifts}</td>
+                    <td className="px-4 py-3 font-medium tabular-nums">
+                      {money(row.earnedCents)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap items-center justify-end gap-1.5">
+                        <Button
+                          variant="outline"
+                          size="xs"
+                          aria-label="Delete this referral"
+                          onClick={() => setDeleting(row)}
+                        >
+                          <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
+                          Delete
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </TableShell>
           )}
         </CardContent>
@@ -573,22 +635,40 @@ function CommissionsSection() {
             <EmptyState icon={MoneyBag02Icon} message="No commissions for this month." />
           ) : (
             <TableShell
-              headers={["Referrer", "Team", "Shifts", "Total", "Not cashed out"]}
-              widths={["w-[36%]", "w-[16%]", "w-[14%]", "w-[17%]", "w-[17%]"]}
+              // Team went under the name: it says which kind of referrer this
+              // is, which is a fact about the person, not a figure to total.
+              headers={["Referrer", "Shifts", "Total", "Not cashed out"]}
+              widths={["w-[46%]", "w-[14%]", "w-[20%]", "w-[20%]"]}
             >
-              {byReferrer.map((line) => (
-                <tr key={line.referrerId}>
-                  <td className="truncate px-4 py-3 font-medium">{line.name ?? "Unnamed"}</td>
-                  <td className="px-4 py-3">
-                    {line.team ? TEAM_LABEL[line.team] : "Candidate"}
-                  </td>
-                  <td className="px-4 py-3 tabular-nums">{line.shifts}</td>
-                  <td className="px-4 py-3 tabular-nums">{money(line.amountCents)}</td>
-                  <td className="px-4 py-3 text-right font-medium tabular-nums">
-                    {money(line.pendingCents)}
-                  </td>
-                </tr>
-              ))}
+              {byReferrer.map((line) => {
+                const name = line.name ?? "Unnamed";
+                return (
+                  <tr key={line.referrerId} className="align-top">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2.5">
+                        <InitialsAvatar
+                          seed={line.referrerId}
+                          label={initials(name)}
+                          className="size-8"
+                        />
+                        <div className="flex min-w-0 flex-col">
+                          <span className="truncate font-medium">{name}</span>
+                          <span className="truncate text-xs text-muted-foreground">
+                            {line.team ? TEAM_LABEL[line.team] : "Candidate"}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 tabular-nums">{line.shifts}</td>
+                    <td className="px-4 py-3 font-medium tabular-nums">
+                      {money(line.amountCents)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-medium tabular-nums">
+                      {money(line.pendingCents)}
+                    </td>
+                  </tr>
+                );
+              })}
             </TableShell>
           )}
         </CardContent>
@@ -631,54 +711,74 @@ function CommissionsSection() {
                   className="size-4 align-middle accent-primary"
                 />,
                 "Referrer",
-                "Referred",
                 "Shift",
                 "Fee",
-                "Rate",
                 "Amount",
                 "Status",
               ]}
-              widths={["w-[4%]", "w-[17%]", "w-[14%]", "w-[19%]", "w-[9%]", "w-[7%]", "w-[16%]", "w-[14%]"]}
+              // Referred and Rate went under the referrer. Who was referred is
+              // the other half of the same pairing, and the rate belongs to the
+              // kind of referral sitting on that line — it explains the Amount,
+              // it is not something anybody totals. Fee stays its own column so
+              // it still exports as a number.
+              widths={["w-[4%]", "w-[30%]", "w-[24%]", "w-[11%]", "w-[17%]", "w-[14%]"]}
             >
-              {rows.map((row) => (
-                <tr key={row.id}>
-                  <td className="px-4 py-3">
-                    <input
-                      type="checkbox"
-                      aria-label={`Select commission for ${row.referrer.name ?? "this referrer"}`}
-                      checked={selected.has(row.id)}
-                      onChange={() => toggle(row.id)}
-                      disabled={!!row.paidAt}
-                      className="size-4 accent-primary disabled:opacity-30"
-                    />
-                  </td>
-                  <td className="truncate px-4 py-3">
-                    <div className="truncate font-medium">{row.referrer.name ?? "Unnamed"}</div>
-                    <div className="truncate text-xs text-muted-foreground">
-                      {KIND_LABEL[row.kind]}
-                    </div>
-                  </td>
-                  <td className="truncate px-4 py-3">{row.referredName ?? "Unnamed"}</td>
-                  <td className="truncate px-4 py-3">
-                    <div className="truncate">{row.companyName}</div>
-                    <div className="truncate text-xs text-muted-foreground">
-                      {row.roleName} · {date(row.shiftDate)}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 tabular-nums">{money(row.feeCents)}</td>
-                  <td className="px-4 py-3 tabular-nums">{row.ratePct}%</td>
-                  <td className="px-4 py-3 font-medium tabular-nums">
-                    {rewardLabel(row)}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <StatusPill
-                      status={row.paidAt ? "paid" : "pending"}
-                      label={row.paidAt ? `Cashed out ${sgDay(row.paidAt)}` : "Pending"}
-                      styles={PILL_STYLES}
-                    />
-                  </td>
-                </tr>
-              ))}
+              {rows.map((row) => {
+                const name = row.referrer.name ?? "Unnamed";
+                return (
+                  <tr key={row.id} className="align-top">
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        aria-label={`Select commission for ${row.referrer.name ?? "this referrer"}`}
+                        checked={selected.has(row.id)}
+                        onChange={() => toggle(row.id)}
+                        disabled={!!row.paidAt}
+                        className="size-4 accent-primary disabled:opacity-30"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2.5">
+                        <InitialsAvatar
+                          seed={row.referrer.id}
+                          label={initials(name)}
+                          className="size-8"
+                        />
+                        <div className="flex min-w-0 flex-col">
+                          <span className="truncate font-medium">{name}</span>
+                          <span className="truncate text-xs text-muted-foreground">
+                            Referred {row.referredName ?? "Unnamed"}
+                          </span>
+                          <span className="truncate text-xs text-muted-foreground">
+                            {KIND_LABEL[row.kind]} · {row.ratePct}% of fee
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex min-w-0 flex-col">
+                        <span className="truncate font-medium">{row.companyName}</span>
+                        <span className="truncate text-xs text-muted-foreground">
+                          {row.roleName} · {date(row.shiftDate)}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 font-medium tabular-nums">
+                      {money(row.feeCents)}
+                    </td>
+                    <td className="px-4 py-3 font-medium tabular-nums">
+                      {rewardLabel(row)}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <StatusPill
+                        status={row.paidAt ? "paid" : "pending"}
+                        label={row.paidAt ? `Cashed out ${sgDay(row.paidAt)}` : "Pending"}
+                        styles={PILL_STYLES}
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
             </TableShell>
           )}
         </CardContent>

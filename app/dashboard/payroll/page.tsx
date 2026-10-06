@@ -20,10 +20,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   EmptyState,
   FilterTabs,
+  InitialsAvatar,
   PageHeader,
   StatCard,
   StatusPill,
   TableShell,
+  initials,
 } from "@/components/dashboard/data-views";
 import {
   currentMonth,
@@ -359,22 +361,31 @@ export default function PayrollPage() {
                   className="size-4 align-middle accent-primary"
                 />,
                 "Candidate",
-                "Company",
+                // COMPANY AND SHIFT ARE ONE COLUMN NOW. The date and the hours
+                // it ran were a narrow column of their own, read only ever
+                // alongside the company and role they belong to — so they sit
+                // under them as a third line. The numbers stay apart: Hours
+                // and Amount are what gets added down the page, so they keep
+                // their own right-aligned columns at the end, next to each
+                // other, where a column of figures is expected.
                 "Shift",
-                "Hours",
                 "Pay to",
-                "Amount",
+                <span key="hours" className="block text-right">
+                  Hours
+                </span>,
+                <span key="amount" className="block text-right">
+                  Amount
+                </span>,
                 "Status",
               ]}
               widths={[
                 "w-[4%]",
-                "w-[17%]",
+                "w-[21%]",
+                "w-[24%]",
                 "w-[19%]",
-                "w-[18%]",
                 "w-[8%]",
-                "w-[14%]",
-                "w-[10%]",
-                "w-[10%]",
+                "w-[11%]",
+                "w-[13%]",
               ]}
             >
               {shown.map((row) => (
@@ -478,52 +489,68 @@ function Row({
   const payout = payoutOf(row);
 
   return (
-    <tr className="border-b last:border-0">
+    <tr className="align-top">
+      {/* The box is centred on the avatar beside it rather than sitting on the
+          cell's top edge, so it reads as belonging to the name. */}
       <td className="px-4 py-3">
-        <input
-          type="checkbox"
-          aria-label={`Select ${row.candidateName ?? "this shift"}`}
-          checked={checked}
-          onChange={onToggle}
-          disabled={row.status !== "ready"}
-          className="size-4 accent-primary disabled:opacity-30"
-        />
-      </td>
-
-      <td className="truncate px-4 py-3">
-        <div className="truncate font-medium">{row.candidateName ?? "Unnamed"}</div>
-        <div className="truncate text-xs text-muted-foreground">
-          {row.candidatePhone ?? "—"}
+        <div className="flex h-8 items-center">
+          <input
+            type="checkbox"
+            aria-label={`Select ${row.candidateName ?? "this shift"}`}
+            checked={checked}
+            onChange={onToggle}
+            disabled={row.status !== "ready"}
+            className="size-4 accent-primary disabled:opacity-30"
+          />
         </div>
       </td>
 
-      {isReferralRow(row) ? (
-        <td className="truncate px-4 py-3">
-          <div className="truncate font-medium text-primary">Referral bonus</div>
-          <div className="truncate text-xs text-muted-foreground">
-            {row.roleName} · {row.companyName}
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-2.5">
+          <InitialsAvatar
+            seed={row.candidateId}
+            label={initials(row.candidateName ?? "Unnamed")}
+            className="size-8"
+          />
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate font-medium">
+              {row.candidateName ?? "Unnamed"}
+            </span>
+            <span className="truncate text-xs text-muted-foreground">
+              {row.candidatePhone ?? "—"}
+            </span>
           </div>
-        </td>
-      ) : (
-        <td className="truncate px-4 py-3">
-          <div className="truncate">{row.companyName}</div>
-          <div className="truncate text-xs text-muted-foreground">{row.roleName}</div>
-        </td>
-      )}
-
-      <td className="truncate px-4 py-3">
-        <div className="truncate">{date(row.shiftOnDate)}</div>
-        <div className="truncate text-xs text-muted-foreground">
-          {isReferralRow(row) ? "Referred shift" : `${row.scheduledStart}–${row.scheduledEnd}`}
         </div>
       </td>
 
-      <td className="px-4 py-3 tabular-nums">{hours(row.minutes)}</td>
+      {/* Company, role, then when — the date moved here from a column of its
+          own, under the shift it dates. */}
+      <td className="px-4 py-3">
+        <div className="flex min-w-0 flex-col">
+          {isReferralRow(row) ? (
+            <>
+              <span className="truncate font-medium text-primary">Referral bonus</span>
+              <span className="truncate text-xs text-muted-foreground">
+                {row.roleName} · {row.companyName}
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="truncate font-medium">{row.companyName}</span>
+              <span className="truncate text-xs text-muted-foreground">{row.roleName}</span>
+            </>
+          )}
+          <span className="truncate text-xs tabular-nums text-muted-foreground">
+            {date(row.shiftOnDate)} ·{" "}
+            {isReferralRow(row) ? "Referred shift" : `${row.scheduledStart}–${row.scheduledEnd}`}
+          </span>
+        </div>
+      </td>
 
       {/* The method above, the number below, and the number is SELECTABLE and
           in a mono face — it gets copied into a bank app, and a digit misread
           out of a proportional font is a transfer to a stranger. */}
-      <td className="truncate px-4 py-3">
+      <td className="px-4 py-3">
         {payout ? (
           <div className="flex min-w-0 flex-col">
             <span className="truncate text-xs text-muted-foreground">
@@ -548,14 +575,16 @@ function Row({
         )}
       </td>
 
-      <td className="px-4 py-3 text-right tabular-nums">
-        <div className="font-medium">{money(row.amountCents ?? 0)}</div>
+      <td className="px-4 py-3 text-right tabular-nums">{hours(row.minutes)}</td>
+
+      <td className="px-4 py-3 text-right">
+        <div className="font-medium tabular-nums">{money(row.amountCents ?? 0)}</div>
         {/*
           An estimate is labelled every time it appears. The whole risk of this
           screen is somebody transferring a number that was never confirmed.
         */}
         {row.estimated && (
-          <div className="text-xs text-amber-600">estimate</div>
+          <div className="text-[11px] font-medium text-amber-600">estimate</div>
         )}
       </td>
 

@@ -138,8 +138,12 @@ export default function PayoutChecksPage() {
     try {
       const { url } = await payoutProof(candidateId);
 
+      // `location.assign`, not an assignment to `window.location.href`. They do
+      // the same thing, but the react-hooks immutability rule reads the second
+      // as writing to a variable declared outside the component and fails the
+      // lint — see the same fallback in lib/documents.
       if (tab) tab.location.href = url;
-      else window.location.href = url;
+      else window.location.assign(url);
     } catch {
       tab?.close();
       toast.error("That screenshot could not be opened.");
@@ -199,30 +203,36 @@ export default function PayoutChecksPage() {
             />
           ) : (
             <TableShell
+              // FIVE COLUMNS, down from six. Proof was a column holding one
+              // button, and a button is an action — it sits with the other two
+              // now, first, because looking at the screenshot is the step
+              // before either decision. Where there is no screenshot, that is
+              // said under the state instead of in a column of its own.
               headers={[
                 "Candidate",
                 "Paying to",
                 "On their account",
-                "Proof",
                 "State",
-                "",
+                "Actions",
               ]}
+              widths={["w-[24%]", "w-[18%]", "w-[16%]", "w-[16%]", "w-[26%]"]}
             >
               {accounts.map((account) => (
-                <tr key={account.candidateId} className="border-b last:border-0">
-                  <td className="truncate px-4 py-3">
-                    <div className="flex min-w-0 items-center gap-2">
+                <tr key={account.candidateId} className="align-top">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2.5">
                       <InitialsAvatar
                         seed={account.candidateId}
                         label={initials(account.candidateName ?? "?")}
+                        className="size-8"
                       />
-                      <div className="min-w-0">
-                        <div className="truncate font-medium">
+                      <div className="flex min-w-0 flex-col">
+                        <span className="truncate font-medium">
                           {account.candidateName ?? "Unnamed"}
-                        </div>
-                        <div className="truncate text-xs text-muted-foreground">
+                        </span>
+                        <span className="truncate text-xs text-muted-foreground">
                           {account.candidateEmail ?? "—"}
-                        </div>
+                        </span>
                       </div>
                     </div>
                   </td>
@@ -231,16 +241,18 @@ export default function PayoutChecksPage() {
                       into, and the mobile already on their account — if those
                       differ, the screenshot is the only thing that settles it.
                       Mono so a digit cannot be misread. */}
-                  <td className="truncate px-4 py-3">
-                    <div className="truncate">
-                      <RevealNumber value={account.number} />
-                    </div>
-                    <div className="truncate text-xs text-muted-foreground">
-                      {account.holderName ?? "no name given"}
+                  <td className="px-4 py-3">
+                    <div className="flex min-w-0 flex-col">
+                      <div className="truncate">
+                        <RevealNumber value={account.number} />
+                      </div>
+                      <span className="truncate text-xs text-muted-foreground">
+                        {account.holderName ?? "no name given"}
+                      </span>
                     </div>
                   </td>
 
-                  <td className="truncate px-4 py-3">
+                  <td className="px-4 py-3">
                     <div className="truncate font-mono text-xs text-muted-foreground select-all">
                       {account.candidatePhone ?? "—"}
                     </div>
@@ -257,39 +269,61 @@ export default function PayoutChecksPage() {
                   </td>
 
                   <td className="px-4 py-3">
-                    {account.hasProof ? (
-                      <Button
-                        variant="outline"
-                        size="xs"
-                        onClick={() => openProof(account.candidateId)}
-                        disabled={opening === account.candidateId}
-                      >
-                        <HugeiconsIcon icon={Image01Icon} strokeWidth={2} />
-                        {opening === account.candidateId ? "Opening…" : "View"}
-                      </Button>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">None sent</span>
-                    )}
-                  </td>
-
-                  <td className="px-4 py-3">
-                    <StatusPill
-                      status={account.verification}
-                      label={VERIFICATION_LABEL[account.verification]}
-                      styles={PILL_STYLES}
-                    />
-                    {account.verification === "rejected" && account.reviewNote && (
-                      <div className="mt-1 max-w-[16rem] text-[11px] text-muted-foreground">
-                        {account.reviewNote}
+                    <div className="flex min-w-0 flex-col gap-1">
+                      {/* Wrapped, or the column stretches the pill full width. */}
+                      <div>
+                        <StatusPill
+                          status={account.verification}
+                          label={VERIFICATION_LABEL[account.verification]}
+                          styles={PILL_STYLES}
+                        />
                       </div>
-                    )}
-                    <div className="mt-1 text-[11px] text-muted-foreground">
-                      {relative(account.updatedAt)}
+                      {account.verification === "rejected" && account.reviewNote && (
+                        <span className="text-[11px] text-muted-foreground">
+                          {account.reviewNote}
+                        </span>
+                      )}
+                      {/* What the Proof column used to say when it had no
+                          button to show. Skipped under "No proof sent", which
+                          already says it. */}
+                      {!account.hasProof && account.verification !== "unverified" && (
+                        <span className="truncate text-[11px] text-muted-foreground">
+                          No screenshot sent
+                        </span>
+                      )}
+                      <span className="truncate text-[11px] text-muted-foreground">
+                        {relative(account.updatedAt)}
+                      </span>
                     </div>
                   </td>
 
                   <td className="px-4 py-3">
-                    <div className="flex justify-end gap-2">
+                    <div className="flex flex-wrap items-center justify-end gap-1.5">
+                      {account.hasProof && (
+                        <Button
+                          variant="outline"
+                          size="xs"
+                          onClick={() => openProof(account.candidateId)}
+                          disabled={opening === account.candidateId}
+                        >
+                          <HugeiconsIcon icon={Image01Icon} strokeWidth={2} />
+                          {opening === account.candidateId ? "Opening…" : "View proof"}
+                        </Button>
+                      )}
+
+                      <Button
+                        variant="destructive"
+                        size="xs"
+                        disabled={account.verification === "rejected"}
+                        onClick={() => {
+                          setNote("");
+                          setDecision({ account, verification: "rejected" });
+                        }}
+                      >
+                        <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
+                        Does not
+                      </Button>
+
                       {/* Nothing to check it against, so nothing to approve.
                           Marking an account checked with no screenshot would
                           produce exactly the tick this feature exists to
@@ -304,19 +338,6 @@ export default function PayoutChecksPage() {
                       >
                         <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} />
                         Matches
-                      </Button>
-
-                      <Button
-                        variant="outline"
-                        size="xs"
-                        disabled={account.verification === "rejected"}
-                        onClick={() => {
-                          setNote("");
-                          setDecision({ account, verification: "rejected" });
-                        }}
-                      >
-                        <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
-                        Does not
                       </Button>
                     </div>
                   </td>

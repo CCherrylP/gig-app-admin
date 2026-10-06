@@ -28,6 +28,11 @@ export function ReviewTabs() {
   return (
     <SectionTabs
       title="To review"
+      // The only bar with this on, and the reason is in the name: these are
+      // QUEUES, so a tab at zero is not a place with nothing in it yet — it is
+      // work that is already done. People and Money keep every tab, because a
+      // section with no referrals yet is still where referrals live.
+      hideEmpty
       tabs={REVIEW_TABS.map((tab) => ({
         label: tab.label,
         url: tab.url,

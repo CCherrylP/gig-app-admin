@@ -2,10 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { MoneyTabs } from "@/components/dashboard/section-tabs";
 import { useQuery } from "@tanstack/react-query";
+import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Alert02Icon,
+  ArrowRight01Icon,
   Coins01Icon,
   Invoice01Icon,
   MoneyReceive02Icon,
@@ -16,9 +19,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   EmptyState,
+  InitialsAvatar,
   PageHeader,
   StatCard,
   TableShell,
+  initials,
 } from "@/components/dashboard/data-views";
 import {
   currentMonth,
@@ -156,16 +161,31 @@ export default function MoneyPage() {
             />
           ) : (
             <TableShell
+              // Every column after Company is a dollar figure somebody adds down
+              // the page, so they all stay — this is a ledger, not a queue. The
+              // last, unlabelled column is only the chevron saying the row opens
+              // that company's payments; the export skips it for having no
+              // header.
               headers={[
                 "Company",
-                "Invoiced",
-                "Received",
-                "Outstanding",
-                "Cancelled",
-                "Fees taken",
-                "Balance left",
+                right("Invoiced"),
+                right("Received"),
+                right("Outstanding"),
+                right("Cancelled"),
+                right("Fees taken"),
+                right("Balance left"),
+                "",
               ]}
-              widths={["w-[26%]", "w-[12%]", "w-[12%]", "w-[13%]", "w-[12%]", "w-[12%]", "w-[13%]"]}
+              widths={[
+                "w-[25%]",
+                "w-[11%]",
+                "w-[11%]",
+                "w-[12%]",
+                "w-[11%]",
+                "w-[11%]",
+                "w-[13%]",
+                "w-[6%]",
+              ]}
             >
               {companies.map((row) => (
                 <CompanyRow key={row.companyId} row={row} />
@@ -295,48 +315,97 @@ function FeesHeld({ fees }: { fees: FeeBreakdown }) {
   );
 }
 
+/** A right-aligned header, to sit over the right-aligned figures under it. */
+const right = (label: string) => (
+  <span key={label} className="block text-right">
+    {label}
+  </span>
+);
+
 function CompanyRow({ row }: { row: CompanyMoney }) {
+  const router = useRouter();
   const overdue = row.overdueCents > 0;
 
+  // Straight through to that company's unpaid invoices. Somebody reading
+  // "outstanding $2,000" wants to act on it, and the act lives on another
+  // screen — the payments queue already takes ?company=<uen>. The whole row
+  // goes there, the same gesture as every other table; the name stays a real
+  // link so middle-click and "copy link" still work.
+  const href = `/dashboard/payments?company=${encodeURIComponent(row.uen ?? "")}`;
+
   return (
-    <tr className="border-b last:border-0">
-      <td className="truncate px-4 py-3">
-        {/*
-          Straight through to that company's unpaid invoices. Somebody reading
-          "outstanding $2,000" wants to act on it, and the act lives on another
-          screen — the payments queue already takes ?company=<uen>.
-        */}
-        <Link
-          href={`/dashboard/payments?company=${encodeURIComponent(row.uen ?? "")}`}
-          className="truncate font-medium hover:underline"
-        >
-          {row.companyName}
-        </Link>
-        <div className="truncate text-xs text-muted-foreground">{row.uen ?? "—"}</div>
-      </td>
-
-      <td className="px-4 py-3 tabular-nums">{money(row.invoicedCents)}</td>
-      <td className="px-4 py-3 tabular-nums">{money(row.receivedCents)}</td>
-
-      <td className="px-4 py-3 tabular-nums">
-        <span className={overdue ? "font-medium text-rose-600" : undefined}>
-          {money(row.outstandingCents)}
-        </span>
-        {overdue && (
-          <div className="text-xs text-rose-600">
-            {money(row.overdueCents)} overdue
+    <tr className="cursor-pointer align-top" onClick={() => router.push(href)}>
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-2.5">
+          <InitialsAvatar
+            seed={row.companyId}
+            label={initials(row.companyName)}
+            className="size-8"
+          />
+          <div className="flex min-w-0 flex-col">
+            <Link
+              href={href}
+              className="truncate font-medium hover:text-primary hover:underline"
+            >
+              {row.companyName}
+            </Link>
+            <span className="truncate text-xs tabular-nums text-muted-foreground">
+              {row.uen ? `UEN ${row.uen}` : "No UEN"}
+            </span>
+            {/* The overdue amount and the coin balance used to sit under the
+                dollar figures they qualify. They moved here so those cells hold
+                nothing but the number — the export only sums a cell that is a
+                bare "$1,234.50", and a second line turned it into text. */}
+            {overdue && (
+              <span className="truncate text-xs font-medium tabular-nums text-rose-600">
+                {money(row.overdueCents)} overdue
+              </span>
+            )}
+            <span className="truncate text-xs tabular-nums text-muted-foreground">
+              {formatCoins(row.balanceCoins)} coins left
+            </span>
           </div>
-        )}
+        </div>
       </td>
 
-      <td className="px-4 py-3 tabular-nums text-muted-foreground">
+      <td className="px-4 py-3 text-right font-medium tabular-nums">
+        {money(row.invoicedCents)}
+      </td>
+      <td className="px-4 py-3 text-right font-medium tabular-nums">
+        {money(row.receivedCents)}
+      </td>
+
+      <td
+        className={
+          overdue
+            ? "px-4 py-3 text-right font-medium tabular-nums text-rose-600"
+            : "px-4 py-3 text-right font-medium tabular-nums"
+        }
+      >
+        {money(row.outstandingCents)}
+      </td>
+
+      <td className="px-4 py-3 text-right font-medium tabular-nums text-muted-foreground">
         {row.cancelledCents > 0 ? money(row.cancelledCents) : "—"}
       </td>
 
-      <td className="px-4 py-3 tabular-nums">{money(row.feeCents)}</td>
-      <td className="px-4 py-3 tabular-nums">
+      <td className="px-4 py-3 text-right font-medium tabular-nums">
+        {money(row.feeCents)}
+      </td>
+      <td className="px-4 py-3 text-right font-medium tabular-nums">
         {money(row.balanceCents)}
-        <div className="text-xs text-muted-foreground">{formatCoins(row.balanceCoins)} coins</div>
+      </td>
+
+      {/* No stopPropagation here: there are no buttons to protect, and a click
+          on the chevron itself should open the row like anywhere else on it. */}
+      <td className="px-4 py-3">
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
+          <HugeiconsIcon
+            icon={ArrowRight01Icon}
+            strokeWidth={2}
+            className="size-4 shrink-0 text-muted-foreground"
+          />
+        </div>
       </td>
     </tr>
   );

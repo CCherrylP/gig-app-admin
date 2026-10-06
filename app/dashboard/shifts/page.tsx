@@ -350,15 +350,18 @@ export default function ShiftsPage() {
             />
           ) : (
             <TableShell
-              headers={["When", "Job", "Role", "Seats", "Paid hours", "State", ""]}
+              // SIX COLUMNS, down from seven. Paid hours was its own narrow
+              // column and only ever read beside the times it is computed from,
+              // so it now sits under them in When — the same fact, in the place
+              // somebody's eye already is.
+              headers={["When", "Job", "Role", "Seats", "State", "Actions"]}
               widths={[
+                "w-[20%]",
+                "w-[25%]",
                 "w-[16%]",
-                "w-[26%]",
                 "w-[16%]",
-                "w-[10%]",
-                "w-[14%]",
-                "w-[10%]",
-                "w-[8%]",
+                "w-[12%]",
+                "w-[11%]",
               ]}
             >
               {listed.map((shift) => (
@@ -538,50 +541,57 @@ function ShiftRow({
   const state = shiftState(shift);
   const breakTotal = shift.unpaidBreakMinutes * shift.unpaidBreakCount;
 
+  // THE WHOLE ROW OPENS THE CORRECTION, the same gesture as a chip on the
+  // calendar above and as every other table in the dashboard. There is no detail
+  // page for a shift — the dialog is the only place one opens — so that is what
+  // the row does, and the button stays for anyone who looks for one.
   return (
-    <tr className="align-top">
+    <tr className="cursor-pointer align-top" onClick={onEdit}>
       <td className="px-4 py-3">
-        <div className="flex min-w-0 flex-col text-xs">
-          <span className="text-sm font-medium">{dayLabel(shift.onDate)}</span>
-          <span className="tabular-nums text-muted-foreground">
-            {shift.startTime}–{shift.endTime}
+        <div className="flex items-center gap-2.5">
+          {/* A tile rather than an avatar: a shift is not a person, and a row of
+              coloured initials would suggest it was. */}
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <HugeiconsIcon icon={Calendar03Icon} strokeWidth={2} className="size-4" />
+          </div>
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate font-medium">{dayLabel(shift.onDate)}</span>
+            <span className="truncate text-xs tabular-nums text-muted-foreground">
+              {shift.startTime}–{shift.endTime} · {shiftHours(shift.paidMinutes)} paid
+            </span>
+            {breakTotal > 0 && (
+              <span className="truncate text-xs tabular-nums text-muted-foreground">
+                {shift.unpaidBreakCount}×{shift.unpaidBreakMinutes}m unpaid
+              </span>
+            )}
+          </div>
+        </div>
+      </td>
+
+      <td className="px-4 py-3">
+        <div className="flex min-w-0 flex-col">
+          <span className="truncate font-medium">{shift.companyName}</span>
+          <span className="truncate text-xs text-muted-foreground">{shift.gigTitle}</span>
+          <span className="truncate text-xs text-muted-foreground">{shift.location}</span>
+        </div>
+      </td>
+
+      <td className="px-4 py-3">
+        <div className="flex min-w-0 flex-col">
+          <span className="truncate font-medium">{shift.roleName}</span>
+          <span className="truncate text-xs font-medium tabular-nums text-muted-foreground">
+            {money(shift.payPerHourCents)}/h · {money(seatWageCents(shift))} a seat
           </span>
         </div>
       </td>
 
       <td className="px-4 py-3">
-        <div className="flex min-w-0 flex-col text-xs">
-          <span className="truncate text-sm font-medium">{shift.companyName}</span>
-          <span className="truncate text-muted-foreground">{shift.gigTitle}</span>
-          <span className="truncate text-muted-foreground">{shift.location}</span>
-          {shift.gigClosedAt && (
-            // The listing is down but the shift is not: people worked it and
-            // were paid for it. Saying so is what stops a closed job reading as
-            // a live hole in the roster.
-            <span className="truncate text-muted-foreground">Listing closed</span>
-          )}
-        </div>
-      </td>
-
-      <td className="px-4 py-3">
-        <div className="flex min-w-0 flex-col text-xs">
-          <span className="truncate text-sm font-medium">{shift.roleName}</span>
-          <span className="text-muted-foreground">
-            {money(shift.payPerHourCents)}/h
-          </span>
-          <span className="text-muted-foreground">
-            {money(seatWageCents(shift))} a seat
-          </span>
-        </div>
-      </td>
-
-      <td className="px-4 py-3">
-        <div className="flex min-w-0 flex-col text-xs">
-          <span className="text-sm font-medium tabular-nums">
+        <div className="flex min-w-0 flex-col">
+          <span className="font-medium tabular-nums">
             {shift.filled}/{shift.headcount}
           </span>
           {shift.bookings.length > 0 && (
-            <span className="truncate text-muted-foreground">
+            <span className="truncate text-xs text-muted-foreground">
               {shift.bookings
                 .map((booking) => booking.candidateName ?? "Unnamed")
                 .join(", ")}
@@ -591,30 +601,37 @@ function ShiftRow({
       </td>
 
       <td className="px-4 py-3">
-        <div className="flex min-w-0 flex-col text-xs">
-          <span className="text-sm font-medium">{shiftHours(shift.paidMinutes)}</span>
-          {breakTotal > 0 && (
-            <span className="text-muted-foreground">
-              {shift.unpaidBreakCount}×{shift.unpaidBreakMinutes}m unpaid
+        <div className="flex min-w-0 flex-col gap-1">
+          <StatusPill
+            status={state}
+            label={SHIFT_STATE_LABEL[state]}
+            styles={STATE_STYLES}
+          />
+          {shift.gigClosedAt && (
+            // The listing is down but the shift is not: people worked it and
+            // were paid for it. Saying so is what stops a closed job reading as
+            // a live hole in the roster. Under the state now, since it qualifies
+            // it, rather than lost as a fourth line under the job.
+            <span className="truncate text-[11px] text-muted-foreground">
+              Listing closed
             </span>
           )}
         </div>
       </td>
 
-      <td className="px-4 py-3">
-        <StatusPill
-          status={state}
-          label={SHIFT_STATE_LABEL[state]}
-          styles={STATE_STYLES}
-        />
-      </td>
-
-      <td className="px-4 py-3">
-        <div className="flex items-center justify-end">
+      {/* stopPropagation, or the button opens the dialog and the row opens it a
+          second time underneath. */}
+      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
           <Button variant="outline" size="xs" onClick={onEdit}>
             <HugeiconsIcon icon={PencilEdit02Icon} strokeWidth={2} />
             {shift.settled ? "Open" : "Edit"}
           </Button>
+          <HugeiconsIcon
+            icon={ArrowRight01Icon}
+            strokeWidth={2}
+            className="size-4 shrink-0 text-muted-foreground"
+          />
         </div>
       </td>
     </tr>

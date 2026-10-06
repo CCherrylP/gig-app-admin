@@ -293,25 +293,24 @@ export default function AppealsPage() {
               />
             ) : (
               <TableShell
+                // SIX COLUMNS, down from eight — the same two folds as the
+                // shift-penalty table: evidence under the ground it supports,
+                // and when it was filed under the outcome it is waiting on.
                 headers={[
                   "Candidate",
                   "Block",
                   "Record",
-                  "Ground",
-                  "Evidence",
-                  "Filed",
+                  "Ground & evidence",
                   "Outcome",
-                  "Decision",
+                  "Actions",
                 ]}
                 widths={[
-                  "w-[15%]",
-                  "w-[14%]",
+                  "w-[16%]",
                   "w-[17%]",
-                  "w-[14%]",
-                  "w-[10%]",
-                  "w-[7%]",
-                  "w-[9%]",
-                  "w-[14%]",
+                  "w-[19%]",
+                  "w-[20%]",
+                  "w-[11%]",
+                  "w-[17%]",
                 ]}
               >
                 {accountAppeals.map((appeal) => (
@@ -342,28 +341,23 @@ export default function AppealsPage() {
             />
           ) : (
             <TableShell
+              // FIVE COLUMNS, down from seven. Evidence moved under the Ground
+              // it is meant to prove — the check is "does this MC cover that
+              // date", and the document reads best directly beneath the line
+              // saying what it should show. Filed moved under the Outcome pill,
+              // where how long it has waited qualifies the state it is in.
               headers={[
                 "Candidate",
-                "Ground",
+                "Ground & evidence",
                 "Shift dropped",
-                "Evidence",
-                "Filed",
                 "Outcome",
-                "Decision",
+                "Actions",
               ]}
-              // Outcome (what it IS) and Decision (what you can DO) are kept
+              // Outcome (what it IS) and Actions (what you can DO) are kept
               // apart and the buttons get real room. Sat side by side at the
               // old widths, a Pending pill and a Decline button read as three
               // states of one thing rather than a state and two actions.
-              widths={[
-                "w-[16%]",
-                "w-[20%]",
-                "w-[16%]",
-                "w-[12%]",
-                "w-[8%]",
-                "w-[10%]",
-                "w-[18%]",
-              ]}
+              widths={["w-[20%]", "w-[28%]", "w-[20%]", "w-[13%]", "w-[19%]"]}
             >
               {appeals.map((appeal) => (
                 <AppealRow
@@ -463,6 +457,39 @@ function AppealRow({
               “{appeal.note}”
             </span>
           )}
+          {/* The evidence itself, under the line that says what it should
+              show. It had a column of its own, which put the claim and the
+              proof a whole cell apart. */}
+          {appeal.documents.length === 0 ? (
+            <span className="mt-1 flex items-start gap-1 text-xs font-medium text-amber-600 dark:text-amber-400">
+              <HugeiconsIcon
+                icon={Alert02Icon}
+                size={13}
+                strokeWidth={2}
+                className="mt-0.5 shrink-0"
+              />
+              Nothing attached
+            </span>
+          ) : (
+            <div className="mt-1 flex flex-wrap items-start gap-1">
+              {appeal.documents.map((document, i) => (
+                <Button
+                  key={i}
+                  variant="outline"
+                  size="xs"
+                  disabled={!document.url}
+                  // NOT an <a href>. The URL on this row was signed when the
+                  // queue loaded and lives ten minutes; clicking it later hands
+                  // the browser a dead token and Supabase answers with a raw
+                  // InvalidJWT page. onOpen re-fetches and opens the fresh one.
+                  onClick={() => onOpen(i)}
+                >
+                  <HugeiconsIcon icon={File01Icon} strokeWidth={2} />
+                  <span className="truncate">{document.kind}</span>
+                </Button>
+              ))}
+            </div>
+          )}
         </div>
       </td>
 
@@ -483,49 +510,18 @@ function AppealRow({
       </td>
 
       <td className="px-4 py-3">
-        {appeal.documents.length === 0 ? (
-          <span className="flex items-start gap-1 text-xs font-medium text-amber-600 dark:text-amber-400">
-            <HugeiconsIcon
-              icon={Alert02Icon}
-              size={13}
-              strokeWidth={2}
-              className="mt-0.5 shrink-0"
-            />
-            Nothing attached
+        <div className="flex min-w-0 flex-col items-start gap-1">
+          <StatusPill status={appeal.outcome} styles={OUTCOME_STYLES} />
+          {/* When it was filed, moved here from a narrow column of its own. */}
+          <span className="truncate text-[11px] text-muted-foreground">
+            Filed {relative(appeal.submittedAt)}
           </span>
-        ) : (
-          <div className="flex flex-col items-start gap-1">
-            {appeal.documents.map((document, i) => (
-              <Button
-                key={i}
-                variant="outline"
-                size="xs"
-                disabled={!document.url}
-                // NOT an <a href>. The URL on this row was signed when the queue
-                // loaded and lives ten minutes; clicking it later hands the
-                // browser a dead token and Supabase answers with a raw
-                // InvalidJWT page. onOpen re-fetches and opens the fresh one.
-                onClick={() => onOpen(i)}
-              >
-                <HugeiconsIcon icon={File01Icon} strokeWidth={2} />
-                <span className="truncate">{document.kind}</span>
-              </Button>
-            ))}
-          </div>
-        )}
-      </td>
-
-      <td className="px-4 py-3 text-xs text-muted-foreground">
-        {relative(appeal.submittedAt)}
-      </td>
-
-      <td className="px-4 py-3">
-        <StatusPill status={appeal.outcome} styles={OUTCOME_STYLES} />
+        </div>
       </td>
 
       <td className="px-4 py-3">
         {appeal.outcome === "pending" && (
-          <div className="flex items-center justify-end gap-1.5">
+          <div className="flex flex-wrap items-center justify-end gap-1.5">
             <Button
               variant="destructive"
               size="xs"
@@ -639,44 +635,46 @@ function AccountAppealRow({
               “{appeal.note}”
             </span>
           )}
+          {/* Evidence under the ground, as on the shift-penalty table. */}
+          {appeal.documents.length === 0 ? (
+            // NOT a warning here, unlike the incident queue. A document is
+            // required there and optional on this one — "I understand and it
+            // will not happen again" is a real thing to say with nothing to
+            // attach.
+            <span className="mt-1 text-xs text-muted-foreground">
+              None attached
+            </span>
+          ) : (
+            <div className="mt-1 flex flex-wrap items-start gap-1">
+              {appeal.documents.map((document, i) => (
+                <Button
+                  key={i}
+                  variant="outline"
+                  size="xs"
+                  disabled={!document.url}
+                  onClick={() => onOpen(i)}
+                >
+                  <HugeiconsIcon icon={File01Icon} strokeWidth={2} />
+                  <span className="truncate">{document.kind}</span>
+                </Button>
+              ))}
+            </div>
+          )}
         </div>
       </td>
 
       <td className="px-4 py-3">
-        {appeal.documents.length === 0 ? (
-          // NOT a warning here, unlike the incident queue. A document is
-          // required there and optional on this one — "I understand and it will
-          // not happen again" is a real thing to say with nothing to attach.
-          <span className="text-xs text-muted-foreground">None attached</span>
-        ) : (
-          <div className="flex flex-col items-start gap-1">
-            {appeal.documents.map((document, i) => (
-              <Button
-                key={i}
-                variant="outline"
-                size="xs"
-                disabled={!document.url}
-                onClick={() => onOpen(i)}
-              >
-                <HugeiconsIcon icon={File01Icon} strokeWidth={2} />
-                <span className="truncate">{document.kind}</span>
-              </Button>
-            ))}
-          </div>
-        )}
-      </td>
-
-      <td className="px-4 py-3 text-xs text-muted-foreground">
-        {relative(appeal.submittedAt)}
-      </td>
-
-      <td className="px-4 py-3">
-        <StatusPill status={appeal.outcome} styles={OUTCOME_STYLES} />
+        <div className="flex min-w-0 flex-col items-start gap-1">
+          <StatusPill status={appeal.outcome} styles={OUTCOME_STYLES} />
+          <span className="truncate text-[11px] text-muted-foreground">
+            Filed {relative(appeal.submittedAt)}
+          </span>
+        </div>
       </td>
 
       <td className="px-4 py-3">
         {appeal.outcome === "pending" && (
-          <div className="flex items-center justify-end gap-1.5">
+          <div className="flex flex-wrap items-center justify-end gap-1.5">
             <Button
               variant="destructive"
               size="xs"

@@ -33,7 +33,17 @@ export interface NavItem {
   match?: string[];
   // When present, the item renders as a collapsible group of sub-links instead
   // of a single link.
-  children?: { title: string; url: string }[];
+  children?: {
+    title: string;
+    url: string;
+    /** Other pages that should also highlight this child — a sub-page, a tab. */
+    match?: string[];
+    /** Work waiting on THIS page. Carried per child so the group can be open
+     *  and still say which queue the number belongs to: a count on the parent
+     *  alone tells somebody there is work and not where it is, which is most of
+     *  the reason the collapsed sidebar was hard to navigate. */
+    badge?: number;
+  }[];
 }
 
 export function NavMain({
@@ -105,8 +115,17 @@ function NavCollapsible({
   pathname: string;
 }) {
   const children = item.children ?? [];
-  const childActive = children.some((c) => pathname === c.url);
-  const [open, setOpen] = React.useState(childActive);
+  const childActive = children.some(
+    (c) => pathname === c.url || (c.match?.some((u) => pathname.startsWith(u)) ?? false),
+  );
+  // OPEN BY DEFAULT, not closed-until-you-are-already-inside.
+  //
+  // A group that starts shut only helps somebody who already knows what is in
+  // it, which is exactly the person who did not need the sidebar. Everybody
+  // else gets a label like "Money" and has to open it to find out whether
+  // Payroll lives there. Folding one away is still a click for anybody who
+  // wants the space back.
+  const [open, setOpen] = React.useState(true);
   const [prevChildActive, setPrevChildActive] = React.useState(childActive);
 
   // Auto-expand when navigating to one of the children (e.g. via a direct link).
@@ -165,9 +184,18 @@ function NavCollapsible({
               <SidebarMenuSubItem key={child.title}>
                 <SidebarMenuSubButton
                   render={<Link href={child.url} />}
-                  isActive={pathname === child.url}
+                  isActive={
+                    pathname === child.url ||
+                    (child.match?.some((url) => pathname.startsWith(url)) ??
+                      false)
+                  }
                 >
-                  <span>{child.title}</span>
+                  <span className="flex-1 truncate">{child.title}</span>
+                  {child.badge != null && child.badge > 0 && (
+                    <span className="ml-auto shrink-0 rounded-full bg-primary/10 px-1.5 text-[10px] font-semibold tabular-nums text-primary">
+                      {child.badge}
+                    </span>
+                  )}
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
             ))}

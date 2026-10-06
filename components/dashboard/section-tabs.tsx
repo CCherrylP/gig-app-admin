@@ -26,22 +26,51 @@ export interface SectionTab {
 
 /** The section name and its tabs, at the top of every page in a section. Each
  *  tab is its own page; this bar ties them together. */
-export function SectionTabs({ title, tabs }: { title: string; tabs: SectionTab[] }) {
+export function SectionTabs({
+  title,
+  tabs,
+  hideEmpty = false,
+}: {
+  title: string;
+  tabs: SectionTab[];
+  /** Drop the tabs with nothing waiting. For a bar over QUEUES, where an empty
+   *  one is not work and reading past it to find the three that matter is the
+   *  whole cost. Off everywhere else: People and Money are places, not piles,
+   *  and a zero there means "none yet" rather than "nothing to do". */
+  hideEmpty?: boolean;
+}) {
   const pathname = usePathname();
   // Same query as everything else that badges a number, so it is one request
   // however many of these are on screen — and it polls, so a tab's count rises
   // while somebody is working the tab next to it.
   const { data: counts } = useAdminCounts();
 
+  const isActive = (tab: SectionTab) =>
+    pathname === tab.url || Boolean(tab.match?.includes(pathname));
+  const waitingOn = (tab: SectionTab) =>
+    tab.count ?? (tab.countKey ? (counts?.[tab.countKey] ?? 0) : 0);
+
+  // THE ACTIVE TAB ALWAYS SURVIVES THE FILTER, even at zero. Working a queue
+  // down to empty must not delete the tab out from under the page somebody is
+  // standing on — the bar would lose its highlight and read as though they had
+  // wandered somewhere outside the section.
+  //
+  // Counts load as undefined, and while they do nothing is hidden: a bar that
+  // draws complete and then drops three tabs a moment later is worse than one
+  // that starts narrow.
+  const visible =
+    hideEmpty && counts !== undefined
+      ? tabs.filter((tab) => waitingOn(tab) > 0 || isActive(tab))
+      : tabs;
+
   return (
     <nav aria-label={title} className="flex flex-col gap-3">
       <h1 className="font-heading text-2xl font-semibold">{title}</h1>
 
       <div className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1">
-        {tabs.map((tab) => {
-          const active = pathname === tab.url || Boolean(tab.match?.includes(pathname));
-          const waiting =
-            tab.count ?? (tab.countKey ? (counts?.[tab.countKey] ?? 0) : 0);
+        {visible.map((tab) => {
+          const active = isActive(tab);
+          const waiting = waitingOn(tab);
 
           return (
             <Link
@@ -111,6 +140,7 @@ export const MONEY_TABS: SectionTab[] = [
   { label: "Payroll", url: "/dashboard/payroll/sheet", match: ["/dashboard/payroll"] },
   { label: "Invoices", url: "/dashboard/invoices" },
   { label: "Referrals", url: "/dashboard/referrals" },
+  { label: "Sales", url: "/dashboard/sales" },
 ];
 
 /** Every page in a section, for highlighting it in the sidebar. */

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Alert02Icon,
+  ArrowDown01Icon,
   ArrowRight01Icon,
   CheckmarkCircle02Icon,
   Clock01Icon,
@@ -54,7 +55,6 @@ import {
   type DateRange,
 } from "@/lib/reports";
 import { date, money } from "@/lib/format";
-import { cn } from "@/lib/utils";
 
 // THE PAYOUT SHEET. One line per PERSON, not per shift.
 //
@@ -351,20 +351,42 @@ export default function PayoutSheetPage() {
             />
           ) : (
             <TableShell
-              headers={["", "Candidate", "Pay to", "Shifts", "Hours", "To pay", "Waiting", ""]}
+              // The leading chevron column is gone: the chevron sits at the end
+              // of the row with the button, the way every other openable row on
+              // this dashboard shows it. The figures are right-aligned, headers
+              // included, so each column reads as one to add down.
+              headers={[
+                "Candidate",
+                "Pay to",
+                <span key="shifts" className="block text-right">
+                  Shifts
+                </span>,
+                <span key="hours" className="block text-right">
+                  Hours
+                </span>,
+                <span key="pay" className="block text-right">
+                  To pay
+                </span>,
+                <span key="waiting" className="block text-right">
+                  Waiting
+                </span>,
+                "",
+              ]}
               // This page has its own Export Excel above, with every shift in it.
               exportable={false}
+              // No cards view: each person opens into lines of shifts beneath
+              // them, and that only reads as a ledger with columns to add down.
+              cardView={false}
               // Pay to gets the widest share after the name: it carries a full
               // account number now, and a truncated one is worse than none.
               widths={[
-                "w-[3%]",
-                "w-[22%]",
+                "w-[24%]",
                 "w-[20%]",
-                "w-[7%]",
                 "w-[8%]",
-                "w-[12%]",
-                "w-[12%]",
-                "w-[16%]",
+                "w-[9%]",
+                "w-[13%]",
+                "w-[11%]",
+                "w-[15%]",
               ]}
             >
               {shown.map((person) => (
@@ -404,21 +426,7 @@ function PersonRows({
 
   return (
     <>
-      <tr
-        className="cursor-pointer border-b align-middle last:border-0 hover:bg-muted/40"
-        onClick={onToggle}
-      >
-        <td className="px-2 py-3">
-          <HugeiconsIcon
-            icon={ArrowRight01Icon}
-            strokeWidth={2}
-            className={cn(
-              "size-4 shrink-0 text-muted-foreground transition-transform duration-200",
-              open && "rotate-90",
-            )}
-          />
-        </td>
-
+      <tr className="cursor-pointer align-top" onClick={onToggle}>
         <td className="px-4 py-3">
           <div className="flex items-center gap-2.5">
             <InitialsAvatar
@@ -459,12 +467,12 @@ function PersonRows({
           )}
         </td>
 
-        <td className="px-4 py-3 tabular-nums">{shiftCount}</td>
+        <td className="px-4 py-3 text-right tabular-nums">{shiftCount}</td>
 
-        <td className="px-4 py-3 tabular-nums">{hours(person.minutes)}</td>
+        <td className="px-4 py-3 text-right tabular-nums">{hours(person.minutes)}</td>
 
         <td className="px-4 py-3 text-right tabular-nums">
-          <span className="font-medium">{money(person.readyCents)}</span>
+          <div className="font-medium">{money(person.readyCents)}</div>
           {referral > 0 && (
             <div className="text-xs text-primary">incl. {money(referral)} referral</div>
           )}
@@ -485,31 +493,42 @@ function PersonRows({
           )}
         </td>
 
-        <td className="px-4 py-3 text-right">
-          {readyShifts.length > 0 && person.payout && (
-            <Button
-              size="xs"
-              disabled={isPending}
-              // stopPropagation, or paying somebody also toggles the row open
-              // underneath the toast and the sheet jumps while it refetches.
-              onClick={(event) => {
-                event.stopPropagation();
-                onMarkPaid();
-              }}
-            >
-              <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} />
-              Mark paid
-            </Button>
-          )}
+        {/* The stopPropagation is on the button, not the cell, unlike the
+            employers queue: the chevron lives in this cell too, and a click on
+            the thing that says "this opens" has to open it. */}
+        <td className="px-4 py-3">
+          <div className="flex flex-wrap items-center justify-end gap-1.5">
+            {readyShifts.length > 0 && person.payout && (
+              <Button
+                size="xs"
+                disabled={isPending}
+                // stopPropagation, or paying somebody also toggles the row open
+                // underneath the toast and the sheet jumps while it refetches.
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onMarkPaid();
+                }}
+              >
+                <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} />
+                Mark paid
+              </Button>
+            )}
+            <HugeiconsIcon
+              icon={open ? ArrowDown01Icon : ArrowRight01Icon}
+              strokeWidth={2}
+              className="size-4 shrink-0 text-muted-foreground"
+            />
+          </div>
         </td>
       </tr>
 
+      {/* The breakdown keeps py-2 rather than the row's py-3: it is detail
+          under a line, and at full height it competes with the people. */}
       {open &&
         person.shifts.map((shift) => (
-          <tr key={shift.applicationId} className="border-b bg-muted/30 last:border-0">
-            <td />
-
-            <td className="px-4 py-2 pl-10">
+          <tr key={shift.applicationId} className="bg-muted/30">
+            {/* pl-14 lines the company up under the name, past the avatar. */}
+            <td className="px-4 py-2 pl-14">
               {isReferralRow(shift) ? (
                 <div className="flex min-w-0 flex-col">
                   <span className="truncate text-sm font-medium text-primary">Referral bonus</span>
@@ -542,7 +561,7 @@ function PersonRows({
 
             {/* The working, so the amount can be checked: hours × hourly rate.
                 The rate comes from the role, not divided out of the amount. */}
-            <td className="px-4 py-2 text-xs tabular-nums">
+            <td className="px-4 py-2 text-right text-xs tabular-nums">
               {isReferralRow(shift) ? (
                 <span className="text-muted-foreground">Bonus</span>
               ) : (
@@ -580,13 +599,12 @@ function PersonRows({
 
       {/* The subtotal under the breakdown, matching the person's row above. */}
       {open && (
-        <tr className="border-b bg-muted/50 text-xs font-medium last:border-0">
-          <td />
-          <td colSpan={3} className="px-4 py-2 pl-10">
+        <tr className="bg-muted/50 text-xs font-medium">
+          <td colSpan={3} className="px-4 py-2 pl-14">
             Total for {person.name} · {shiftCount} {shiftCount === 1 ? "shift" : "shifts"}
             {referral > 0 && ` + ${money(referral)} referral`}
           </td>
-          <td className="px-4 py-2 tabular-nums">{hours(person.minutes)}</td>
+          <td className="px-4 py-2 text-right tabular-nums">{hours(person.minutes)}</td>
           <td className="px-4 py-2 text-right tabular-nums">
             {money(person.readyCents)} to pay
             {person.paidCents > 0 && (

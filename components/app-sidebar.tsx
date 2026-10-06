@@ -30,8 +30,24 @@ import { getCachedUser } from "@/lib/auth";
 import { REVIEW_TABS, REVIEW_URLS, reviewTotal } from "@/components/dashboard/review-tabs";
 import { INBOX_TABS, MONEY_TABS, PEOPLE_TABS, urlsOf } from "@/components/dashboard/section-tabs";
 
-// Seven places, grouped by what staff need to do rather than by who it is about.
-// Everything waiting on staff sits under To review, with one badge for the lot.
+// Grouped by what staff need to do — and the groups are OPEN, listing every
+// page inside them.
+//
+// They were seven collapsed buckets, which is how this got hard to navigate.
+// "To review" and "People" and "Money" are honest names for the groups and tell
+// you nothing about where anything IS: seven queues lived behind one of those
+// labels, reachable only by clicking it and then finding a tab bar. The one
+// badge on the parent made it worse, not better — it said work existed and not
+// which of the seven had it, so finding anything meant opening the bucket and
+// reading the tabs.
+//
+// So every destination is listed, and every queue carries ITS OWN count. The
+// parent keeps a total for when the group is folded away or the rail is in icon
+// mode. Nothing moved; it is the same pages, visible.
+//
+// The tab bars inside each section stay. Somebody already on Certificates
+// should be able to step sideways to Appeals without going back to the rail,
+// and the sidebar is for finding a place rather than for working within one.
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [user] = React.useState(getCachedUser);
 
@@ -51,10 +67,35 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     },
     {
       title: "To review",
+      // Still lands on the first queue with something in it when the GROUP is
+      // clicked — but the children below mean nobody has to click it blind.
       url: firstWaiting,
       match: REVIEW_URLS,
       icon: <HugeiconsIcon icon={CheckmarkBadge01Icon} strokeWidth={2} />,
       badge: reviewTotal(counts),
+      // ONLY THE QUEUES WITH SOMETHING IN THEM.
+      //
+      // This group is a worklist, and an empty queue is not work — seven
+      // children where four are zero makes somebody read seven lines to find
+      // the three that matter. Listing only the live ones turns the group into
+      // the answer to "what is waiting", which is the question it is asked.
+      //
+      // Nothing becomes unreachable. The tab bar at the top of the section
+      // still carries all seven, so an empty queue is one click away whenever
+      // somebody wants its history rather than its backlog — and the group
+      // header itself still opens the section.
+      //
+      // While the counts are still loading they are all undefined, so this
+      // shows the full list rather than flashing an empty group and then
+      // filling in; a nav that rearranges itself a second after it draws is
+      // worse than one that starts complete and narrows.
+      children: REVIEW_TABS.filter(
+        (tab) => counts === undefined || (counts[tab.count] ?? 0) > 0,
+      ).map((tab) => ({
+        title: tab.label,
+        url: tab.url,
+        badge: counts?.[tab.count],
+      })),
     },
     {
       title: "Inbox",
@@ -63,6 +104,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       icon: <HugeiconsIcon icon={InboxIcon} strokeWidth={2} />,
       // Open threads only. Answered ones are waiting on the other person.
       badge: counts?.support,
+      children: INBOX_TABS.map((tab) => ({ title: tab.label, url: tab.url })),
+    },
+    {
+      title: "People",
+      url: PEOPLE_TABS[0].url,
+      match: urlsOf(PEOPLE_TABS),
+      icon: <HugeiconsIcon icon={UserGroupIcon} strokeWidth={2} />,
+      children: PEOPLE_TABS.map((tab) => ({
+        title: tab.label,
+        url: tab.url,
+        match: tab.match,
+      })),
     },
     {
       title: "Shifts",
@@ -70,16 +123,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       icon: <HugeiconsIcon icon={Calendar03Icon} strokeWidth={2} />,
     },
     {
-      title: "People",
-      url: PEOPLE_TABS[0].url,
-      match: urlsOf(PEOPLE_TABS),
-      icon: <HugeiconsIcon icon={UserGroupIcon} strokeWidth={2} />,
-    },
-    {
       title: "Money",
       url: MONEY_TABS[0].url,
       match: urlsOf(MONEY_TABS),
       icon: <HugeiconsIcon icon={ChartLineData01Icon} strokeWidth={2} />,
+      children: MONEY_TABS.map((tab) => ({
+        title: tab.label,
+        url: tab.url,
+        match: tab.match,
+      })),
     },
     {
       title: "Settings",

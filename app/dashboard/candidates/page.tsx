@@ -12,8 +12,6 @@ import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   UserGroupIcon,
-  Mail01Icon,
-  CallIcon,
   UserBlock01Icon,
   CheckmarkCircle02Icon,
   Clock01Icon,
@@ -35,6 +33,7 @@ import {
   InitialsAvatar,
   PageHeader,
   SearchInput,
+  StatusPill,
   TableShell,
   TableSkeleton,
   initials,
@@ -66,6 +65,13 @@ const BOOKING_FILTERS: { value: BookingFilter; label: string }[] = [
   { value: "blocked", label: "Timed block" },
   { value: "clear", label: "Can book" },
 ];
+
+// The two "Can book?" states the shared pill has no colour for. Suspended is
+// already red there; a timed block is amber because it ends on its own.
+const BOOKING_STYLES: Record<string, string> = {
+  BLOCKED: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+  CAN_BOOK: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+};
 
 export default function CandidatesPage() {
   const queryClient = useQueryClient();
@@ -206,22 +212,12 @@ export default function CandidatesPage() {
             />
           ) : (
             <TableShell
-              headers={[
-                "Candidate",
-                "Contact",
-                "Track record",
-                "Can book?",
-                "Waiting on us",
-                "Actions",
-              ]}
-              widths={[
-                "w-[20%]",
-                "w-[20%]",
-                "w-[15%]",
-                "w-[22%]",
-                "w-[11%]",
-                "w-[12%]",
-              ]}
+              // FOUR COLUMNS, down from six. Contact moved under the name it
+              // belongs to, and "Waiting on us" moved under "Can book?" — it is
+              // one of the reasons the answer to that column is no, and reads as
+              // one there rather than as a separate fact four cells away.
+              headers={["Candidate", "Track record", "Can book?", "Actions"]}
+              widths={["w-[32%]", "w-[20%]", "w-[30%]", "w-[18%]"]}
             >
               {candidates.map((candidate) => (
                 <CandidateRow
@@ -311,41 +307,21 @@ function CandidateRow({
           />
           <div className="flex min-w-0 flex-col">
             <span className="truncate font-medium">{name}</span>
+            {/* Contact, moved here from a column of its own. Two short facts
+                about this person, read beside their name. */}
             <span className="truncate text-xs text-muted-foreground">
-              {candidate.verified ? "Verified" : "Not verified"}
+              {candidate.email ?? "No email"} · {candidate.phone ?? "No phone"}
             </span>
             <span className="truncate text-xs text-muted-foreground">
+              {candidate.verified ? "Verified" : "Not verified"} ·{" "}
               {candidate.area ?? "No area given"}
             </span>
+            {/* Null means not answered, which is a different thing from not
+                allowed — so it reads as a gap rather than as a refusal. */}
+            <span className="truncate text-xs text-muted-foreground">
+              {candidate.workStatus ?? "Work status not answered"}
+            </span>
           </div>
-        </div>
-      </td>
-
-      <td className="px-4 py-3">
-        <div className="flex min-w-0 flex-col gap-1 text-xs">
-          <span className="inline-flex items-center gap-1.5">
-            <HugeiconsIcon
-              icon={Mail01Icon}
-              size={13}
-              strokeWidth={2}
-              className="shrink-0 text-muted-foreground"
-            />
-            <span className="truncate">{candidate.email ?? "—"}</span>
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <HugeiconsIcon
-              icon={CallIcon}
-              size={13}
-              strokeWidth={2}
-              className="shrink-0 text-muted-foreground"
-            />
-            <span className="truncate">{candidate.phone ?? "—"}</span>
-          </span>
-          {/* Null means not answered, which is a different thing from not
-              allowed — so it reads as a gap rather than as a refusal. */}
-          <span className="truncate text-muted-foreground">
-            {candidate.workStatus ?? "Work status not answered"}
-          </span>
         </div>
       </td>
 
@@ -353,18 +329,20 @@ function CandidateRow({
         <div className="flex min-w-0 flex-col text-xs">
           {/* 0 is NOT RATED YET, never a zero-star score — nothing in this app
               can rate somebody below 1. */}
-          <span className="font-medium">{ratingLabel(candidate.rating)}</span>
-          <span className="truncate text-muted-foreground">
+          <span className="font-medium tabular-nums">
+            {ratingLabel(candidate.rating)}
+          </span>
+          <span className="truncate tabular-nums text-muted-foreground">
             {candidate.shiftsDone} shift
             {candidate.shiftsDone === 1 ? "" : "s"} done
           </span>
-          <span className="truncate text-muted-foreground">
+          <span className="truncate tabular-nums text-muted-foreground">
             {candidate.turnUpRate == null
               ? "No turn-up rate yet"
               : `${candidate.turnUpRate}% turn-up`}
           </span>
           {candidate.lateCancels > 0 && (
-            <span className="truncate font-medium text-amber-600 dark:text-amber-400">
+            <span className="truncate font-medium tabular-nums text-amber-600 dark:text-amber-400">
               {candidate.lateCancels} late cancel
               {candidate.lateCancels === 1 ? "" : "s"}
             </span>
@@ -377,67 +355,72 @@ function CandidateRow({
           block ends on a date they can quote, a suspension ends when they
           decide it does. */}
       <td className="px-4 py-3">
-        {suspended ? (
-          <div className="flex min-w-0 flex-col gap-1">
-            <span className="inline-flex w-fit items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400">
-              Suspended
-            </span>
-            <span className="line-clamp-2 text-xs text-foreground/80">
-              {candidate.suspensionReason ?? "No reason recorded"}
-            </span>
-            <span className="truncate text-[11px] text-muted-foreground">
-              {relative(candidate.suspendedAt)}
-              {/* Null here means the SWEEP did it, which is a different fact
-                  from a missing one — and it is the first thing asked when
-                  somebody writes in to argue. */}
-              {candidate.suspendedById ? " · by staff" : " · automatic"}
-            </span>
-          </div>
-        ) : timedBlock ? (
-          <div className="flex min-w-0 flex-col gap-1">
-            <span className="inline-flex w-fit items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-              Blocked
-            </span>
-            <span className="truncate text-[11px] text-muted-foreground">
-              Until {date(candidate.bookingBlockedUntil)}
-            </span>
-          </div>
-        ) : (
-          <span className="inline-flex w-fit items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
-            Can book
-          </span>
-        )}
+        <div className="flex min-w-0 flex-col gap-1">
+          {suspended ? (
+            <>
+              <div>
+                <StatusPill status="suspended" label="Suspended" />
+              </div>
+              <span className="line-clamp-2 text-[11px] text-foreground/80">
+                {candidate.suspensionReason ?? "No reason recorded"}
+              </span>
+              <span className="truncate text-[11px] text-muted-foreground">
+                {relative(candidate.suspendedAt)}
+                {/* Null here means the SWEEP did it, which is a different fact
+                    from a missing one — and it is the first thing asked when
+                    somebody writes in to argue. */}
+                {candidate.suspendedById ? " · by staff" : " · automatic"}
+              </span>
+            </>
+          ) : timedBlock ? (
+            <>
+              <div>
+                <StatusPill status="blocked" label="Blocked" styles={BOOKING_STYLES} />
+              </div>
+              <span className="truncate text-[11px] text-muted-foreground">
+                Until {date(candidate.bookingBlockedUntil)}
+              </span>
+            </>
+          ) : (
+            // Wrapped so the flex column does not stretch the pill full width.
+            <div>
+              <StatusPill status="can_book" label="Can book" styles={BOOKING_STYLES} />
+            </div>
+          )}
 
-        {/* THE THIRD REASON A BOOKING CAN BE REFUSED, and it belongs in this
-            column rather than one of its own: the question the column asks is
-            "can they book", and somebody on 16 hours a week can book until
-            they cannot. It is not a penalty, so it sits under the pill rather
-            than replacing it. */}
-        {hasOwnCap(candidate) && (
-          <div className="mt-1.5 flex min-w-0 flex-col gap-0.5">
-            <span className="inline-flex w-fit items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-900/30 dark:text-sky-300">
-              <HugeiconsIcon icon={Clock01Icon} size={11} strokeWidth={2} />
-              {candidate.maxWeeklyMinutes !== null
-                ? `${capLabel(candidate.maxWeeklyMinutes)} a week`
-                : `${capLabel(candidate.maxDailyMinutes)} a day`}
+          {/* THE THIRD REASON A BOOKING CAN BE REFUSED, and it belongs in this
+              column rather than one of its own: the question the column asks is
+              "can they book", and somebody on 16 hours a week can book until
+              they cannot. It is not a penalty, so it sits under the pill as a
+              qualifier rather than replacing it. */}
+          {hasOwnCap(candidate) && (
+            <span className="line-clamp-2 text-[11px] text-sky-700 dark:text-sky-300">
+              <HugeiconsIcon
+                icon={Clock01Icon}
+                size={11}
+                strokeWidth={2}
+                className="mr-1 inline align-[-1px]"
+              />
+              <span className="font-medium">
+                {candidate.maxWeeklyMinutes !== null
+                  ? `${capLabel(candidate.maxWeeklyMinutes)} a week`
+                  : `${capLabel(candidate.maxDailyMinutes)} a day`}
+              </span>{" "}
+              · {candidate.hoursCapReason ?? "Own hours limit"}
             </span>
-            <span className="line-clamp-2 text-[11px] text-muted-foreground">
-              {candidate.hoursCapReason ?? "Own hours limit"}
-            </span>
-          </div>
-        )}
-      </td>
+          )}
 
-      <td className="px-4 py-3">
-        {/* The answer to "why can't I apply" nine times out of ten. */}
-        {candidate.pendingCertificates > 0 ? (
-          <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-            {candidate.pendingCertificates} cert
-            {candidate.pendingCertificates === 1 ? "" : "s"}
-          </span>
-        ) : (
-          <span className="text-xs text-muted-foreground">Nothing</span>
-        )}
+          {/* The answer to "why can't I apply" nine times out of ten. It had a
+              column of its own ("Waiting on us"); it lives here now because it
+              is part of the same answer, and a row with nothing pending simply
+              says nothing. */}
+          {candidate.pendingCertificates > 0 && (
+            <span className="truncate text-[11px] font-medium tabular-nums text-amber-600 dark:text-amber-400">
+              Waiting on us: {candidate.pendingCertificates} cert
+              {candidate.pendingCertificates === 1 ? "" : "s"}
+            </span>
+          )}
+        </div>
       </td>
 
       <td className="px-4 py-3">

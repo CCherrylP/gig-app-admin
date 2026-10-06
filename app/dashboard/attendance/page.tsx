@@ -51,6 +51,7 @@ import {
   type AttendanceFilter,
   type AttendanceRecord,
 } from "@/lib/attendance";
+import { toHours } from "@/lib/settings";
 import { openFreshDocument } from "@/lib/documents";
 import { date, money, relative } from "@/lib/format";
 
@@ -127,10 +128,14 @@ export default function AttendancePage() {
     mutationFn: ({
       applicationId,
       reason,
+      minutes,
     }: {
       applicationId: string;
       reason: string;
-    }) => releaseWages(applicationId, reason),
+      /** Undefined is the full scheduled length — the API reads an omitted
+       *  `minutes` that way, so a prorate is only ever a number somebody typed. */
+      minutes?: number;
+    }) => releaseWages(applicationId, reason, minutes),
     onSuccess: () => {
       // Both this list and anything counting money elsewhere: the settlement
       // refunds the unearned hold, so a company's coin balance has moved.
@@ -219,23 +224,25 @@ export default function AttendancePage() {
             />
           ) : (
             <TableShell
+              // SIX COLUMNS, down from seven. Clocked in and Clocked out were
+              // two narrow columns describing one span of time, so they are one
+              // column now — "14:12 – 22:03" reads as a shift, two cells apart
+              // it read as two unrelated numbers.
               headers={[
                 "Candidate",
                 "Shift",
-                "Clocked in",
-                "Clocked out",
+                "Clock",
                 "Proof",
                 "Review",
                 "Actions",
               ]}
               widths={[
+                "w-[17%]",
+                "w-[21%]",
+                "w-[18%]",
                 "w-[16%]",
-                "w-[20%]",
-                "w-[13%]",
-                "w-[12%]",
-                "w-[15%]",
-                "w-[9%]",
-                "w-[15%]",
+                "w-[11%]",
+                "w-[17%]",
               ]}
             >
               {records.map((record) => (
@@ -262,9 +269,13 @@ export default function AttendancePage() {
         onOpenChange={(open) => {
           if (!open) setReleasing(null);
         }}
-        onConfirm={(reason) =>
+        onConfirm={(reason, minutes) =>
           releasing &&
-          release.mutate({ applicationId: releasing.applicationId, reason })
+          release.mutate({
+            applicationId: releasing.applicationId,
+            reason,
+            minutes,
+          })
         }
         isPending={release.isPending}
       />
@@ -280,25 +291,46 @@ function ReleaseDialog({
 }: {
   record: AttendanceRecord | null;
   onOpenChange: (open: boolean) => void;
-  onConfirm: (reason: string) => void;
+  onConfirm: (reason: string, minutes?: number) => void;
   isPending: boolean;
 }) {
   const [reason, setReason] = useState("");
+  // Empty means FULL. A number is only ever sent when somebody deliberately cut
+  // the hours — the same shape the API reads, where an omitted `minutes` is the
+  // full scheduled length rather than a default anybody typed.
+  const [hours, setHours] = useState("");
   const [prevId, setPrevId] = useState<string | null>(null);
 
-  // Clear the box when a different row opens the dialog — adjusted during
-  // render rather than in an effect. A note left over from the last shift is
-  // the worst possible thing to write against a payment.
+  // Clear the boxes when a different row opens the dialog — adjusted during
+  // render rather than in an effect. A note or an hours figure left over from
+  // the last shift is the worst possible thing to write against a payment.
   if ((record?.applicationId ?? null) !== prevId) {
     setPrevId(record?.applicationId ?? null);
     setReason("");
+    setHours("");
   }
 
   const tooShort = reason.trim().length < 10;
-  const minutes = record?.scheduledMinutes ?? 0;
+  const scheduled = record?.scheduledMinutes ?? 0;
+
+  // PRORATED, when somebody types hours. Rounded to whole minutes because that
+  // is the unit the API settles in, and a half-minute is not a thing anybody
+  // means — see toMinutes in lib/settings, which this mirrors.
+  const prorated = hours.trim() === "" ? null : Math.round(Number(hours) * 60);
+  const proratedValid =
+    prorated === null ||
+    (Number.isFinite(prorated) && prorated > 0 && prorated <= scheduled);
+
+  const minutes = prorated ?? scheduled;
   const amount = record ? wagesFor(minutes, record.payPerHourCents) : 0;
   // Both ends clocked means the employer just has not signed it off.
   const force = !!record?.checkInAt && !!record?.clockOutAt;
+  // What the clock actually recorded, where it recorded anything. Offered as a
+  // one-tap prorate because it is the figure a dispute is usually settled at —
+  // and typing it by hand from two timestamps is where a slip costs somebody an
+  // hour's pay.
+  const clocked =
+    record?.workedMinutes && record.workedMinutes > 0 ? record.workedMinutes : null;
 
   return (
     <Dialog open={!!record} onOpenChange={onOpenChange}>
@@ -346,6 +378,77 @@ function ReleaseDialog({
           </DialogDescription>
         </DialogHeader>
 
+        {/* FULL OR PRORATED, and full is the default rather than a choice
+            somebody has to make. The scheduled hours are what the employer set
+            aside and what the hold already covers, so paying them in full is the
+            ordinary answer; cutting them is the exception and takes a deliberate
+            number. Below what was clocked, the API asks for a reason — and this
+            route always requires one anyway. */}
+        {record && (
+          <div className="flex flex-col gap-2 px-6 pb-2">
+            <span className="text-sm font-medium">How much to pay</span>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Button
+                type="button"
+                variant={prorated === null ? "default" : "outline"}
+                size="sm"
+                onClick={() => setHours("")}
+              >
+                Full {formatHours(scheduled)}
+              </Button>
+              {clocked !== null && clocked !== scheduled && (
+                <Button
+                  type="button"
+                  variant={prorated === clocked ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setHours(String(toHours(clocked)))}
+                >
+                  Clocked {formatHours(clocked)}
+                </Button>
+              )}
+              <Input
+                inputMode="decimal"
+                value={hours}
+                onChange={(e) => setHours(e.target.value)}
+                placeholder="Other"
+                aria-label="Hours to pay"
+                aria-invalid={!proratedValid}
+                className="h-8 w-24 tabular-nums"
+              />
+              <span className="text-xs text-muted-foreground">hours</span>
+            </div>
+            <p
+              className={
+                proratedValid
+                  ? "text-xs text-muted-foreground"
+                  : "text-xs font-medium text-destructive"
+              }
+            >
+              {proratedValid ? (
+                prorated === null ? (
+                  <>
+                    The full scheduled hours. The employer set that time aside
+                    and the hold already covers it.
+                  </>
+                ) : (
+                  <>
+                    Prorated to {formatHours(prorated)} of{" "}
+                    {formatHours(scheduled)}. The rest of the hold goes back to
+                    the employer, and the platform fee follows the hours — we do
+                    not keep a fee for hours nobody worked.
+                  </>
+                )
+              ) : (
+                <>
+                  Between 0 and the scheduled {formatHours(scheduled)}. Paying
+                  more than was posted would come out of a hold that only ever
+                  covered the scheduled hours.
+                </>
+              )}
+            </p>
+          </div>
+        )}
+
         <div className="flex flex-col gap-2 px-6 pb-4">
           <label htmlFor="release-reason" className="text-sm font-medium">
             Why is this being settled by hand?
@@ -385,8 +488,8 @@ function ReleaseDialog({
           </Button>
           <Button
             size="sm"
-            disabled={isPending || tooShort}
-            onClick={() => onConfirm(reason.trim())}
+            disabled={isPending || tooShort || !proratedValid}
+            onClick={() => onConfirm(reason.trim(), prorated ?? undefined)}
           >
             {isPending
               ? "Releasing…"
@@ -473,30 +576,25 @@ function AttendanceRow({
           are on the row. */}
       <td className="px-4 py-3">
         <div className="flex min-w-0 flex-col text-xs">
-          <span className="text-sm font-medium tabular-nums">
-            {clockOf(record.checkInAt)}
+          {/* In and out on one line, each end's detail stacked under it. */}
+          <span className="truncate text-sm font-medium tabular-nums">
+            {clockOf(record.checkInAt)} – {clockOf(record.clockOutAt)}
           </span>
           {late && (
             <span
               className={
                 record.minutesLate && record.minutesLate > 0
-                  ? "font-medium text-amber-600 dark:text-amber-400"
-                  : "text-muted-foreground"
+                  ? "truncate font-medium text-amber-600 dark:text-amber-400"
+                  : "truncate text-muted-foreground"
               }
             >
               {late}
             </span>
           )}
           <span className="truncate text-muted-foreground">
-            {relative(record.checkInAt)}
-          </span>
-        </div>
-      </td>
-
-      <td className="px-4 py-3">
-        <div className="flex min-w-0 flex-col text-xs">
-          <span className="text-sm font-medium tabular-nums">
-            {clockOf(record.clockOutAt)}
+            {record.checkInAt
+              ? `Clocked in ${relative(record.checkInAt)}`
+              : "Not clocked in"}
           </span>
           {record.workedMinutes !== null && (
             <span className="truncate text-muted-foreground">
@@ -614,7 +712,7 @@ function AttendanceRow({
             </Button>
           )}
           {record.approvedAt && record.earnedCents !== null && (
-            <span className="text-xs font-medium text-green-700 dark:text-green-400">
+            <span className="text-xs font-medium tabular-nums text-green-700 dark:text-green-400">
               {money(record.earnedCents)} paid
             </span>
           )}
