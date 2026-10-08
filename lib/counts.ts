@@ -37,6 +37,8 @@ export interface AdminCounts {
   payouts?: number;
   /** Feed posts and comments with a report nobody has reviewed. Missing on an older API. */
   postReports?: number;
+  /** Candidate ID documents waiting for a check. Missing on an older API. */
+  identity?: number;
 }
 
 export function adminCounts() {

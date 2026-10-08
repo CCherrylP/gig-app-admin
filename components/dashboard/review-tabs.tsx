@@ -7,6 +7,7 @@ import { SectionTabs } from "@/components/dashboard/section-tabs";
  *  this bar ties them together and shows how many are waiting on each. */
 export const REVIEW_TABS: { label: string; url: string; count: keyof AdminCounts }[] = [
   { label: "Employers", url: "/dashboard/employers", count: "employers" },
+  { label: "ID checks", url: "/dashboard/identity", count: "identity" },
   { label: "Certificates", url: "/dashboard/certificates", count: "certificates" },
   { label: "Clock-ins", url: "/dashboard/attendance", count: "attendance" },
   { label: "Appeals", url: "/dashboard/appeals", count: "appeals" },
