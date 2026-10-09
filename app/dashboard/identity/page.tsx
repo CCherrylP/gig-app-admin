@@ -37,6 +37,7 @@ import {
 } from "@/components/dashboard/data-views";
 import {
   decideIdentity,
+  identityCard,
   identityDocument,
   listIdentity,
   type IdentityFilter,
@@ -73,6 +74,51 @@ export default function IdentityPage() {
     <Suspense fallback={<div className="p-6"><TableSkeleton /></div>}>
       <IdentityRoute />
     </Suspense>
+  );
+}
+
+/** What the NRIC says, under the profile's details. Red where they don't match. */
+function CardCheck({ candidateId }: { candidateId: string }) {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["identity", "card", candidateId],
+    queryFn: () => identityCard(candidateId),
+    staleTime: 10 * 60_000,
+    retry: false,
+  });
+
+  if (isLoading) return <span className="text-xs text-muted-foreground">Reading the NRIC…</span>;
+  if (error || !data) return <span className="text-xs text-muted-foreground">Could not read the NRIC</span>;
+
+  const bad = "font-medium text-red-600 dark:text-red-400";
+  const cardLabel = data.cardType === "singaporean" ? "Citizen (pink)" : data.cardType === "pr" ? "PR (blue)" : null;
+
+  return (
+    <span className="text-xs text-muted-foreground">
+      On NRIC:{" "}
+      {[
+        data.masked && <span key="n">{data.masked}</span>,
+        data.name && (
+          <span key="name" className={data.nameMatches === false ? bad : undefined}>
+            {data.name}
+            {data.nameMatches === false && " (name doesn't match)"}
+          </span>
+        ),
+        data.dob && (
+          <span key="dob" className={data.dobMatches === false ? bad : undefined}>
+            Born {date(data.dob)}
+            {data.dobMatches === false && " (birthday doesn't match)"}
+          </span>
+        ),
+        cardLabel && (
+          <span key="type" className={data.cardTypeMatches === false ? bad : undefined}>
+            {cardLabel}
+            {data.cardTypeMatches === false && " (doesn't match work status)"}
+          </span>
+        ),
+      ]
+        .filter(Boolean)
+        .flatMap((part, i) => (i === 0 ? [part] : [" · ", part]))}
+    </span>
   );
 }
 
@@ -192,6 +238,9 @@ function IdentityQueue({ candidate }: { candidate: string }) {
                             .filter(Boolean)
                             .join(" · ")}
                         </span>
+                        {record.status === "pending" && record.hasFront !== false && (
+                          <CardCheck candidateId={record.candidateId} />
+                        )}
                       </div>
                     </div>
                   </td>

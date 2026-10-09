@@ -39,6 +39,24 @@ export function identityDocument(candidateId: string, side: IdentitySide = "fron
   return fetchWithAuth<{ url: string }>(`/admin/identity/${candidateId}/document?side=${side}`);
 }
 
+/** What the NRIC front says, compared with the profile. Read on demand by the API. */
+export interface IdentityCard {
+  /** S••••567D. */
+  masked: string | null;
+  name: string | null;
+  /** yyyy-mm-dd. */
+  dob: string | null;
+  cardType: "singaporean" | "pr" | null;
+  /** null when one side is unknown. */
+  nameMatches: boolean | null;
+  dobMatches: boolean | null;
+  cardTypeMatches: boolean | null;
+}
+
+export function identityCard(candidateId: string) {
+  return fetchWithAuth<IdentityCard>(`/admin/identity/${candidateId}/card`);
+}
+
 export function decideIdentity(candidateId: string, decision: "verified" | "rejected", note?: string) {
   return fetchWithAuth<{ ok: true }>(`/admin/identity/${candidateId}`, {
     method: "PATCH",
