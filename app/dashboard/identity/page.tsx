@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -27,6 +29,7 @@ import {
   FilterTabs,
   InitialsAvatar,
   PageHeader,
+  SearchInput,
   StatusPill,
   TableShell,
   TableSkeleton,
@@ -59,9 +62,31 @@ const STYLES: Record<string, string> = {
   REJECTED: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
 };
 
+// `?candidate=<id>` opens on one person's record, whatever its status — it is
+// how the "ID approved" tag on Candidates and Certificates links here. The
+// narrowing is announced and removable, as on Payments.
+
 export default function IdentityPage() {
+  // Required, not stylistic — a static page reading `useSearchParams` from a
+  // Client Component fails the production build without a boundary.
+  return (
+    <Suspense fallback={<div className="p-6"><TableSkeleton /></div>}>
+      <IdentityRoute />
+    </Suspense>
+  );
+}
+
+function IdentityRoute() {
+  const candidate = useSearchParams().get("candidate")?.trim() ?? "";
+  // Keyed, so following a second link from inside the page starts fresh rather
+  // than keeping the first one's tab.
+  return <IdentityQueue key={candidate} candidate={candidate} />;
+}
+
+function IdentityQueue({ candidate }: { candidate: string }) {
   const queryClient = useQueryClient();
-  const [filter, setFilter] = useState<IdentityFilter>("pending");
+  const [filter, setFilter] = useState<IdentityFilter>(candidate ? "all" : "pending");
+  const [search, setSearch] = useState("");
   const [rejecting, setRejecting] = useState<IdentityRecord | null>(null);
 
   const { data, isLoading } = useQuery({
@@ -90,7 +115,12 @@ export default function IdentityPage() {
       onMissing: () => toast.error("That document could not be opened."),
     });
 
-  const records = data?.records ?? [];
+  const term = search.trim().toLowerCase();
+  const records = (data?.records ?? []).filter((record) =>
+    candidate
+      ? record.candidateId === candidate
+      : !term || [record.name ?? "", record.phone ?? ""].join(" ").toLowerCase().includes(term),
+  );
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -98,20 +128,49 @@ export default function IdentityPage() {
       <PageHeader
         title="ID checks"
         description="Candidates send the front and back of their NRIC and a selfie. Check the face matches, and approve only pink (citizen) or blue (PR) cards. They can apply for shifts once approved."
-      />
+      >
+        {!candidate && (
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Search name or phone…"
+            className="w-full sm:w-72"
+          />
+        )}
+      </PageHeader>
 
-      <FilterTabs
-        options={FILTERS.map((f) => ({ ...f, count: f.value === "pending" ? data?.pendingCount : undefined }))}
-        value={filter}
-        onChange={setFilter}
-      />
+      {candidate ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primary/20 bg-primary/5 px-4 py-2.5 text-sm">
+          <span>Showing one candidate&apos;s ID.</span>
+          <Link href="/dashboard/identity" className="text-xs font-medium text-primary hover:underline">
+            Show everyone
+          </Link>
+        </div>
+      ) : (
+        <FilterTabs
+          options={FILTERS.map((f) => ({ ...f, count: f.value === "pending" ? data?.pendingCount : undefined }))}
+          value={filter}
+          onChange={setFilter}
+        />
+      )}
 
       <Card>
         <CardContent className="p-0">
           {isLoading ? (
             <TableSkeleton />
           ) : records.length === 0 ? (
-            <EmptyState icon={UserShield01Icon} message="Nothing here." />
+            <EmptyState
+              icon={UserShield01Icon}
+              message={
+                candidate
+                  ? "This candidate has not sent an ID yet."
+                  : search
+                    ? "Nothing matches that search."
+                    : filter === "pending"
+                      ? "No IDs waiting. Every one sent in has been checked."
+                      : "Nothing here."
+              }
+            />
           ) : (
             <TableShell
               headers={["Candidate", "Document", "Submitted", "Status", "Actions"]}
@@ -138,10 +197,14 @@ export default function IdentityPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <Button variant="outline" size="xs" onClick={() => openDocument(record.candidateId)}>
-                        <HugeiconsIcon icon={Image01Icon} strokeWidth={2} />
-                        {record.hasBack ? `${record.docLabel} front` : record.docLabel}
-                      </Button>
+                      {record.hasFront === false ? (
+                        <span className="text-xs text-muted-foreground">IC photos deleted after review</span>
+                      ) : (
+                        <Button variant="outline" size="xs" onClick={() => openDocument(record.candidateId)}>
+                          <HugeiconsIcon icon={Image01Icon} strokeWidth={2} />
+                          {record.hasBack ? `${record.docLabel} front` : record.docLabel}
+                        </Button>
+                      )}
                       {record.hasBack && (
                         <Button variant="outline" size="xs" onClick={() => openDocument(record.candidateId, "back")}>
                           <HugeiconsIcon icon={Image01Icon} strokeWidth={2} />

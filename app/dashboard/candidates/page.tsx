@@ -50,13 +50,18 @@ import {
 } from "@/lib/candidates";
 import { MIN_CAP_MINUTES, capLabel, toHours, toMinutes } from "@/lib/settings";
 import { date, isPast, relative } from "@/lib/format";
+import { isLocal, workStatusLabel } from "@/lib/work-status";
+import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 type VerifiedFilter = "all" | "verified" | "unverified";
 
 const VERIFIED_FILTERS: { value: VerifiedFilter; label: string }[] = [
   { value: "all", label: "Everyone" },
-  { value: "verified", label: "Singpass verified" },
-  { value: "unverified", label: "Not verified" },
+  // "ID approved", not "Singpass verified": the flag is set by staff approving
+  // NRIC photos on ID checks. Singpass is not built yet.
+  { value: "verified", label: "ID approved" },
+  { value: "unverified", label: "ID not approved" },
 ];
 
 const BOOKING_FILTERS: { value: BookingFilter; label: string }[] = [
@@ -313,13 +318,35 @@ function CandidateRow({
               {candidate.email ?? "No email"} · {candidate.phone ?? "No phone"}
             </span>
             <span className="truncate text-xs text-muted-foreground">
-              {candidate.verified ? "Verified" : "Not verified"} ·{" "}
-              {candidate.area ?? "No area given"}
+              {/* A LINK, not a label. "Verified" means staff approved their NRIC
+                  photos on ID checks — there is no Singpass yet — and that
+                  page hides itself from the tab bar when nothing is waiting, so
+                  this is the way to the photos behind an approval. */}
+              <Link
+                href={`/dashboard/identity?candidate=${candidate.userId}`}
+                className={cn(
+                  "font-medium hover:underline",
+                  candidate.verified
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-amber-600 dark:text-amber-400",
+                )}
+              >
+                {candidate.verified ? "ID approved" : "ID not approved"}
+              </Link>{" "}
+              · {candidate.area ?? "No area given"}
             </span>
             {/* Null means not answered, which is a different thing from not
-                allowed — so it reads as a gap rather than as a refusal. */}
-            <span className="truncate text-xs text-muted-foreground">
-              {candidate.workStatus ?? "Work status not answered"}
+                allowed — so it reads as a gap rather than as a refusal. Only a
+                declaration: no pass is ever uploaded. */}
+            <span
+              className={cn(
+                "truncate text-xs",
+                candidate.workStatus && !isLocal(candidate.workStatus)
+                  ? "font-medium text-amber-600 dark:text-amber-400"
+                  : "text-muted-foreground",
+              )}
+            >
+              {workStatusLabel(candidate.workStatus) ?? "Work status not answered"}
             </span>
           </div>
         </div>

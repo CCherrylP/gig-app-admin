@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { ReviewTabs } from "@/components/dashboard/review-tabs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -217,17 +218,20 @@ function CertificateRow({
           />
           <div className="flex min-w-0 flex-col">
             <span className="truncate font-medium">{name}</span>
-            {/* Whether Singpass has confirmed the PERSON — a different question
-                from this document, and the one this queue exists to catch. */}
-            <span
+            {/* Whether staff have approved the PERSON's NRIC on ID checks — a
+                different question from this document, and the one that catches
+                a licence in somebody else's name. Links to the photos, so the
+                face on the licence can be held against the face on the NRIC. */}
+            <Link
+              href={`/dashboard/identity?candidate=${review.candidateId}`}
               className={
                 review.candidateVerified
-                  ? "truncate text-xs text-muted-foreground"
-                  : "truncate text-xs font-medium text-amber-600 dark:text-amber-400"
+                  ? "truncate text-xs text-muted-foreground hover:underline"
+                  : "truncate text-xs font-medium text-amber-600 hover:underline dark:text-amber-400"
               }
             >
-              {review.candidateVerified ? "Verified" : "Not verified"}
-            </span>
+              {review.candidateVerified ? "ID approved" : "ID not approved"}
+            </Link>
             {/* How long it has waited, moved here from a column of its own. */}
             <span className="truncate text-xs text-muted-foreground">
               Uploaded {relative(review.uploadedAt)}

@@ -11,6 +11,8 @@ export interface IdentityRecord {
   dateOfBirth: string | null;
   docType: string | null;
   docLabel: string;
+  /** False once decided: the NRIC photos are deleted then. Missing from older APIs. */
+  hasFront?: boolean;
   /** Whether the back of the NRIC was sent. */
   hasBack: boolean;
   /** Whether a selfie was sent to match against the NRIC photo. */

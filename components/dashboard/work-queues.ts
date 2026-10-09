@@ -42,6 +42,10 @@ const NOTES: Partial<
     note: "Businesses waiting for a verification call.",
     arrival: { one: "new employer to verify", many: "new employers to verify" },
   },
+  identity: {
+    note: "NRIC photos and selfies to match.",
+    arrival: { one: "new ID to check", many: "new IDs to check" },
+  },
   certificates: {
     note: "Certificates to check.",
     arrival: { one: "new certificate to check", many: "new certificates to check" },

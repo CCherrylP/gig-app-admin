@@ -25,12 +25,13 @@ export interface RoleTypeUsage {
 }
 
 export interface PlatformSettings {
-  /** What one coin costs, in cents. 50, and the same for every company.
+  /** What one coin costs, in cents. 1 — a coin is a cent — and the same for
+   *  every company.
    *
    *  IT IS ALSO THE DIVISOR a shift's wages are converted through, so changing
    *  it changes what a coin BUYS as well as what it costs — and balances people
-   *  have already paid for do not follow. See the redenomination note in the
-   *  API's prisma/migrations/fixed_coin_price.sql. */
+   *  have already paid for do not follow. See the redenomination notes in the
+   *  API's prisma/migrations/fixed_coin_price.sql and coin_is_one_cent.sql. */
   coinPriceCents: number;
   /** The placement fee in CENTS per hour of shift, flat. 200 — two dollars.
    *
@@ -130,7 +131,9 @@ export function updateSettings(patch: PlatformSettingsPatch) {
 // before a round trip rather than after one. The API is the authority — these
 // exist to explain the rule, not to be it.
 export const BOUNDS = {
-  coinPriceCents: { min: 10, max: 200 },
+  // 1 to 200, the API's range and the table's check constraint. The floor was
+  // 10, which refused the real price of 1c and blocked every save that sent it.
+  coinPriceCents: { min: 1, max: 200 },
   placementFeeCents: { min: 0, max: 5000 },
   agencyFeeCents: { min: 0, max: 5000 },
   invoiceTermsDays: { min: 1, max: 90 },

@@ -100,7 +100,7 @@ export default function PayrollPage() {
     queryFn: () => listPayroll(monthRange(month), company || undefined),
   });
 
-  const rows = data?.rows ?? [];
+  const rows = useMemo(() => data?.rows ?? [], [data?.rows]);
   const totals = data?.totals;
 
   const shown = useMemo(

@@ -13,6 +13,7 @@ import {
   StarIcon,
   UserGroupIcon,
   UserMultipleIcon,
+  UserShield01Icon,
   Wallet01Icon,
 } from "@hugeicons/core-free-icons";
 
@@ -32,6 +33,7 @@ export type SectionLook = { icon: IconType; tint: string };
 // silently render with no colour at all.
 export const LOOKS = {
   employers: { icon: BuildingIcon, tint: "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300" },
+  identity: { icon: UserShield01Icon, tint: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300" },
   certificates: { icon: CheckmarkBadge01Icon, tint: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300" },
   attendance: { icon: Camera01Icon, tint: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300" },
   appeals: { icon: Legal01Icon, tint: "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300" },
@@ -54,6 +56,7 @@ const BY_PATH: [string, SectionLook][] = (
   [
     ["/dashboard/people/employers", LOOKS.employers],
     ["/dashboard/employers", LOOKS.employers],
+    ["/dashboard/identity", LOOKS.identity],
     ["/dashboard/certificates", LOOKS.certificates],
     ["/dashboard/attendance", LOOKS.attendance],
     ["/dashboard/appeals", LOOKS.appeals],

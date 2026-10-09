@@ -108,10 +108,19 @@ export const KIND_LABEL: Record<ReferralKind, string> = {
 };
 
 /** A reward as coins and what they cash out to, e.g. "800 coins · $8.00". Agency rewards are cash only. */
-export function rewardLabel(row: { kind?: ReferralKind; coins: number | null; amountCents: number }) {
+export function rewardLabel(
+  row: { kind?: ReferralKind; coins: number | null; amountCents: number },
+  /** Today's coin price, from GET /admin/settings, when the caller has it. */
+  coinPriceCents?: number | null,
+) {
   if (row.kind === "agency_candidate" || row.kind === "agency_client") return `${money(row.amountCents)} cash`;
-  // 1 coin = 1 cent, so an older row without coins still has a count.
-  const count = row.coins ?? row.amountCents;
+  // AN OLDER ROW WITHOUT COINS is derived from its cash at the coin price. The
+  // price is 1c a coin today, so the default reads the cents as coins — but
+  // that is a fact about the setting, not about the arithmetic, and dividing
+  // keeps this right if the price ever moves again. A row that carries `coins`
+  // is never recomputed: it is what was actually credited.
+  const price = coinPriceCents && coinPriceCents > 0 ? coinPriceCents : 1;
+  const count = row.coins ?? Math.round(row.amountCents / price);
   return `${coins(count)} coin${count === 1 ? "" : "s"} · ${money(row.amountCents)}`;
 }
 
