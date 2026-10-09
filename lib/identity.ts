@@ -21,6 +21,14 @@ export interface IdentityRecord {
   status: "unverified" | "pending" | "verified" | "rejected";
   reviewedAt: string | null;
   reviewNote: string | null;
+  /** The code they declared, e.g. "s_pass". Missing on an older API. */
+  workStatus?: string | null;
+  /** What the candidate's app read off the front and showed them, kept from the
+   *  scan. Null when nothing was kept (an older app build); missing on an older
+   *  API. Either way the page falls back to asking for a read. */
+  card?: IdentityCard | null;
+  /** What was read off the back. The address itself is never sent. */
+  back?: { issued: string | null; hasAddress: boolean; missing: string[] } | null;
 }
 
 export interface IdentityResponse {
@@ -39,14 +47,18 @@ export function identityDocument(candidateId: string, side: IdentitySide = "fron
   return fetchWithAuth<{ url: string }>(`/admin/identity/${candidateId}/document?side=${side}`);
 }
 
-/** What the NRIC front says, compared with the profile. Read on demand by the API. */
+/** What the NRIC front says, compared with the profile. The candidate's own
+ *  scan when it was kept, otherwise read by the API on demand. */
 export interface IdentityCard {
   /** S••••567D. */
   masked: string | null;
   name: string | null;
   /** yyyy-mm-dd. */
   dob: string | null;
+  sex?: "M" | "F" | null;
   cardType: "singaporean" | "pr" | null;
+  /** Fields that did not read. Missing on an older API. */
+  missing?: string[];
   /** null when one side is unknown. */
   nameMatches: boolean | null;
   dobMatches: boolean | null;
