@@ -15,6 +15,7 @@ import {
   UserBlock01Icon,
   CheckmarkCircle02Icon,
   Clock01Icon,
+  Delete02Icon,
 } from "@hugeicons/core-free-icons";
 
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,7 @@ import {
 } from "@/components/dashboard/data-views";
 import {
   CANDIDATE_PAGE_SIZE,
+  deleteCandidate,
   hasOwnCap,
   listCandidates,
   ratingLabel,
@@ -89,6 +91,7 @@ export default function CandidatesPage() {
   // about different people at once — and so closing one does not clear the
   // other's row out from under it.
   const [capping, setCapping] = useState<CandidateSummary | null>(null);
+  const [deleting, setDeleting] = useState<CandidateSummary | null>(null);
 
   // The search goes to the API rather than filtering a page in the browser —
   // this list is capped at fifty rows, so a client-side filter would only ever
@@ -149,6 +152,20 @@ export default function CandidatesPage() {
     },
     onError: (error: Error) => {
       toast.error(error.message || "Could not save that limit");
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (candidate: CandidateSummary) => deleteCandidate(candidate.userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["candidates"] });
+      setDeleting(null);
+      toast.success("Account deleted");
+    },
+    // The API's own sentence — "They still have 2 unpaid shifts…" — is the
+    // instruction, so it is shown as it comes.
+    onError: (error: Error) => {
+      toast.error(error.message || "Could not delete that account");
     },
   });
 
@@ -230,6 +247,7 @@ export default function CandidatesPage() {
                   candidate={candidate}
                   onToggle={() => setTarget(candidate)}
                   onEditHours={() => setCapping(candidate)}
+                  onDelete={() => setDeleting(candidate)}
                 />
               ))}
             </TableShell>
@@ -279,7 +297,96 @@ export default function CandidatesPage() {
         }
         isPending={capMutation.isPending}
       />
+
+      <DeleteDialog
+        candidate={deleting}
+        onOpenChange={(open) => {
+          if (!open) setDeleting(null);
+        }}
+        onConfirm={() => deleting && deleteMutation.mutate(deleting)}
+        isPending={deleteMutation.isPending}
+      />
     </div>
+  );
+}
+
+/** Typing DELETE, because there is no undo: the login is closed and the name,
+ *  phone, bank details and documents are gone for good. */
+function DeleteDialog({
+  candidate,
+  onOpenChange,
+  onConfirm,
+  isPending,
+}: {
+  candidate: CandidateSummary | null;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => void;
+  isPending: boolean;
+}) {
+  const [typed, setTyped] = useState("");
+  const [prevId, setPrevId] = useState<string | null>(null);
+
+  // A new candidate, or the dialog closing after a delete, starts with an empty box.
+  if ((candidate?.userId ?? null) !== prevId) {
+    setPrevId(candidate?.userId ?? null);
+    setTyped("");
+  }
+
+  const close = () => {
+    setTyped("");
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog
+      open={!!candidate}
+      onOpenChange={(open) => {
+        if (!open) close();
+        else onOpenChange(open);
+      }}
+    >
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Delete {candidate?.name ?? "this candidate"}?</DialogTitle>
+          <DialogDescription>
+            Their login is closed and their name, phone, email, bank details, ID photos and
+            certificates are wiped. Their past shifts and payments are kept, under &ldquo;Deleted
+            candidate&rdquo;, so payroll still adds up. This cannot be undone.
+          </DialogDescription>
+        </DialogHeader>
+
+        <p className="text-xs text-muted-foreground">
+          Not allowed while they are owed money or have upcoming shifts. Pay them and cancel
+          those first.
+        </p>
+
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="delete-confirm" className="text-xs font-medium">
+            Type DELETE to confirm
+          </label>
+          <Input
+            id="delete-confirm"
+            value={typed}
+            onChange={(event) => setTyped(event.target.value)}
+            autoComplete="off"
+          />
+        </div>
+
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={close}>
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            disabled={typed.trim() !== "DELETE" || isPending}
+            onClick={onConfirm}
+          >
+            <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
+            {isPending ? "Deleting…" : "Delete account"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -287,10 +394,12 @@ function CandidateRow({
   candidate,
   onToggle,
   onEditHours,
+  onDelete,
 }: {
   candidate: CandidateSummary;
   onToggle: () => void;
   onEditHours: () => void;
+  onDelete: () => void;
 }) {
   const name = candidate.name ?? "Unnamed candidate";
   const suspended = !!candidate.suspendedAt;
@@ -467,6 +576,10 @@ function CandidateRow({
               Suspend
             </Button>
           )}
+          <Button variant="outline" size="xs" onClick={onDelete}>
+            <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
+            Delete
+          </Button>
         </div>
       </td>
     </tr>
@@ -570,7 +683,7 @@ function HoursCapDialog({
                 <span className="font-medium text-foreground">
                   {candidate.name ?? "this candidate"}
                 </span>{" "}
-                unless something here says otherwise — set one only when the cap
+                unless something here says otherwise. Set one only when the cap
                 is a fact about them rather than policy. A student pass allows 16
                 hours a week during term, and no platform-wide number can say
                 that without capping everybody at 16.
@@ -584,7 +697,7 @@ function HoursCapDialog({
             <div className="rounded-lg border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
               Nothing they already hold is affected: a limit refuses the{" "}
               <span className="font-medium text-foreground">next</span> shift they
-              try to take. They are not notified when one is set — it takes
+              try to take. They are not notified when one is set. It takes
               nothing away, and they meet it only at the point they would exceed
               it, where the refusal carries the reason below.
             </div>
@@ -610,7 +723,7 @@ function HoursCapDialog({
             {!clearing && (
               <div className="flex flex-col gap-2">
                 <label htmlFor="cap-reason" className="text-sm font-medium">
-                  Why — the candidate is shown this
+                  Reason (the candidate sees this)
                 </label>
                 <Input
                   id="cap-reason"
@@ -618,7 +731,7 @@ function HoursCapDialog({
                   onChange={(e) =>
                     setForm((f) => ({ ...f, reason: e.target.value }))
                   }
-                  placeholder="Student pass — 16 hours a week during term"
+                  placeholder="Student pass: 16 hours a week during term"
                 />
                 <p
                   className={
@@ -780,7 +893,7 @@ function SuspensionDialog({
                   {candidate.name ?? "This candidate"}
                 </span>{" "}
                 will be able to book shifts again, and any timed block still
-                standing against them is cleared at the same time — otherwise
+                standing against them is cleared at the same time. Otherwise
                 they would be told they are reinstated and still find the app
                 refusing.
               </>
@@ -792,7 +905,7 @@ function SuspensionDialog({
                 </span>{" "}
                 will not be able to book new shifts. They can still sign in,
                 read their history, appeal, and be paid for shifts already
-                worked — a suspension must never strand wages somebody has
+                worked. A suspension never holds back wages they have
                 earned.
               </>
             )}
@@ -802,7 +915,7 @@ function SuspensionDialog({
         {candidate && !suspended && (
           <div className="flex flex-col gap-2 px-6 pb-4">
             <label htmlFor="reason" className="text-sm font-medium">
-              Why — the candidate is shown this
+              Reason (the candidate sees this)
             </label>
             <Input
               id="reason"

@@ -67,7 +67,24 @@ const FILTERS: { value: SupportFilter; label: string }[] = [
  *  conversation: it is what the app already tried and failed with. Drawing it
  *  like the person's own message would have staff answering a question the
  *  person never asked. */
+/** How the API stores a help-screen line the app sent. The user supplied it, so it is
+ *  shown as their copy of the help screen, never as a platform or staff reply. */
+const HELPER_PREFIX = "Help screen said: ";
+
 function MessageBubble({ message }: { message: SupportMessage }) {
+  if (message.author === "user" && message.body.startsWith(HELPER_PREFIX)) {
+    return (
+      <div className="flex justify-start px-4 py-1">
+        <div className="max-w-[75%] rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground">
+          <span className="font-medium">Help screen (sent by the user): </span>
+          <span className="whitespace-pre-wrap break-words">
+            {message.body.slice(HELPER_PREFIX.length)}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   if (message.author === "bot") {
     return (
       <div className="flex justify-center px-4 py-1">

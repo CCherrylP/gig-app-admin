@@ -750,7 +750,8 @@ function CommissionsSection() {
                             Referred {row.referredName ?? "Unnamed"}
                           </span>
                           <span className="truncate text-xs text-muted-foreground">
-                            {KIND_LABEL[row.kind]} · {row.ratePct}% of fee
+                            {/* 0% means the flat $1 an hour; older rows kept their share of the fee. */}
+                            {KIND_LABEL[row.kind]} · {row.ratePct > 0 ? `${row.ratePct}% of fee` : "$1 per hour"}
                           </span>
                         </div>
                       </div>

@@ -153,6 +153,17 @@ export function setHoursCap(
   });
 }
 
+/** Delete the account: the login is closed and every personal detail wiped,
+ *  but the shifts and payments stay so payroll still adds up. Cannot be undone.
+ *
+ *  The API refuses while they are owed money or have work booked, and says
+ *  which — the message is meant to be shown as it comes. */
+export function deleteCandidate(userId: string) {
+  return fetchWithAuth<{ deleted: true }>(`/admin/candidates/${userId}`, {
+    method: "DELETE",
+  });
+}
+
 /** Whether this person is on a cap of their own rather than the platform's. One
  *  helper so the row, the pill and the dialog cannot disagree about what counts
  *  as "capped". */

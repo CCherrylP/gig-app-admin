@@ -52,7 +52,7 @@ import {
 } from "@/lib/reports";
 import { date, money } from "@/lib/format";
 import { payoutProof } from "@/lib/payouts";
-import { bankFilePlan, downloadBankFile, nextWorkingDay } from "@/lib/bank-file";
+import { BankFileButton } from "@/components/dashboard/bank-file-button";
 import { RevealNumber } from "@/components/dashboard/reveal-number";
 
 // Who we owe money to, and whether it has gone out.
@@ -100,7 +100,6 @@ export default function PayrollPage() {
   const [company, setCompany] = useState("");
   const [tab, setTab] = useState<Tab>("ready");
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [bankFileOpen, setBankFileOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["payroll", month, company],
@@ -129,9 +128,12 @@ export default function PayrollPage() {
 
   const chosenCents = chosen.reduce((sum, row) => sum + (row.amountCents ?? 0), 0);
 
+  const [confirming, setConfirming] = useState(false);
+
   const markPaid = useMutation({
     mutationFn: (ids: string[]) => markPayrollPaid(ids, month),
     onSuccess: (result) => {
+      setConfirming(false);
       setSelected(new Set());
       queryClient.invalidateQueries({ queryKey: ["payroll"] });
       toast.success(`Marked ${result.marked} as paid`);
@@ -209,33 +211,22 @@ export default function PayrollPage() {
           </select>
 
           {/*
-            Excel FIRST and CSV second, because the spreadsheet is what
-            somebody actually works from — two sheets, real currency cells
-            that sum, and a totals row. The CSV is the plain-text one for a
-            bank's bulk-upload form, which wants a number rather than a
-            rendered one.
+            The bank file is the filled button and sits last, at the end of
+            the row where the eye lands: it is the export that pays people.
+            Excel is the outline one beside it, for working through the month.
           */}
-          <Button onClick={() => exportXlsx.mutate()} disabled={exportXlsx.isPending}>
+          <Button
+            variant="outline"
+            onClick={() => exportXlsx.mutate()}
+            disabled={exportXlsx.isPending}
+          >
             <HugeiconsIcon icon={Download04Icon} strokeWidth={1.5} className="size-4" />
             {exportXlsx.isPending ? "Building…" : "Export Excel"}
           </Button>
 
-          {/* The bank's own upload format, not a comma file — see lib/bank-file. */}
-          <Button
-            variant="outline"
-            onClick={() => setBankFileOpen(true)}
-            disabled={!totals?.readyCount}
-          >
-            CSV for bank
-          </Button>
+          <BankFileButton rows={rows} />
         </div>
       </PageHeader>
-
-      <BankFileDialog
-        open={bankFileOpen}
-        onOpenChange={setBankFileOpen}
-        rows={rows}
-      />
 
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard
@@ -279,7 +270,7 @@ export default function PayrollPage() {
                 strokeWidth={1.5}
                 className="size-5 text-amber-600"
               />
-              {data!.unpayable.length} cannot be paid — no PayNow or bank details
+              {data!.unpayable.length} cannot be paid. No PayNow or bank details.
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-1.5 text-sm">
@@ -325,7 +316,7 @@ export default function PayrollPage() {
 
             {chosen.length > 0 && (
               <Button
-                onClick={() => markPaid.mutate(chosen.map((row) => row.applicationId))}
+                onClick={() => setConfirming(true)}
                 disabled={markPaid.isPending}
               >
                 <HugeiconsIcon
@@ -409,100 +400,35 @@ export default function PayrollPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={confirming} onOpenChange={(open) => !markPaid.isPending && setConfirming(open)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Mark {chosen.length} {chosen.length === 1 ? "shift" : "shifts"} paid?
+            </DialogTitle>
+            <DialogDescription>
+              Total {money(chosenCents)}. Only do this after the money has gone out from the bank.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setConfirming(false)}
+              disabled={markPaid.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => markPaid.mutate(chosen.map((row) => row.applicationId))}
+              disabled={markPaid.isPending || chosen.length === 0}
+            >
+              {markPaid.isPending ? "Saving…" : `Mark ${chosen.length} paid`}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
-  );
-}
-
-/** THE OCBC GIRO FILE, behind a dialog rather than straight off the button.
- *
- *  Two things have to be seen before it downloads: the value date, which is
- *  in the file and decides when the money lands, and who is NOT in it —
- *  PayNow people and anyone without a usable bank still need paying by hand,
- *  and a file that silently drops them is how somebody gets missed. */
-function BankFileDialog({
-  open,
-  onOpenChange,
-  rows,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  rows: PayrollRow[];
-}) {
-  const [valueDate, setValueDate] = useState(nextWorkingDay);
-
-  const plan = useMemo(() => bankFilePlan(rows), [rows]);
-  const total = plan.lines.reduce((sum, line) => sum + line.cents, 0);
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Download CSV for bank</DialogTitle>
-          <DialogDescription>
-            The OCBC bulk salary file for everyone ready to pay by bank transfer. Upload it,
-            then tick the shifts off here once it has gone through.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="value-date" className="text-xs font-medium">
-            Value date — the day the money lands
-          </label>
-          <input
-            id="value-date"
-            type="date"
-            value={valueDate}
-            onChange={(event) => setValueDate(event.target.value || nextWorkingDay())}
-            className="h-9 rounded-md border border-border bg-background px-3 text-sm"
-          />
-        </div>
-
-        <div className="rounded-md border p-3 text-sm">
-          <div className="flex items-center justify-between">
-            <span>
-              {plan.lines.length} {plan.lines.length === 1 ? "person" : "people"} in the file
-            </span>
-            <span className="font-medium tabular-nums">{money(total)}</span>
-          </div>
-        </div>
-
-        {plan.skipped.length > 0 && (
-          <div className="space-y-1.5 rounded-md border border-amber-300 p-3 text-sm dark:border-amber-800">
-            <div className="font-medium text-amber-700 dark:text-amber-300">
-              {plan.skipped.length} not in the file — pay these separately
-            </div>
-            {plan.skipped.map((person) => (
-              <div
-                key={person.candidateId}
-                className="flex items-center justify-between gap-4 text-xs"
-              >
-                <span>
-                  {person.name}
-                  <span className="text-muted-foreground"> · {person.reason}</span>
-                </span>
-                <span className="tabular-nums">{money(person.cents)}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button
-            disabled={plan.lines.length === 0 || !valueDate}
-            onClick={() => {
-              downloadBankFile(plan.lines, valueDate);
-              onOpenChange(false);
-            }}
-          >
-            <HugeiconsIcon icon={Download04Icon} strokeWidth={1.5} className="size-4" />
-            Download
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
   );
 }
 

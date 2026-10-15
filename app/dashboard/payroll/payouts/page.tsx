@@ -426,9 +426,9 @@ export default function PayoutChecksPage() {
       <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
         <HugeiconsIcon icon={Alert02Icon} strokeWidth={2} className="mt-0.5 size-4 shrink-0" />
         <span>
-          This does not hold anybody&rsquo;s pay. An unchecked number is still payable — Payroll
-          shows the state beside it so whoever makes the transfer can see it. Holding wages behind
-          this queue would put the cost of our check on the person who worked the shift.
+          This does not hold anybody&rsquo;s pay. An unchecked number can still be paid by hand, and
+          Payroll shows the state beside it. Only checked bank accounts go into the bank file, so
+          check numbers here to keep that file complete.
         </span>
       </div>
     </div>

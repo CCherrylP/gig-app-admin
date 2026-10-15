@@ -141,13 +141,13 @@ const FIELDS: {
     key: "maxDailyMinutes",
     group: "hours",
     label: "Most hours in a day",
-    help: "Counted on one calendar day, against the PAID hours of everything somebody holds — the booked window minus any unpaid break. An overnight shift counts entirely on the day it starts. 12 hours is the Employment Act's figure and the default here.",
+    help: "Counted on one calendar day, against the PAID hours of everything somebody holds (the booked window minus any unpaid break). An overnight shift counts entirely on the day it starts. 12 hours is the Employment Act's figure and the default here.",
     unit: "hours a day",
     toStored: toMinutes,
     toTyped: toHours,
     format: (minutes) =>
       minutes === 0
-        ? "No daily limit — any length of day is bookable"
+        ? "No daily limit. Any length of day can be booked."
         : `${capLabel(minutes)} in one day`,
     invalid: (minutes) => capError("maxDailyMinutes", minutes),
     step: "0.5",
@@ -162,67 +162,12 @@ const FIELDS: {
     toTyped: toHours,
     format: (minutes) =>
       minutes === 0
-        ? "No weekly limit — this is not enforced"
+        ? "No weekly limit"
         : `${capLabel(minutes)} in one week`,
     invalid: (minutes) => capError("maxWeeklyMinutes", minutes),
     step: "0.5",
   },
-  {
-    key: "referralBdPct",
-    group: "referral",
-    label: "Business referral",
-    help: "Paid to BD staff on every shift a business they brought in completes. A share of the platform fee we keep on that shift. Paid as coins (1 coin = 1 cent) that an admin cashes out later. Normal candidates can no longer refer businesses.",
-    unit: "% of fee",
-    toStored: (typed) => typed,
-    toTyped: (stored) => stored,
-    format: (value) => `${value}% of the platform fee`,
-    invalid: (value) => boundsError("referralBdPct", value),
-  },
-  {
-    key: "referralTaPct",
-    group: "referral",
-    label: "Worker referral by TA staff",
-    help: "Paid to TA staff on every shift a worker they referred completes. Paid as coins (1 coin = 1 cent) that an admin cashes out later.",
-    unit: "% of fee",
-    toStored: (typed) => typed,
-    toTyped: (stored) => stored,
-    format: (value) => `${value}% of the platform fee`,
-    invalid: (value) => boundsError("referralTaPct", value),
-  },
-  {
-    key: "referralCandidatePct",
-    group: "referral",
-    label: "Worker referral by a candidate",
-    help: "Paid to a candidate on every shift a worker they referred completes. Paid as coins (1 coin = 1 cent) that an admin cashes out later.",
-    unit: "% of fee",
-    toStored: (typed) => typed,
-    toTyped: (stored) => stored,
-    format: (value) => `${value}% of the platform fee`,
-    invalid: (value) => boundsError("referralCandidatePct", value),
-  },
-  // The two old employer rates now price agency referrals.
-  {
-    key: "referralEmployerCandidatePct",
-    group: "referral",
-    label: "Worker referral by an agency",
-    help: "Paid to an employment agency on every shift a worker they referred completes. 10% of the fee goes to accounts first. Paid in cash, with no need to have worked a shift.",
-    unit: "% of fee after accounts",
-    toStored: (typed) => typed,
-    toTyped: (stored) => stored,
-    format: (value) => `${value}% of the fee, after 10% for accounts`,
-    invalid: (value) => boundsError("referralEmployerCandidatePct", value),
-  },
-  {
-    key: "referralEmployerClientPct",
-    group: "referral",
-    label: "Business referral by an agency",
-    help: "Paid to an employment agency on every shift a business they referred completes. 10% of the fee goes to accounts first. Paid in cash.",
-    unit: "% of fee after accounts",
-    toStored: (typed) => typed,
-    toTyped: (stored) => stored,
-    format: (value) => `${value}% of the fee, after 10% for accounts`,
-    invalid: (value) => boundsError("referralEmployerClientPct", value),
-  },
+  // The % referral rates are gone: every referral now pays $1 per paid hour (set in the API).
   {
     key: "referralMonths",
     group: "referral",
@@ -379,12 +324,13 @@ export default function ConfigPage() {
 
       {/* --- referrals --------------------------------------------------- */}
 
-      <SectionHeading title="Referral rates" description="What referrers earn from our fee." />
+      <SectionHeading title="Referrals" description="What referrers earn, and for how long." />
 
       <Note tone="amber">
-        New rates apply to shifts settled after you save. A new referral length
-        only applies to new referrals. Rewards are paid as coins (1 coin = 1 cent)
-        and cashed out by an admin.
+        Every referrer earns $1 for each hour the referred worker is paid for. This
+        is the same for candidates, TA, BD and agencies. Candidates and staff get
+        coins (1 coin = 1 cent), cashed out by an admin. Agencies get cash. A new
+        referral length only applies to new referrals.
       </Note>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -412,7 +358,7 @@ export default function ConfigPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs text-muted-foreground">
           Last changed {dateTime(data.updatedAt)}
-          {data.updatedById ? "" : " — never edited from this dashboard"}
+          {data.updatedById ? "" : " (never edited from this dashboard)"}
         </p>
         <div className="flex items-center gap-2">
           <Button
@@ -646,7 +592,7 @@ function RoleTypeCaps({
           />
         </div>
         <CardDescription>
-          Optional, and on top of the weekly total above — whichever is tighter
+          Optional, and on top of the weekly total above. Whichever is tighter
           refuses first. It exists because the totals cannot say the thing that
           matters about demanding work: 44 hours of cashier shifts and 44 hours of
           warehouse picking are the same number and not the same week.
@@ -684,7 +630,7 @@ function RoleTypeCaps({
                           // error — a listing of that kind may be posted
                           // tomorrow — but worth saying, because it is what a
                           // typo looks like from here.
-                          "No roles on the board are filed under this — check the spelling"
+                          "No roles on the board are filed under this. Check the spelling."
                         : `${roles} role${roles === 1 ? "" : "s"} on the board`}
                     </span>
                   </div>
