@@ -21,6 +21,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   EmptyState,
   FilterTabs,
   InitialsAvatar,
@@ -31,6 +38,7 @@ import {
   initials,
 } from "@/components/dashboard/data-views";
 import { RevealNumber } from "@/components/dashboard/reveal-number";
+import { BankFileButton } from "@/components/dashboard/bank-file-button";
 import {
   byCandidate,
   currentMonth,
@@ -135,6 +143,8 @@ export default function PayoutSheetPage() {
     [shown],
   );
 
+  const [confirming, setConfirming] = useState<CandidateSheet | null>(null);
+
   const markPaid = useMutation({
     mutationFn: (person: CandidateSheet) =>
       markPayrollPaid(
@@ -144,6 +154,7 @@ export default function PayoutSheetPage() {
         range.from.slice(0, 7),
       ),
     onSuccess: (result) => {
+      setConfirming(null);
       // This sheet's range, not the month the response totalled — a week that
       // crosses the 1st is not either month, so the numbers on screen have to
       // come from a refetch rather than from `result.totals`.
@@ -230,7 +241,11 @@ export default function PayoutSheetPage() {
         <span className="text-sm text-muted-foreground">{rangeText(range)}</span>
 
         <div className="ml-auto flex items-center gap-2">
-          <Button onClick={() => exportXlsx.mutate()} disabled={exportXlsx.isPending}>
+          <Button
+            variant="outline"
+            onClick={() => exportXlsx.mutate()}
+            disabled={exportXlsx.isPending}
+          >
             <HugeiconsIcon icon={Download04Icon} strokeWidth={1.5} className="size-4" />
             {exportXlsx.isPending ? "Building…" : "Export Excel"}
           </Button>
@@ -244,6 +259,10 @@ export default function PayoutSheetPage() {
           >
             CSV
           </Button>
+
+          {/* Every row in the range, not the search — a search is for finding
+              somebody, and a bank file cut down by it would leave people out. */}
+          <BankFileButton rows={data?.rows ?? []} />
         </div>
       </div>
 
@@ -283,7 +302,7 @@ export default function PayoutSheetPage() {
                 strokeWidth={1.5}
                 className="size-5 text-amber-600"
               />
-              {stuck.length} cannot be paid — no PayNow or bank details
+              {stuck.length} cannot be paid. No PayNow or bank details.
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-1.5 text-sm">
@@ -395,7 +414,7 @@ export default function PayoutSheetPage() {
                   person={person}
                   open={open.has(person.candidateId)}
                   onToggle={() => toggle(person.candidateId)}
-                  onMarkPaid={() => markPaid.mutate(person)}
+                  onMarkPaid={() => setConfirming(person)}
                   isPending={markPaid.isPending}
                 />
               ))}
@@ -403,6 +422,38 @@ export default function PayoutSheetPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={confirming !== null}
+        onOpenChange={(next) => !next && !markPaid.isPending && setConfirming(null)}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Mark {confirming?.name ?? "this candidate"} paid?</DialogTitle>
+            <DialogDescription>
+              {(() => {
+                const count = confirming?.shifts.filter((shift) => shift.status === "ready").length ?? 0;
+                return `${count} ${count === 1 ? "shift" : "shifts"}, ${money(confirming?.readyCents ?? 0)} in total. Only do this after the money has gone out from the bank.`;
+              })()}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setConfirming(null)}
+              disabled={markPaid.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => confirming && markPaid.mutate(confirming)}
+              disabled={markPaid.isPending || !confirming}
+            >
+              {markPaid.isPending ? "Saving…" : "Mark paid"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

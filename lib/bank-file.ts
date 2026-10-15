@@ -1,4 +1,18 @@
-import { addDays, byCandidate, saveBlob, today, type PayrollRow } from "./reports";
+import {
+  addDays,
+  byCandidate,
+  saveBlob,
+  today,
+  type PayoutVerification,
+  type PayrollRow,
+} from "./reports";
+
+/** Why an unchecked account is left out of the file. */
+const NOT_VERIFIED: Partial<Record<PayoutVerification, string>> = {
+  pending: "Account not checked yet",
+  rejected: "Account did not match, fix it first",
+  unverified: "No account proof sent",
+};
 
 // The OCBC bulk-payment file (GIRO, salary). Fixed width, not a CSV.
 //
@@ -23,9 +37,13 @@ export const BANK_FILE_PAYER = {
   account: "0720093410",
   name: "MCI OUTSOURCING PTE LTD",
   batchText: "0000101. DSVR OT",
-  /** Each line's reference is this plus a 4-digit sequence, e.g. DSVR0001. */
+  /** Each reference is this, the file's SGT time, then a sequence, e.g. DSVR2610161430050001. */
   referencePrefix: "DSVR",
 };
+
+/** One line's reference. 20 characters, inside the 35 the field allows. */
+export const bankReference = (stamp: string, n: number) =>
+  `${BANK_FILE_PAYER.referencePrefix}${stamp}${String(n + 1).padStart(4, "0")}`;
 
 /** The banks the app offers (gig-app PayoutDetails) to their SWIFT codes. Retail
  *  codes where a bank has two — these are personal accounts. */
@@ -85,7 +103,12 @@ export function bankFilePlan(rows: PayrollRow[]) {
       continue;
     }
     if (payout.kind === "paynow") {
-      skip("PayNow — pay by hand");
+      skip("PayNow, pay by hand");
+      continue;
+    }
+    // Only accounts an admin has checked go in a file that moves money.
+    if (payout.verification !== "verified") {
+      skip(NOT_VERIFIED[payout.verification] ?? "Account not checked yet");
       continue;
     }
 
@@ -95,12 +118,24 @@ export function bankFilePlan(rows: PayrollRow[]) {
       continue;
     }
 
+    // Digits only. People type '501-123456-001' and the bank wants the digits.
+    const account = payout.number.replace(/\D/g, "");
+    if (!account) {
+      skip("Account number has no digits");
+      continue;
+    }
+
+    const name = clean(payout.holder || person.name);
+    if (!name) {
+      skip("Account name can't be written in the bank file");
+      continue;
+    }
+
     lines.push({
       candidateId: person.candidateId,
-      name: payout.holder ?? person.name,
+      name,
       swift,
-      // Digits only. People type '501-123456-001' and the bank wants the digits.
-      account: payout.number.replace(/\D/g, ""),
+      account,
       cents: person.readyCents,
     });
   }
@@ -116,28 +151,66 @@ export function downloadBankFile(lines: BankFileLine[], valueDate: string) {
     `bank-payroll-${valueDate}.csv`,
     new Blob([bankFile(lines, valueDate)], { type: "text/csv" }),
   );
+  rememberBankFileDownload(
+    lines.length,
+    lines.reduce((sum, line) => sum + line.cents, 0),
+  );
 }
 
+/** 0 is Sunday, 6 is Saturday, for a 'YYYY-MM-DD' day. */
+const weekdayOf = (day: string) => {
+  const [y, m, d] = day.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+};
+
 /** The next weekday after today — a sensible default value date. */
-export function nextWorkingDay() {
-  let day = addDays(today(), 1);
-  const weekday = () => {
-    const [y, m, d] = day.split("-").map(Number);
-    return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
-  };
-  while (weekday() === 0 || weekday() === 6) day = addDays(day, 1);
+export function nextWorkingDay(from = today()) {
+  let day = addDays(from, 1);
+  while (weekdayOf(day) === 0 || weekdayOf(day) === 6) day = addDays(day, 1);
   return day;
 }
 
+/** Why a value date can't be used, or null when it is fine. Public holidays are not checked. */
+export function valueDateProblem(day: string, now = today()): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return "Pick a value date.";
+  if (day < now) return "The value date is in the past.";
+  if (weekdayOf(day) === 0 || weekdayOf(day) === 6) return "The value date is a weekend. Banks don't pay on weekends.";
+  return null;
+}
+
+const LAST_DOWNLOAD_KEY = "adhoc.bankFile.lastDownload";
+
+/** When this browser last downloaded a bank file, or null. */
+export function lastBankFileDownload(): { at: string; people: number; cents: number } | null {
+  try {
+    const raw = window.localStorage.getItem(LAST_DOWNLOAD_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function rememberBankFileDownload(people: number, cents: number) {
+  try {
+    window.localStorage.setItem(
+      LAST_DOWNLOAD_KEY,
+      JSON.stringify({ at: new Date().toISOString(), people, cents }),
+    );
+  } catch {
+    // Storage blocked. The warning in the dialog still shows.
+  }
+}
+
 /** The file itself. `valueDate` is 'YYYY-MM-DD', the day the money lands. */
-export function bankFile(lines: BankFileLine[], valueDate: string) {
-  const now = new Date();
+export function bankFile(lines: BankFileLine[], valueDate: string, now = new Date()) {
   const sg = (options: Intl.DateTimeFormatOptions) =>
     now.toLocaleString("en-GB", { timeZone: "Asia/Singapore", hour12: false, ...options });
 
   const created =
     sg({ day: "2-digit" }) + sg({ month: "2-digit" }) + sg({ year: "numeric" });
   const time = sg({ hour: "2-digit", minute: "2-digit", second: "2-digit" }).replace(/\D/g, "");
+  // References are unique per file: prefix, YYMMDDHHMMSS (SGT), then a 4-digit line number.
+  const stamp = created.slice(6, 8) + created.slice(2, 4) + created.slice(0, 2) + time;
 
   const header = record(HEADER_LENGTH, [
     [0, created],
@@ -154,7 +227,7 @@ export function bankFile(lines: BankFileLine[], valueDate: string) {
   const details = lines.map((line, n) =>
     record(DETAIL_LENGTH, [
       [0, "22"],
-      [2, `${BANK_FILE_PAYER.referencePrefix}${String(n + 1).padStart(4, "0")}`, 35],
+      [2, bankReference(stamp, n), 35],
       [37, line.swift, 35],
       [72, line.account, 34],
       [106, clean(line.name), 144],

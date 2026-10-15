@@ -1,5 +1,6 @@
 import { fetchWithAuth } from "./api";
 import { coins, money } from "./format";
+import { csvCell } from "./csv";
 
 // Referral staff, referrals and commissions. Types copied from the API's
 // src/contract/referral.ts. Only candidate accounts refer; rewards are coins
@@ -182,10 +183,4 @@ export function byReferrerCsv(lines: CommissionReferrerLine[]) {
     (line.pendingCents / 100).toFixed(2),
   ]);
   return [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
-}
-
-/** Quoted, with a leading quote on text that Excel would run as a formula. */
-function csvCell(value: string) {
-  const safe = /^[=+\-@]/.test(value) && Number.isNaN(Number(value)) ? `'${value}` : value;
-  return `"${safe.replace(/"/g, '""')}"`;
 }

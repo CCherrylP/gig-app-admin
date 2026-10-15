@@ -1,5 +1,6 @@
 import { fetchWithAuth } from "./api";
 import { getAccessToken } from "./auth";
+import { csvCell } from "./csv";
 
 // The two money reports.
 //
@@ -388,7 +389,7 @@ export function payoutOf(row: PayrollRow): Payout | null {
     number: row.payoutNumber,
     // The holder is only asked for on the bank route, and it is the candidate's
     // own name for all but the handful paying into somebody else's account.
-    holder: row.payoutHolderName ?? row.candidateName,
+    holder: row.payoutHolderName || row.candidateName,
     verification: row.payoutVerification ?? "unverified",
     hasProof: Boolean(row.payoutHasProof),
   };
@@ -493,13 +494,13 @@ export function byCandidate(rows: PayrollRow[]): CandidateSheet[] {
  *  is "what is this person owed and why", and the answer should survive being
  *  opened in Excel without anybody sorting it first. */
 export function sheetCsv(people: CandidateSheet[], range: DateRange) {
-  const cell = (value: string | number | null | undefined) =>
-    `"${String(value ?? "").replace(/"/g, '""')}"`;
+  // Formula-safe: names and account fields come from users.
+  const cell = csvCell;
 
   const amount = (cents: number) => (cents / 100).toFixed(2);
 
   const lines = [
-    [`Attendance and payout sheet — ${rangeText(range)}`].map(cell).join(","),
+    [`Attendance and payout sheet: ${rangeText(range)}`].map(cell).join(","),
     [
       "Candidate / shift",
       "Phone / role",
@@ -560,7 +561,7 @@ export function sheetCsv(people: CandidateSheet[], range: DateRange) {
 
   lines.push(
     [
-      cell(`TOTAL — ${people.length} candidates`),
+      cell(`TOTAL (${people.length} candidates)`),
       cell(""),
       cell(""),
       cell(""),
