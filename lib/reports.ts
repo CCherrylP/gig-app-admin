@@ -690,7 +690,7 @@ export async function downloadPayrollXlsx(range: DateRange, company?: string) {
 }
 
 /** Hand the browser a file it already holds. */
-function saveBlob(filename: string, blob: Blob) {
+export function saveBlob(filename: string, blob: Blob) {
   const url = URL.createObjectURL(blob);
 
   const link = document.createElement("a");

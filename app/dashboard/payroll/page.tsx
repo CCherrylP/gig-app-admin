@@ -18,6 +18,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   EmptyState,
   FilterTabs,
   InitialsAvatar,
@@ -47,6 +54,7 @@ import {
 } from "@/lib/reports";
 import { date, money } from "@/lib/format";
 import { payoutProof } from "@/lib/payouts";
+import { bankFilePlan, downloadBankFile, nextWorkingDay } from "@/lib/bank-file";
 import { RevealNumber } from "@/components/dashboard/reveal-number";
 
 // Who we owe money to, and whether it has gone out.
@@ -94,6 +102,7 @@ export default function PayrollPage() {
   const [company, setCompany] = useState("");
   const [tab, setTab] = useState<Tab>("ready");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bankFileOpen, setBankFileOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["payroll", month, company],
@@ -225,8 +234,23 @@ export default function PayrollPage() {
           >
             CSV for bank
           </Button>
+
+          <Button
+            variant="outline"
+            onClick={() => setBankFileOpen(true)}
+            disabled={!totals?.readyCount}
+          >
+            <HugeiconsIcon icon={Download04Icon} strokeWidth={1.5} className="size-4" />
+            Bank GIRO file
+          </Button>
         </div>
       </PageHeader>
+
+      <BankFileDialog
+        open={bankFileOpen}
+        onOpenChange={setBankFileOpen}
+        rows={rows}
+      />
 
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard
@@ -401,6 +425,99 @@ export default function PayrollPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+/** THE OCBC GIRO FILE, behind a dialog rather than straight off the button.
+ *
+ *  Two things have to be seen before it downloads: the value date, which is
+ *  in the file and decides when the money lands, and who is NOT in it —
+ *  PayNow people and anyone without a usable bank still need paying by hand,
+ *  and a file that silently drops them is how somebody gets missed. */
+function BankFileDialog({
+  open,
+  onOpenChange,
+  rows,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  rows: PayrollRow[];
+}) {
+  const [valueDate, setValueDate] = useState(nextWorkingDay);
+
+  const plan = useMemo(() => bankFilePlan(rows), [rows]);
+  const total = plan.lines.reduce((sum, line) => sum + line.cents, 0);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Download bank GIRO file</DialogTitle>
+          <DialogDescription>
+            The OCBC bulk salary file for everyone ready to pay by bank transfer. Upload it,
+            then tick the shifts off here once it has gone through.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="value-date" className="text-xs font-medium">
+            Value date — the day the money lands
+          </label>
+          <input
+            id="value-date"
+            type="date"
+            value={valueDate}
+            onChange={(event) => setValueDate(event.target.value || nextWorkingDay())}
+            className="h-9 rounded-md border border-border bg-background px-3 text-sm"
+          />
+        </div>
+
+        <div className="rounded-md border p-3 text-sm">
+          <div className="flex items-center justify-between">
+            <span>
+              {plan.lines.length} {plan.lines.length === 1 ? "person" : "people"} in the file
+            </span>
+            <span className="font-medium tabular-nums">{money(total)}</span>
+          </div>
+        </div>
+
+        {plan.skipped.length > 0 && (
+          <div className="space-y-1.5 rounded-md border border-amber-300 p-3 text-sm dark:border-amber-800">
+            <div className="font-medium text-amber-700 dark:text-amber-300">
+              {plan.skipped.length} not in the file — pay these separately
+            </div>
+            {plan.skipped.map((person) => (
+              <div
+                key={person.candidateId}
+                className="flex items-center justify-between gap-4 text-xs"
+              >
+                <span>
+                  {person.name}
+                  <span className="text-muted-foreground"> · {person.reason}</span>
+                </span>
+                <span className="tabular-nums">{money(person.cents)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            disabled={plan.lines.length === 0 || !valueDate}
+            onClick={() => {
+              downloadBankFile(plan.lines, valueDate);
+              onOpenChange(false);
+            }}
+          >
+            <HugeiconsIcon icon={Download04Icon} strokeWidth={1.5} className="size-4" />
+            Download
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

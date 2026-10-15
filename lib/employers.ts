@@ -167,8 +167,8 @@ export interface AdminTopUp {
   coinPriceCents: number;
   issuedAt: string;
   dueAt: string;
-  /** Last day the coins on this bill can be spent — the issue date plus a year. */
-  coinsValidUntil: string;
+  /** Null on a new invoice: the coins' 12 months start when payment is confirmed. */
+  coinsValidUntil: string | null;
   /** Null when the account has no address, which is how staff know they still
    *  have to send the bill themselves. */
   emailedTo: string | null;
