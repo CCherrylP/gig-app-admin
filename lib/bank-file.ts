@@ -3,15 +3,16 @@ import { addDays, byCandidate, saveBlob, today, type PayrollRow } from "./report
 // The OCBC bulk-payment file (GIRO, salary). Fixed width, not a CSV.
 //
 // THE LAYOUT IS COPIED FROM A FILE THE BANK ALREADY ACCEPTED, not from a spec —
-// every offset below is where that file had the field. Both record types are
-// 1000 characters, a header and then one line per person:
+// every offset below is where that file had the field, and the output matches
+// it character for character. A header of 1000 characters, then one line of
+// 1004 per person:
 //
 //   header  0 created DDMMYYYY · 8 HHMMSS · 14 org id · 22 value date DDMMYYYY
 //           30 our account (34) · 64 our name (140) · 238 batch text
 //           278 'C' · 998 '01'
-//   detail  0 '22' salary credit · 2 reference (35) · 37 SWIFT (35)
-//           72 account (34) · 106 name (140) · 246 'SALA' · 250 'SGD'
-//           253 amount in cents, 11 digits · 439 'N' · 998 '10'
+//   detail  0 '22' salary credit · 2 reference (35) · 37 bank SWIFT code (35)
+//           72 account (34) · 106 name (144) · 250 'SALA' · 254 'SGD'
+//           257 amount in cents, 11 digits · 443 'N' · 1002 '10'
 //
 // A field that runs long is cut, never allowed to push the next one along: one
 // character out and the bank reads every later field from the wrong place.
@@ -39,7 +40,8 @@ const SWIFT: Record<string, string> = {
   Trust: "TRUTSGSGXXX",
 };
 
-const RECORD = 1000;
+const HEADER_LENGTH = 1000;
+const DETAIL_LENGTH = 1004;
 
 export interface BankFileLine {
   candidateId: string;
@@ -111,8 +113,8 @@ export function bankFilePlan(rows: PayrollRow[]) {
  *  first column and shift the whole header by three bytes. */
 export function downloadBankFile(lines: BankFileLine[], valueDate: string) {
   saveBlob(
-    `ocbc-giro-${valueDate}.txt`,
-    new Blob([bankFile(lines, valueDate)], { type: "text/plain" }),
+    `bank-payroll-${valueDate}.csv`,
+    new Blob([bankFile(lines, valueDate)], { type: "text/csv" }),
   );
 }
 
@@ -137,7 +139,7 @@ export function bankFile(lines: BankFileLine[], valueDate: string) {
     sg({ day: "2-digit" }) + sg({ month: "2-digit" }) + sg({ year: "numeric" });
   const time = sg({ hour: "2-digit", minute: "2-digit", second: "2-digit" }).replace(/\D/g, "");
 
-  const header = record([
+  const header = record(HEADER_LENGTH, [
     [0, created],
     [8, time],
     [14, BANK_FILE_PAYER.orgId],
@@ -150,17 +152,17 @@ export function bankFile(lines: BankFileLine[], valueDate: string) {
   ]);
 
   const details = lines.map((line, n) =>
-    record([
+    record(DETAIL_LENGTH, [
       [0, "22"],
       [2, `${BANK_FILE_PAYER.referencePrefix}${String(n + 1).padStart(4, "0")}`, 35],
       [37, line.swift, 35],
       [72, line.account, 34],
-      [106, clean(line.name), 140],
-      [246, "SALA"],
-      [250, "SGD"],
-      [253, String(line.cents).padStart(11, "0"), 11],
-      [439, "N"],
-      [998, "10"],
+      [106, clean(line.name), 144],
+      [250, "SALA"],
+      [254, "SGD"],
+      [257, String(line.cents).padStart(11, "0"), 11],
+      [443, "N"],
+      [1002, "10"],
     ]),
   );
 
@@ -168,8 +170,8 @@ export function bankFile(lines: BankFileLine[], valueDate: string) {
 }
 
 /** One record: spaces, with each field written at its offset and cut to width. */
-function record(fields: [at: number, value: string, width?: number][]) {
-  const chars = Array<string>(RECORD).fill(" ");
+function record(length: number, fields: [at: number, value: string, width?: number][]) {
+  const chars = Array<string>(length).fill(" ");
   for (const [at, value, width] of fields) {
     const text = value.slice(0, width ?? value.length);
     for (let i = 0; i < text.length; i++) chars[at + i] = text[i];

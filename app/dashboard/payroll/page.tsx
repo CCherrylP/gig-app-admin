@@ -36,7 +36,6 @@ import {
 } from "@/components/dashboard/data-views";
 import {
   currentMonth,
-  downloadCsv,
   downloadPayrollXlsx,
   hours,
   isReferralRow,
@@ -44,7 +43,6 @@ import {
   markPayrollPaid,
   monthLabel,
   monthRange,
-  payableCsv,
   payoutOf,
   VERIFICATION_LABEL,
   type PayoutVerification,
@@ -157,11 +155,6 @@ export default function PayrollPage() {
       allChosen ? new Set() : new Set(selectable.map((row) => row.applicationId)),
     );
 
-  const exportCsv = () => {
-    const csv = payableCsv(rows, month);
-    downloadCsv(`adhoc-payroll-${month}.csv`, csv);
-  };
-
   // A mutation rather than a plain handler so the button can say it is
   // working: the workbook is built server-side and a big month is not
   // instant, and a button that looks idle gets pressed twice.
@@ -227,21 +220,13 @@ export default function PayrollPage() {
             {exportXlsx.isPending ? "Building…" : "Export Excel"}
           </Button>
 
-          <Button
-            variant="outline"
-            onClick={exportCsv}
-            disabled={!totals?.readyCount}
-          >
-            CSV for bank
-          </Button>
-
+          {/* The bank's own upload format, not a comma file — see lib/bank-file. */}
           <Button
             variant="outline"
             onClick={() => setBankFileOpen(true)}
             disabled={!totals?.readyCount}
           >
-            <HugeiconsIcon icon={Download04Icon} strokeWidth={1.5} className="size-4" />
-            Bank GIRO file
+            CSV for bank
           </Button>
         </div>
       </PageHeader>
@@ -452,7 +437,7 @@ function BankFileDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Download bank GIRO file</DialogTitle>
+          <DialogTitle>Download CSV for bank</DialogTitle>
           <DialogDescription>
             The OCBC bulk salary file for everyone ready to pay by bank transfer. Upload it,
             then tick the shifts off here once it has gone through.
