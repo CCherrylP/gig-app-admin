@@ -39,6 +39,9 @@ export interface AdminCounts {
   postReports?: number;
   /** Candidate ID documents waiting for a check. Missing on an older API. */
   identity?: number;
+  /** Shifts past the 7-day deadline, not paid because the selfie needs a check.
+   *  Missing on an older API. */
+  unpaidReviewCount?: number;
 }
 
 export function adminCounts() {

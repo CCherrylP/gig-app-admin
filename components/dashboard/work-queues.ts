@@ -30,6 +30,8 @@ export interface WorkQueue {
    *  plural belongs on the noun and not at the end, and a rule that appends
    *  would write "inboxs". */
   arrival: { one: string; many: string };
+  /** Set when this pile is already counted inside another queue, so the total skips it. */
+  partOf?: keyof AdminCounts;
 }
 
 /** One plain line under each queue, keyed by the count it badges. Separate from
@@ -70,6 +72,13 @@ const NOTES: Partial<
     note: "Posts somebody reported.",
     arrival: { one: "new reported post", many: "new reported posts" },
   },
+  unpaidReviewCount: {
+    note: "Shifts not paid yet because the selfie needs a check.",
+    arrival: {
+      one: "shift waiting for a selfie check before pay",
+      many: "shifts waiting for a selfie check before pay",
+    },
+  },
   support: {
     note: "Questions from candidates and employers.",
     arrival: {
@@ -90,6 +99,15 @@ export const WORK_QUEUES: WorkQueue[] = [
     arrival: NOTES[tab.count]?.arrival ?? UNKNOWN,
   })),
   {
+    // Also in the Clock-ins count, but shown apart because unpaid wages are the urgent part.
+    label: "Unpaid shifts to check",
+    count: "unpaidReviewCount",
+    partOf: "attendance",
+    url: "/dashboard/attendance?filter=unpaid",
+    note: NOTES.unpaidReviewCount?.note ?? "",
+    arrival: NOTES.unpaidReviewCount?.arrival ?? UNKNOWN,
+  },
+  {
     label: "Inbox",
     // ONE ROW FOR BOTH INBOXES, on `support` rather than the two split counts
     // beside it. The split exists for the inbox's own tabs; using it here as well
@@ -104,7 +122,10 @@ export const WORK_QUEUES: WorkQueue[] = [
 
 /** Everything waiting on staff, across every queue. */
 export const workTotal = (counts?: AdminCounts) =>
-  WORK_QUEUES.reduce((sum, queue) => sum + (counts?.[queue.count] ?? 0), 0);
+  WORK_QUEUES.reduce(
+    (sum, queue) => (queue.partOf ? sum : sum + (counts?.[queue.count] ?? 0)),
+    0,
+  );
 
 /** The first queue with something in it, for a button that should land on work
  *  rather than on an empty page. Falls back to the to-do list itself. */

@@ -48,7 +48,7 @@ import { cn } from "@/lib/utils";
 // is certificates" once and stops reading labels.
 
 const lookOf = (queue: WorkQueue): SectionLook =>
-  (LOOKS as Record<string, SectionLook>)[queue.count] ?? LOOKS.support;
+  (LOOKS as Record<string, SectionLook>)[queue.partOf ?? queue.count] ?? LOOKS.support;
 
 /** The first word of a name, for a greeting rather than a form letter. */
 const firstName = (name: string) => name.trim().split(/\s+/)[0] ?? "";
