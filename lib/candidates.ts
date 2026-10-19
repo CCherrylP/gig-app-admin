@@ -6,10 +6,8 @@ import { fetchWithAuth } from "./api";
 // TWO things here are writable, and both are the other half of a rule the API
 // enforces rather than directory features that crept in.
 //
-//   the suspension  a no-show, or a third late cancellation, blocks booking with
-//                   no end date "pending a human decision" — lib/penalty says so
-//                   and deliberately refuses to make it automatic. This is where
-//                   that human decides.
+//   the suspension  a no-show, or a fourth late cancellation (a ban), blocks
+//                   booking with no end date. This is where staff lift it.
 //   the hours cap   the platform's own limits live on Platform config and are
 //                   right for almost everybody. This is for a cap that is a FACT
 //                   ABOUT ONE PERSON: a student pass allows 16 hours a week

@@ -596,7 +596,7 @@ function AccountAppealRow({
           {/* THE PATTERN, which is what this decision is actually about. */}
           <span
             className={
-              appeal.strikes > 2
+              appeal.strikes > 3
                 ? "truncate text-xs font-medium text-amber-600 dark:text-amber-400"
                 : "truncate text-xs font-medium"
             }
@@ -803,7 +803,7 @@ function DecisionDialog({
                 .{" "}
                 {waiving
                   ? "The late cancellation stops counting against them."
-                  : "The rating drop stands."}{" "}
+                  : "The restriction stands and still counts."}{" "}
                 There is one appeal per withdrawal, so this cannot be re-filed
                 and it cannot be set back to pending.
               </>
