@@ -72,7 +72,9 @@ export function LoginForm({
       cacheUser(who);
       setMe(who);
 
-      const step = await nextMfaStep();
+      const forced =
+        new URLSearchParams(window.location.search).get("mfa") === "1";
+      const step = await nextMfaStep(forced);
       if (step.kind === "done") return enterDashboard(who);
       if (step.kind === "verify") return setStage(step);
       setStage({ kind: "enrol", enrolment: await startEnrolment() });
@@ -181,12 +183,15 @@ export function LoginForm({
               <FieldGroup>
                 {stage.kind === "enrol" && (
                   <Field>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={stage.enrolment.qrSrc}
-                      alt="QR code for your authenticator app"
-                      className="mx-auto size-44 rounded-lg bg-white p-2 md:mx-0"
-                    />
+                    {/* Wrapped so Field's *:w-full stretches the div, not the image. */}
+                    <div>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={stage.enrolment.qrSrc}
+                        alt="QR code for your authenticator app"
+                        className="mx-auto size-44 rounded-lg bg-white object-contain p-2 md:mx-0"
+                      />
+                    </div>
                     <FieldDescription>
                       Can&apos;t scan it? Enter this key instead:
                     </FieldDescription>
