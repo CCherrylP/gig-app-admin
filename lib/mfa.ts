@@ -11,14 +11,20 @@ export type MfaStep =
 /** Where to send someone the API refused with MFA_REQUIRED, or who is still aal1. */
 export const MFA_PATH = "/login?mfa=1";
 
+/** "1" makes the dashboard ask for a code on every login. Off by default, to match
+ *  the API's ADMIN_REQUIRE_MFA. If the API asks anyway, it sends people to MFA_PATH. */
+export const MFA_ON = process.env.NEXT_PUBLIC_ADMIN_REQUIRE_MFA === "1";
+
 /** True when this session has passed a two-factor check. */
 export async function hasAal2(): Promise<boolean> {
   const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
   return !error && data?.currentLevel === "aal2";
 }
 
-/** Work out the next step from the session's level and the user's verified factors. */
-export async function nextMfaStep(): Promise<MfaStep> {
+/** Work out the next step from the session's level and the user's verified factors.
+ *  `forced` is true when the API refused with MFA_REQUIRED, even with MFA_ON off. */
+export async function nextMfaStep(forced = false): Promise<MfaStep> {
+  if (!MFA_ON && !forced) return { kind: "done" };
   if (await hasAal2()) return { kind: "done" };
 
   const { data, error } = await supabase.auth.mfa.listFactors();

@@ -10,7 +10,7 @@ import {
   signOut,
 } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
-import { hasAal2, MFA_PATH } from "@/lib/mfa";
+import { hasAal2, MFA_ON, MFA_PATH } from "@/lib/mfa";
 import { Button } from "@/components/ui/button";
 
 /// Nothing behind this renders until the API has confirmed the account is staff.
@@ -47,8 +47,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       try {
         const me = await fetchMe(token);
         cacheUser(me);
-        // Staff also need a two-factor login. Keep the session; just ask for the code.
-        if (!(await hasAal2())) {
+        // With MFA_ON, staff also need a two-factor login. Keep the session; just ask for the code.
+        if (MFA_ON && !(await hasAal2())) {
           if (!cancelled) window.location.replace(MFA_PATH);
           return;
         }
