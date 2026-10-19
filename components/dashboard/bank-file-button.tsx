@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { BankIcon } from "@hugeicons/core-free-icons";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -15,30 +16,59 @@ import {
 import {
   bankFilePlan,
   downloadBankFile,
+  exportedBefore,
   lastBankFileDownload,
   nextWorkingDay,
+  rowIdsFor,
+  stampBankExport,
   valueDateProblem,
 } from "@/lib/bank-file";
 import { money } from "@/lib/format";
 import type { PayrollRow } from "@/lib/reports";
 
-/** THE BANK UPLOAD FILE, on both payroll pages. The filled button in the row,
- *  because it is the one export that ends in money moving.
- *
- *  Behind a dialog rather than straight off the button. Two things have to be
- *  seen before it downloads: the value date, which is in the file and decides
- *  when the money lands, and who is NOT in it — PayNow people and anyone
- *  without a usable bank still need paying by hand, and a file that silently
- *  drops them is how somebody gets missed. */
+/** "Already exported by Siti at 18 Oct, 14:05" for one person's earlier rows. */
+const exportedLine = (rows: PayrollRow[]) => {
+  const latest = rows.reduce<PayrollRow | null>(
+    (best, row) => (!best || (row.bankExportedAt ?? "") > (best.bankExportedAt ?? "") ? row : best),
+    null,
+  );
+  const at = latest?.bankExportedAt
+    ? new Date(latest.bankExportedAt).toLocaleString("en-SG", { timeZone: "Asia/Singapore" })
+    : "an earlier time";
+  return `Already exported by ${latest?.bankExportedByName ?? "another admin"} at ${at}`;
+};
+
+/** Earlier-exported rows, one entry per person. */
+const exportedPeople = (rows: PayrollRow[]) => {
+  const byPerson = new Map<string, PayrollRow[]>();
+  for (const row of exportedBefore(rows)) {
+    byPerson.set(row.candidateId, [...(byPerson.get(row.candidateId) ?? []), row]);
+  }
+  return [...byPerson.entries()].map(([candidateId, list]) => ({
+    candidateId,
+    name: list[0]?.candidateName ?? "Unnamed candidate",
+    cents: list.reduce((sum, row) => sum + (row.amountCents ?? 0), 0),
+    line: exportedLine(list),
+  }));
+};
+
+/** THE BANK UPLOAD FILE, on both payroll pages. Behind a dialog so the value
+ *  date and who is NOT in the file are seen before money moves. */
 export function BankFileButton({ rows }: { rows: PayrollRow[] }) {
   const [open, setOpen] = useState(false);
   const [valueDate, setValueDate] = useState("");
   const [last, setLast] = useState<ReturnType<typeof lastBankFileDownload>>(null);
   const [understood, setUnderstood] = useState(false);
+  const [again, setAgain] = useState(false);
+  const [busy, setBusy] = useState(false);
 
-  const plan = useMemo(() => bankFilePlan(rows), [rows]);
+  // Rows an earlier file had are left out unless "Export again" is ticked.
+  const fresh = useMemo(() => rows.filter((row) => !row.bankExportedAt), [rows]);
+  const earlier = useMemo(() => exportedPeople(rows), [rows]);
+  const plan = useMemo(() => bankFilePlan(again ? rows : fresh), [again, rows, fresh]);
   const total = plan.lines.reduce((sum, line) => sum + line.cents, 0);
-  const anyReady = plan.lines.length + plan.skipped.length > 0;
+  const everyone = useMemo(() => bankFilePlan(rows), [rows]);
+  const anyReady = everyone.lines.length + everyone.skipped.length > 0;
   const dateProblem = valueDate ? valueDateProblem(valueDate) : null;
 
   // The default date and the last download are read when the dialog opens, not when the page loads.
@@ -46,7 +76,37 @@ export function BankFileButton({ rows }: { rows: PayrollRow[] }) {
     setValueDate(nextWorkingDay());
     setLast(lastBankFileDownload());
     setUnderstood(false);
+    setAgain(false);
     setOpen(true);
+  };
+
+  // The server stamps the rows first and says which ones this file may pay.
+  const download = async () => {
+    setBusy(true);
+    try {
+      const ids = rowIdsFor(again ? rows : fresh, plan.lines);
+      const answer = await stampBankExport(ids, again);
+      const final = bankFilePlan(answer.rows);
+
+      if (!again && answer.alreadyExported.length > 0) {
+        toast.warning(
+          `${exportedPeople(answer.alreadyExported).length} left out. Another admin exported them a moment ago.`,
+        );
+      }
+
+      if (final.lines.length === 0) {
+        toast.error("Nobody left to put in the file. Reload the page to see who was exported.");
+        return;
+      }
+
+      downloadBankFile(final.lines, valueDate);
+      if (again) toast.warning("This file includes people from an earlier file. Upload only one of them.");
+      setOpen(false);
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : "Could not prepare the bank file.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -89,6 +149,34 @@ export function BankFileButton({ rows }: { rows: PayrollRow[] }) {
             </div>
           </div>
 
+          {earlier.length > 0 && (
+            <div className="space-y-1.5 rounded-md border border-destructive/40 p-3 text-sm">
+              <div className="font-medium text-destructive">
+                {earlier.length} already in an earlier file{again ? "" : ", left out"}.
+              </div>
+              {earlier.map((person) => (
+                <div
+                  key={person.candidateId}
+                  className="flex items-center justify-between gap-4 text-xs"
+                >
+                  <span>
+                    {person.name}
+                    <span className="text-muted-foreground"> · {person.line}</span>
+                  </span>
+                  <span className="tabular-nums">{money(person.cents)}</span>
+                </div>
+              ))}
+              <label className="flex items-center gap-2 pt-1 text-xs">
+                <input
+                  type="checkbox"
+                  checked={again}
+                  onChange={(event) => setAgain(event.target.checked)}
+                />
+                Export again. Only if the earlier file was never uploaded.
+              </label>
+            </div>
+          )}
+
           {plan.skipped.length > 0 && (
             <div className="space-y-1.5 rounded-md border border-amber-300 p-3 text-sm dark:border-amber-800">
               <div className="font-medium text-amber-700 dark:text-amber-300">
@@ -114,8 +202,7 @@ export function BankFileButton({ rows }: { rows: PayrollRow[] }) {
               Downloading twice pays twice.
             </p>
             <p className="text-xs text-muted-foreground">
-              Everyone ready goes in every file until you mark them paid. If you already
-              uploaded a file, mark those people paid before you download another.
+              Each person goes in one file only. Mark them paid once the upload has gone through.
             </p>
             <p className="text-xs">
               {last
@@ -137,14 +224,17 @@ export function BankFileButton({ rows }: { rows: PayrollRow[] }) {
               Cancel
             </Button>
             <Button
-              disabled={plan.lines.length === 0 || !valueDate || Boolean(dateProblem) || !understood}
-              onClick={() => {
-                downloadBankFile(plan.lines, valueDate);
-                setOpen(false);
-              }}
+              disabled={
+                busy ||
+                plan.lines.length === 0 ||
+                !valueDate ||
+                Boolean(dateProblem) ||
+                !understood
+              }
+              onClick={download}
             >
               <HugeiconsIcon icon={BankIcon} strokeWidth={1.5} className="size-4" />
-              Download
+              {busy ? "Preparing…" : again ? "Export again" : "Download"}
             </Button>
           </div>
         </DialogContent>

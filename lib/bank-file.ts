@@ -1,3 +1,4 @@
+import { fetchWithAuth } from "./api";
 import {
   addDays,
   byCandidate,
@@ -6,6 +7,34 @@ import {
   type PayoutVerification,
   type PayrollRow,
 } from "./reports";
+
+/** What the server says the file may pay. Shapes match gig-app-api contract/reports.ts. */
+export interface BankExportResponse {
+  /** The rows to build the file from. Only newly stamped ones, unless `again`. */
+  rows: PayrollRow[];
+  /** Ready rows an earlier file already had. */
+  alreadyExported: PayrollRow[];
+}
+
+/** Stamp these rows as exported on the server, and get back the ones this file may pay. */
+export function stampBankExport(applicationIds: string[], again = false) {
+  return fetchWithAuth<BankExportResponse>("/admin/reports/payroll/bank-export", {
+    method: "POST",
+    body: JSON.stringify({ applicationIds, again }),
+  });
+}
+
+/** Ready rows that an earlier bank file already had. */
+export const exportedBefore = (rows: PayrollRow[]) =>
+  rows.filter((row) => row.status === "ready" && Boolean(row.bankExportedAt));
+
+/** The ready rows behind the people in a file, which is what the server stamps. */
+export const rowIdsFor = (rows: PayrollRow[], lines: BankFileLine[]) => {
+  const people = new Set(lines.map((line) => line.candidateId));
+  return rows
+    .filter((row) => row.status === "ready" && people.has(row.candidateId))
+    .map((row) => row.applicationId);
+};
 
 /** Why an unchecked account is left out of the file. */
 const NOT_VERIFIED: Partial<Record<PayoutVerification, string>> = {

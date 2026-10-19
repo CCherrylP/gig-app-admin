@@ -76,6 +76,9 @@ export interface PayrollRow {
   status: PayrollStatus;
   approvedAt: string | null;
   paidAt: string | null;
+  /** When this row first went into a bank file, and who downloaded it. Missing on an older API. */
+  bankExportedAt?: string | null;
+  bankExportedByName?: string | null;
 }
 
 /** Counts are shifts only. Cents include referral bonuses. */
