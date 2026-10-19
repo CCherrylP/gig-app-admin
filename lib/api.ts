@@ -1,4 +1,5 @@
 import { getAccessToken, signOut } from "./auth";
+import { MFA_PATH } from "./mfa";
 
 // Every call to gig-app-api goes through here.
 //
@@ -65,7 +66,16 @@ export async function fetchWithAuth<T>(
   // 401 is a dead session. 403 is an account that is not staff — including one
   // whose admin has just been taken away, which is the case the API's
   // read-the-role-off-the-row rule exists to make immediate. Both end here.
-  if (res.status === 401 || res.status === 403) return endSession();
+  // Except MFA_REQUIRED: the account is fine, it just needs a two-factor code.
+  if (res.status === 403) {
+    const error = await errorFrom(res);
+    if (error.code === "MFA_REQUIRED") {
+      window.location.replace(MFA_PATH);
+      throw error;
+    }
+    return endSession();
+  }
+  if (res.status === 401) return endSession();
 
   if (!res.ok) throw await errorFrom(res);
 

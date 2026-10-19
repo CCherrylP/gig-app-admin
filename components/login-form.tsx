@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,8 +27,23 @@ import {
   authFailureMessage,
   cacheUser,
   fetchMe,
+  getAccessToken,
   signOut,
+  type Me,
 } from "@/lib/auth";
+import {
+  nextMfaStep,
+  startEnrolment,
+  verifyCode,
+  type Enrolment,
+} from "@/lib/mfa";
+
+/** Which screen the card shows. Two-factor comes after the password and staff check. */
+type Stage =
+  | { kind: "password" }
+  | { kind: "checking" }
+  | { kind: "enrol"; enrolment: Enrolment }
+  | { kind: "verify"; factorId: string };
 
 export function LoginForm({
   className,
@@ -37,20 +52,63 @@ export function LoginForm({
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [stage, setStage] = useState<Stage>({ kind: "password" });
+  const [me, setMe] = useState<Me | null>(null);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+
+  const enterDashboard = (who: Me | null) => {
+    toast.success(`Welcome back${who?.name ? `, ${who.name}` : ""}!`);
+    router.replace("/dashboard");
+  };
+
+  /** Check the account is staff, then send it to the right two-factor screen.
+   *  Only "not staff" or a dead session ends the session; a network fault keeps it. */
+  const continueSignedIn = async (token: string) => {
+    try {
+      const who = await fetchMe(token);
+      cacheUser(who);
+      setMe(who);
+
+      const step = await nextMfaStep();
+      if (step.kind === "done") return enterDashboard(who);
+      if (step.kind === "verify") return setStage(step);
+      setStage({ kind: "enrol", enrolment: await startEnrolment() });
+    } catch (error) {
+      const reason = error instanceof AuthCheckError ? error.reason : null;
+      if (reason === "not-staff" || reason === "session") await signOut();
+      toast.error(
+        error instanceof AuthCheckError
+          ? authFailureMessage(error)
+          : "Could not start two-factor login. Try again.",
+      );
+      setStage({ kind: "password" });
+    }
+  };
+
+  // Pick up a saved session, unless we were just sent here after a sign-out.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("r") === "1") return;
+    let cancelled = false;
+    (async () => {
+      const token = await getAccessToken();
+      if (!token || cancelled) return;
+      setStage({ kind: "checking" });
+      await continueSignedIn(token);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Two steps, and both have to pass.
-    //
-    // Supabase says who this is; the API says whether they are staff. Signing in
-    // is not authorisation here — every account in the app authenticates against
-    // the same project, so a candidate's password works perfectly well and must
-    // still not open this dashboard.
+    // Supabase says who this is; the API says whether they are staff.
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -62,26 +120,127 @@ export function LoginForm({
       return;
     }
 
-    try {
-      const me = await fetchMe(data.session.access_token);
-      cacheUser(me);
-      toast.success(`Welcome back${me.name ? `, ${me.name}` : ""}!`);
-      router.replace("/dashboard");
-    } catch (error) {
-      // WHICH failure decides both the sentence and what happens to the
-      // session. Only "not staff" is a reason to sign somebody out — an API
-      // that is down says nothing about whether this account is allowed in, and
-      // throwing away a good session over it means they have to type their
-      // password again for a problem on the other end of the wire.
-      const reason = error instanceof AuthCheckError ? error.reason : "server";
-
-      if (reason === "not-staff" || reason === "session") await signOut();
-
-      toast.error(authFailureMessage(error));
-    } finally {
-      setIsLoading(false);
-    }
+    await continueSignedIn(data.session.access_token);
+    setIsLoading(false);
   };
+
+  const handleCode = async (e: React.SyntheticEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (stage.kind !== "enrol" && stage.kind !== "verify") return;
+
+    const factorId =
+      stage.kind === "enrol" ? stage.enrolment.factorId : stage.factorId;
+
+    setIsLoading(true);
+    const ok = await verifyCode(factorId, code.trim());
+    setIsLoading(false);
+
+    if (!ok) {
+      setCode("");
+      toast.error("That code did not work. Try again.");
+      return;
+    }
+    enterDashboard(me);
+  };
+
+  const useAnotherAccount = async () => {
+    await signOut();
+    setCode("");
+    setPassword("");
+    setStage({ kind: "password" });
+  };
+
+  if (stage.kind === "checking") {
+    return (
+      <div className={cn("flex flex-col gap-6", className)} {...props}>
+        <p className="text-center text-sm text-muted-foreground">
+          Checking your account...
+        </p>
+      </div>
+    );
+  }
+
+  if (stage.kind === "enrol" || stage.kind === "verify") {
+    const enrolling = stage.kind === "enrol";
+
+    return (
+      <div className={cn("flex flex-col gap-6", className)} {...props}>
+        <Card className="ring-0!">
+          <CardHeader className="text-center md:text-left">
+            <CardTitle className="text-3xl font-semibold">
+              {enrolling ? "Set up two-factor login" : "Enter your code"}
+            </CardTitle>
+            <CardDescription className="max-w-sm mx-auto md:mx-0">
+              {enrolling
+                ? "Scan this QR code with an authenticator app, such as Google Authenticator or 1Password. Then enter the 6-digit code it shows."
+                : "Open your authenticator app and enter the 6-digit code for AdHoc Admin."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form className="space-y-6" onSubmit={handleCode}>
+              <FieldGroup>
+                {stage.kind === "enrol" && (
+                  <Field>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={stage.enrolment.qrSrc}
+                      alt="QR code for your authenticator app"
+                      className="mx-auto size-44 rounded-lg bg-white p-2 md:mx-0"
+                    />
+                    <FieldDescription>
+                      Can&apos;t scan it? Enter this key instead:
+                    </FieldDescription>
+                    <code className="block break-all rounded-md bg-muted px-3 py-2 font-mono text-sm select-all">
+                      {stage.enrolment.secret}
+                    </code>
+                  </Field>
+                )}
+                <Field>
+                  <FieldLabel htmlFor="code">6-digit code</FieldLabel>
+                  <Input
+                    id="code"
+                    name="code"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    pattern="[0-9]{6}"
+                    maxLength={6}
+                    placeholder="123456"
+                    required
+                    autoFocus
+                    value={code}
+                    onChange={(e) =>
+                      setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                    }
+                  />
+                </Field>
+                <Field className="mt-1">
+                  <Button
+                    type="submit"
+                    size="lg"
+                    className="w-full"
+                    disabled={isLoading || code.length !== 6}
+                  >
+                    {isLoading ? "Checking..." : enrolling ? "Turn on" : "Verify"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full"
+                    onClick={useAnotherAccount}
+                  >
+                    Use another account
+                  </Button>
+                </Field>
+              </FieldGroup>
+            </form>
+          </CardContent>
+        </Card>
+        <FieldDescription className="px-3 text-center text-sm">
+          Lost your authenticator? Ask another admin to reset it.
+        </FieldDescription>
+      </div>
+    );
+  }
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
@@ -154,8 +313,8 @@ export function LoginForm({
         </CardContent>
       </Card>
       <FieldDescription className="px-3 text-center text-sm">
-        Staff accounts only. There is no sign-up — admin is granted directly on
-        the account.
+        Staff accounts only. There is no sign-up. Admin access is granted
+        directly on the account.
       </FieldDescription>
     </div>
   );

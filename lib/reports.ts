@@ -1,6 +1,7 @@
 import { fetchWithAuth } from "./api";
 import { getAccessToken } from "./auth";
 import { csvCell } from "./csv";
+import { MFA_PATH } from "./mfa";
 
 // The two money reports.
 //
@@ -606,6 +607,10 @@ export async function downloadPayrollXlsx(range: DateRange, company?: string) {
     { headers: { Authorization: `Bearer ${token}` } },
   );
 
+  if (res.status === 403) {
+    const body = (await res.json().catch(() => null)) as { code?: string } | null;
+    if (body?.code === "MFA_REQUIRED") window.location.replace(MFA_PATH);
+  }
   if (!res.ok) throw new Error("Could not build the spreadsheet");
 
   saveBlob(`adhoc-payroll-${rangeLabel(range)}.xlsx`, await res.blob());

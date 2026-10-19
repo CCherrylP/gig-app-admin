@@ -1,14 +1,13 @@
 "use client";
 
 import { Suspense, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { LoginForm } from "@/components/login-form";
 import Logo from "@/components/common/Logo";
-import { getAccessToken } from "@/lib/auth";
 
+// A saved session is picked up by LoginForm, which also asks for the two-factor code.
 function LoginRedirectHandler() {
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
@@ -16,22 +15,6 @@ function LoginRedirectHandler() {
       toast.error("You must be signed in as staff to access the dashboard");
     }
   }, [searchParams]);
-
-  useEffect(() => {
-    // Only skip the form when Supabase still holds a session. Whether it belongs
-    // to staff is the dashboard's AuthGuard to decide — it asks the API, and
-    // this screen must not answer that question from a cached role.
-    let cancelled = false;
-    (async () => {
-      if (searchParams.get("r") === "1") return;
-      const token = await getAccessToken();
-      if (token && !cancelled) router.replace("/dashboard");
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   return null;
 }
