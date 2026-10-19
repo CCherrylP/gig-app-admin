@@ -18,6 +18,7 @@ export type AttendanceFilter =
   | "unapproved"
   | "upcoming"
   | "reviewed"
+  | "unpaid"
   | "all";
 
 export interface AttendanceRecord {
@@ -63,6 +64,9 @@ export interface AttendanceRecord {
    *  what is owed. */
   scheduledMinutes: number;
   payPerHourCents: number;
+  /** Past the 7-day sign-off deadline but not paid, because the check-in still
+   *  needs our check. Missing on an older API. */
+  heldForReview?: boolean;
 }
 
 export interface AttendanceResponse {
@@ -76,6 +80,8 @@ export interface AttendanceResponse {
   upcomingCount: number;
   /** Clocked out at both ends, still waiting on the employer's sign-off. */
   unapprovedCount: number;
+  /** Shifts held for a selfie check, the `unpaid` filter. Missing on an older API. */
+  unpaidCount?: number;
 }
 
 /** When a shift actually finishes, overnight included.
@@ -167,6 +173,15 @@ export function releaseWages(
         minutes === undefined ? { reason } : { reason, minutes },
       ),
     },
+  );
+}
+
+/** Approve a held selfie and pay the full booked hours. Only for a pending
+ *  check-in past the 7-day deadline; the API refuses anything else. */
+export function approveAndPay(applicationId: string) {
+  return fetchWithAuth<AttendanceResponse>(
+    `/admin/attendance/${applicationId}/approve-and-pay`,
+    { method: "PATCH" },
   );
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { ReviewTabs } from "@/components/dashboard/review-tabs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -39,6 +40,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   GEOFENCE_M,
+  approveAndPay,
   clockOf,
   formatHours,
   lateness,
@@ -66,6 +68,7 @@ import { date, money, relative } from "@/lib/format";
 const FILTERS: { value: AttendanceFilter; label: string }[] = [
   { value: "all", label: "All" },
   { value: "attention", label: "Needs a look" },
+  { value: "unpaid", label: "Not paid" },
   { value: "missing", label: "Missing clock in/out" },
   { value: "unapproved", label: "Waiting on employer" },
   { value: "upcoming", label: "Not started yet" },
@@ -83,7 +86,11 @@ const EMPTY: Record<AttendanceFilter, string> = {
   unapproved: "No finished shift is waiting on an employer to approve it.",
   upcoming: "Nothing booked that has not already run.",
   reviewed: "No selfie check-in has been decided yet.",
+  unpaid: "No shift is waiting on a selfie check before pay.",
 };
+
+const isFilter = (value: string | null): value is AttendanceFilter =>
+  FILTERS.some((f) => f.value === value);
 
 const REVIEW_STYLES: Record<string, string> = {
   PENDING: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
@@ -91,11 +98,35 @@ const REVIEW_STYLES: Record<string, string> = {
   REJECTED: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
 };
 
+/** Suspense is required: reading `useSearchParams` on a static page fails the
+ *  production build without one. */
 export default function AttendancePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="p-6">
+          <TableSkeleton />
+        </div>
+      }
+    >
+      <AttendanceRoute />
+    </Suspense>
+  );
+}
+
+/** Keyed on ?filter= so a bell link opened from this page starts on that tab. */
+function AttendanceRoute() {
+  const param = useSearchParams().get("filter");
+  const initial = isFilter(param) ? param : "all";
+  return <AttendanceQueue key={initial} initial={initial} />;
+}
+
+function AttendanceQueue({ initial }: { initial: AttendanceFilter }) {
   const queryClient = useQueryClient();
-  const [filter, setFilter] = useState<AttendanceFilter>("all");
+  const [filter, setFilter] = useState<AttendanceFilter>(initial);
   const [search, setSearch] = useState("");
   const [releasing, setReleasing] = useState<AttendanceRecord | null>(null);
+  const [paying, setPaying] = useState<AttendanceRecord | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["attendance", filter],
@@ -148,6 +179,20 @@ export default function AttendancePage() {
       // ALREADY_APPROVED is the one that matters: two admins on the same row,
       // and the API refuses the second rather than paying twice.
       toast.error(error.message || "Could not release those hours");
+      queryClient.invalidateQueries({ queryKey: ["attendance"] });
+    },
+  });
+
+  const pay = useMutation({
+    mutationFn: (applicationId: string) => approveAndPay(applicationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["attendance"] });
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      setPaying(null);
+      toast.success("Selfie approved and shift paid. The candidate and employer have been told.");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Could not pay this shift");
       queryClient.invalidateQueries({ queryKey: ["attendance"] });
     },
   });
@@ -205,6 +250,8 @@ export default function AttendancePage() {
                 ? data?.missingCount
                 : f.value === "unapproved"
                   ? data?.unapprovedCount
+                  : f.value === "unpaid"
+                  ? data?.unpaidCount
                   : f.value === "upcoming"
                     ? data?.upcomingCount
                     : undefined,
@@ -257,6 +304,7 @@ export default function AttendancePage() {
                     })
                   }
                   onRelease={() => setReleasing(record)}
+                  onPay={() => setPaying(record)}
                 />
               ))}
             </TableShell>
@@ -279,7 +327,73 @@ export default function AttendancePage() {
         }
         isPending={release.isPending}
       />
+
+      <PayDialog
+        record={paying}
+        onOpenChange={(open) => {
+          if (!open) setPaying(null);
+        }}
+        onConfirm={() => paying && pay.mutate(paying.applicationId)}
+        isPending={pay.isPending}
+      />
     </div>
+  );
+}
+
+/** Confirms approving a held selfie and paying the booked hours in full. */
+function PayDialog({
+  record,
+  onOpenChange,
+  onConfirm,
+  isPending,
+}: {
+  record: AttendanceRecord | null;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => void;
+  isPending: boolean;
+}) {
+  const amount = record ? wagesFor(record.scheduledMinutes, record.payPerHourCents) : 0;
+
+  return (
+    <Dialog open={!!record} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Approve and pay this shift</DialogTitle>
+          <DialogDescription>
+            {record && (
+              <>
+                This approves the selfie and pays{" "}
+                <span className="font-medium text-foreground">
+                  {record.candidateName ?? "this candidate"}
+                </span>{" "}
+                for their {record.roleName} shift on {date(record.shiftOnDate)},{" "}
+                {record.scheduledStart}–{record.scheduledEnd}. The booked{" "}
+                <span className="font-medium text-foreground">
+                  {formatHours(record.scheduledMinutes)}
+                </span>{" "}
+                will be paid in full,{" "}
+                <span className="font-medium text-foreground">{money(amount)}</span>. The
+                candidate and employer are told, and this cannot be undone.
+              </>
+            )}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex items-center justify-end gap-2 border-t px-6 py-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onOpenChange(false)}
+            disabled={isPending}
+          >
+            Back
+          </Button>
+          <Button size="sm" disabled={isPending} onClick={onConfirm}>
+            {isPending ? "Paying…" : `Approve and pay ${money(amount)}`}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -508,13 +622,18 @@ function AttendanceRow({
   onOpenPhoto,
   onReview,
   onRelease,
+  onPay,
 }: {
   record: AttendanceRecord;
   onOpenPhoto: (which: "in" | "out") => void;
   onReview: (review: "approved" | "rejected") => void;
   onRelease: () => void;
+  onPay: () => void;
 }) {
   const name = record.candidateName ?? "Unnamed candidate";
+  // Past the 7-day deadline, and the sweep will not pay it until we check the selfie.
+  const held = record.heldForReview === true;
+  const payable = held && record.checkInReview === "pending";
 
   // HAS IT EVEN RUN? The row can be a booking for next week — the `all` tab
   // lists those, and so does `upcoming` — and nothing about the clock means
@@ -533,7 +652,7 @@ function AttendanceRow({
     ended && !record.approvedAt && (!record.checkInAt || !record.clockOutAt);
   // Fully clocked, but the employer has not signed it off.
   const waitingOnEmployer =
-    ended && !record.approvedAt && !missingClock && record.status === "completed";
+    ended && !record.approvedAt && !missingClock && record.status === "completed" && !payable;
   const late = lateness(record.minutesLate);
   // Beyond the geofence is the one automatic signal on a route with no
   // supervisor in it, so it is called out rather than left as a number.
@@ -672,13 +791,21 @@ function AttendanceRow({
       </td>
 
       <td className="px-4 py-3">
-        {record.checkInReview ? (
-          <StatusPill status={record.checkInReview} styles={REVIEW_STYLES} />
-        ) : (
-          // Null is not "unreviewed" — it is "nothing to review". A supervisor
-          // scanned, and there is no photograph for staff to judge.
-          <span className="text-xs text-muted-foreground">Vouched</span>
-        )}
+        <div className="flex flex-col items-start gap-1">
+          {record.checkInReview ? (
+            <StatusPill status={record.checkInReview} styles={REVIEW_STYLES} />
+          ) : (
+            // Null is not "unreviewed" — it is "nothing to review". A supervisor
+            // scanned, and there is no photograph for staff to judge.
+            <span className="text-xs text-muted-foreground">Vouched</span>
+          )}
+          {held && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400">
+              <HugeiconsIcon icon={Alert02Icon} size={12} strokeWidth={2} />
+              Not paid yet
+            </span>
+          )}
+        </div>
       </td>
 
       <td className="px-4 py-3">
@@ -693,10 +820,17 @@ function AttendanceRow({
                 <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
                 Reject
               </Button>
-              <Button size="xs" onClick={() => onReview("approved")}>
-                <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} />
-                Accept
-              </Button>
+              {payable ? (
+                <Button size="xs" onClick={onPay}>
+                  <HugeiconsIcon icon={MoneyBag02Icon} strokeWidth={2} />
+                  Approve and pay
+                </Button>
+              ) : (
+                <Button size="xs" onClick={() => onReview("approved")}>
+                  <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} />
+                  Accept
+                </Button>
+              )}
             </>
           )}
           {missingClock && (

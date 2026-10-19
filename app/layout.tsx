@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { Geist, Geist_Mono, Nunito_Sans, Roboto } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
@@ -27,11 +28,13 @@ export const metadata: Metadata = {
   description: "Certificate reviews and invoice confirmations for AdHoc.",
 };
 
-export default function RootLayout({
+/** Rendered per request, so each page gets the CSP nonce set in proxy.ts. */
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  await connection();
   return (
     <html
       lang="en"
