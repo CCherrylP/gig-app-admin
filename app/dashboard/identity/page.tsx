@@ -55,12 +55,7 @@ import { cn } from "@/lib/utils";
 
 // Candidate ID documents. Approving one is what lets a candidate apply for shifts.
 //
-// WHAT A REVIEWER NEEDS, ALL IN ONE PLACE. A decision here is three questions —
-// is the card real and theirs (front, back), is it them (selfie against the card
-// photo), and is it the card they said it was (pink citizen or blue PR, against
-// the work status they declared). The row says how each stands; Review opens the
-// three photos side by side beside what was read off the card, so nobody is
-// juggling three browser tabs and the profile page to answer them.
+// Review shows the front, back and selfie side by side with what was read off the card.
 //
 // WHAT WAS READ is the candidate's own scan, kept by the API from the moment the
 // app showed it to them. The page only asks the API to read the photo itself for
@@ -78,8 +73,6 @@ const STYLES: Record<string, string> = {
   VERIFIED: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
   REJECTED: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
 };
-
-const CARD_LABEL = { singaporean: "Pink · Citizen", pr: "Blue · PR" } as const;
 
 /** The rejection to send when a photo the reviewer needs was never sent. */
 const RESEND_NOTE =
@@ -173,7 +166,7 @@ function IdentityQueue({ candidate }: { candidate: string }) {
       <ReviewTabs />
       <PageHeader
         title="ID checks"
-        description="Candidates send the front and back of their NRIC and a selfie. Check the face matches, and approve only pink (citizen) or blue (PR) cards. They can apply for shifts once approved."
+        description="Candidates send the front and back of their NRIC and a selfie. Check the face matches. They can apply for shifts once approved."
       >
         {!candidate && (
           <SearchInput
@@ -423,12 +416,6 @@ function CardSummary({ record, enabled }: { record: IdentityRecord; enabled: boo
           {card.dobMatches === false && " · birthday differs"}
         </span>
       )}
-      {card.cardType && (
-        <span className={cn("truncate", card.cardTypeMatches === false ? bad : "text-muted-foreground")}>
-          {CARD_LABEL[card.cardType]}
-          {card.cardTypeMatches === false && " · not what they declared"}
-        </span>
-      )}
       {record.back?.issued && (
         <span className="truncate text-muted-foreground">Issued {record.back.issued}</span>
       )}
@@ -608,8 +595,8 @@ function ReviewBody({
                 <Compare
                   label="Citizen / PR"
                   profile={declared ?? "Not answered"}
-                  card={card?.cardType ? CARD_LABEL[card.cardType] : null}
-                  matches={card?.cardTypeMatches}
+                  card=""
+                  matches={null}
                 />
                 <Compare
                   label="Back of card"
