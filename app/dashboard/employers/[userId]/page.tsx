@@ -12,6 +12,7 @@ import {
   CallIcon,
   Cancel01Icon,
   CheckmarkCircle02Icon,
+  Delete02Icon,
   Invoice01Icon,
   Mail01Icon,
   ReceiptIcon,
@@ -20,6 +21,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { ReferredByField, suggestedReferralCode } from "@/components/dashboard/referred-by-field";
+import { DeleteEmployerDialog } from "@/components/dashboard/delete-employer-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -40,6 +42,7 @@ import {
 import {
   createTopUp,
   decideEmployer,
+  deleteEmployer,
   listEmployers,
   setCompanyRole,
   updateEmployerDetails,
@@ -231,6 +234,18 @@ function Detail({
     },
     onError: (error: Error) =>
       toast.error(error.message || "Could not record that decision"),
+  });
+
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const remove = useMutation({
+    mutationFn: () => deleteEmployer(employer.userId),
+    onSuccess: () => {
+      setConfirmDelete(false);
+      toast.success(`${name} deleted`);
+      onDecided();
+    },
+    // The API's sentence says what to do, such as making someone else admin first.
+    onError: (error: Error) => toast.error(error.message || "Could not delete this employer"),
   });
 
   return (
@@ -479,7 +494,14 @@ function Detail({
 
       <CoinsAndPayments employer={employer} />
 
-      <DecisionBand employer={employer} decide={decide} />
+      <DecisionBand employer={employer} decide={decide} onDelete={() => setConfirmDelete(true)} />
+
+      <DeleteEmployerDialog
+        employer={confirmDelete ? { userId: employer.userId, name, companyName: employer.companyName } : null}
+        onOpenChange={setConfirmDelete}
+        onConfirm={() => remove.mutate()}
+        isPending={remove.isPending}
+      />
     </div>
   );
 }
@@ -735,8 +757,11 @@ function CoinsAndPayments({ employer }: { employer: EmployerReview }) {
 function DecisionBand({
   employer,
   decide,
+  onDelete,
 }: {
   employer: EmployerReview;
+  /** Opens the delete warning. Shown instead of Reject once they are approved. */
+  onDelete: () => void;
   decide: {
     mutate: (input: {
       status: "approved" | "rejected";
@@ -782,13 +807,18 @@ function DecisionBand({
           </p>
           <p className="max-w-prose text-xs text-muted-foreground">
             {approved
-              ? "They can post jobs and spend the company's coins. Rejecting takes that away immediately, the gate reads this on every request."
+              ? "They can post jobs and spend the company's coins. Deleting closes their login and removes them from the company."
               : "They can do nothing in the company's name until this is approved."}
           </p>
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          {employer.status !== "rejected" && (
+          {approved ? (
+            <Button variant="destructive" size="sm" onClick={onDelete}>
+              <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
+              Delete employer
+            </Button>
+          ) : employer.status !== "rejected" && (
             <Button
               variant="destructive"
               size="sm"

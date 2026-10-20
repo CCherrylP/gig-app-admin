@@ -133,6 +133,12 @@ export function setCompanyRole(userId: string, companyRole: "admin" | "member") 
   );
 }
 
+/** Delete one person at a company. The company keeps its jobs, coins and invoices.
+ *  The API refuses the last admin and a lone poster with booked shifts. */
+export function deleteEmployer(userId: string) {
+  return fetchWithAuth<{ deleted: true }>(`/admin/employers/${userId}`, { method: "DELETE" });
+}
+
 /** Mirrors MIN_COINS / MAX_COINS in the API's invoice controller and MIN_TOPUP
  *  in the app's data/coins. Change all three together. */
 export const MIN_TOPUP_COINS = 50_000;

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { ReviewTabs } from "@/components/dashboard/review-tabs";
 import { PeopleTabs } from "@/components/dashboard/section-tabs";
 import { ReferredByField, suggestedReferralCode } from "@/components/dashboard/referred-by-field";
+import { DeleteEmployerDialog } from "@/components/dashboard/delete-employer-dialog";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
@@ -13,6 +14,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import {
   BuildingIcon,
   Cancel01Icon,
+  Delete02Icon,
   CheckmarkCircle02Icon,
   ArrowRight01Icon,
 } from "@hugeicons/core-free-icons";
@@ -39,6 +41,7 @@ import {
 } from "@/components/dashboard/data-views";
 import {
   decideEmployer,
+  deleteEmployer,
   listEmployers,
   type EmployerFilter,
   type EmployerReview,
@@ -99,6 +102,18 @@ export default function EmployersPage() {
       // Nothing was saved, so a mistyped referral code can be fixed in place.
       queryClient.invalidateQueries({ queryKey: ["employers"] });
     },
+  });
+
+  const [deleting, setDeleting] = useState<EmployerReview | null>(null);
+  const remove = useMutation({
+    mutationFn: (employer: EmployerReview) => deleteEmployer(employer.userId),
+    onSuccess: (_result, employer) => {
+      queryClient.invalidateQueries({ queryKey: ["employers"] });
+      setDeleting(null);
+      toast.success(`${employer.name ?? "Employer"} deleted`);
+    },
+    // The API's sentence says what to do, such as making someone else admin first.
+    onError: (error: Error) => toast.error(error.message || "Could not delete this employer"),
   });
 
   const employers = useMemo(() => {
@@ -185,6 +200,7 @@ export default function EmployersPage() {
                   key={employer.userId}
                   employer={employer}
                   onDecide={(status) => setDecision({ employer, status })}
+                  onDelete={() => setDeleting(employer)}
                 />
               ))}
             </TableShell>
@@ -202,6 +218,15 @@ export default function EmployersPage() {
         }
         isPending={mutation.isPending}
       />
+
+      <DeleteEmployerDialog
+        employer={deleting}
+        onOpenChange={(open) => {
+          if (!open) setDeleting(null);
+        }}
+        onConfirm={() => deleting && remove.mutate(deleting)}
+        isPending={remove.isPending}
+      />
     </div>
   );
 }
@@ -209,9 +234,11 @@ export default function EmployersPage() {
 function EmployerRow({
   employer,
   onDecide,
+  onDelete,
 }: {
   employer: EmployerReview;
   onDecide: (status: "approved" | "rejected") => void;
+  onDelete: () => void;
 }) {
   const router = useRouter();
   const name = employer.name ?? "Unnamed";
@@ -319,7 +346,13 @@ function EmployerRow({
           {/* Decided employers can be decided again, unlike a certificate:
               somebody approved in error has to be removable, and a manager who
               left and came back is an ordinary call. */}
-          {employer.status !== "rejected" && (
+          {/* Once approved, Reject becomes Delete, behind a warning. */}
+          {employer.status === "approved" ? (
+            <Button variant="destructive" size="xs" onClick={onDelete}>
+              <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
+              Delete
+            </Button>
+          ) : employer.status !== "rejected" && (
             <Button
               variant="destructive"
               size="xs"
