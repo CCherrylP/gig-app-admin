@@ -43,6 +43,8 @@ export interface NavItem {
      *  alone tells somebody there is work and not where it is, which is most of
      *  the reason the collapsed sidebar was hard to navigate. */
     badge?: number;
+    /** How many of those arrived since this queue was last opened. */
+    fresh?: number;
   }[];
 }
 
@@ -191,6 +193,14 @@ function NavCollapsible({
                   }
                 >
                   <span className="flex-1 truncate">{child.title}</span>
+                  {child.fresh != null && child.fresh > 0 && (
+                    <span
+                      className="shrink-0 rounded-full bg-red-500 px-1.5 text-[10px] font-semibold leading-4 text-white"
+                      aria-label={`${child.fresh} new`}
+                    >
+                      new
+                    </span>
+                  )}
                   {child.badge != null && child.badge > 0 && (
                     <span className="ml-auto shrink-0 rounded-full bg-primary/10 px-1.5 text-[10px] font-semibold tabular-nums text-primary">
                       {child.badge}

@@ -22,7 +22,21 @@ import {
   workTotal,
 } from "@/components/dashboard/work-queues";
 import type { AdminCounts } from "@/lib/counts";
+import { INBOX_TABS } from "@/components/dashboard/section-tabs";
+import {
+  freshIn,
+  lowerSeen,
+  markSeen,
+  readSeen,
+  seedSeen,
+  seenAsCounts,
+  useSeen,
+} from "@/lib/seen-counts";
 import { cn } from "@/lib/utils";
+
+/** The page a queue lives on, without its filter. The inbox counts on both of its tabs. */
+const queuePath = (queue: (typeof WORK_QUEUES)[number]) =>
+  queue.count === "support" ? "/dashboard/inbox" : queue.url.split("?")[0];
 
 // WHAT IS WAITING, ON WHATEVER PAGE YOU ARE ON.
 //
@@ -53,8 +67,10 @@ export function WorkWaiting() {
   const { data: counts, isLoading, isFetching, refetch } = useAdminCounts();
 
   const total = workTotal(counts);
+  const seen = useSeen();
 
   useArrivalBanner(counts);
+  useSinceLastVisit(counts);
   useTitleCount(total);
 
   return (
@@ -130,6 +146,7 @@ export function WorkWaiting() {
         <ul className="max-h-80 overflow-y-auto py-1">
           {WORK_QUEUES.map((queue) => {
             const count = counts?.[queue.count] ?? 0;
+            const fresh = freshIn(seen, counts, queue.count);
 
             return (
               <li key={queue.url}>
@@ -145,6 +162,12 @@ export function WorkWaiting() {
                   >
                     {queue.label}
                   </span>
+                  {/* What arrived since this queue was last opened. */}
+                  {fresh > 0 && (
+                    <span className="shrink-0 rounded-full bg-red-500 px-1.5 text-[10px] font-semibold leading-4 text-white">
+                      {fresh} new
+                    </span>
+                  )}
                   {count > 0 ? (
                     <CountBadge count={count} tone="amber" />
                   ) : (
@@ -202,6 +225,49 @@ function useArrivalBanner(counts: AdminCounts | undefined) {
     // the latest one instead of a wall of them.
     toast.info(sentence, { id: "work-arrived", duration: 8000 });
   }, [counts]);
+}
+
+/** What is new since this browser last looked, kept across reloads (see lib/seen-counts).
+ *  Says it once when the dashboard opens, and marks the queue on screen as seen. */
+function useSinceLastVisit(counts: AdminCounts | undefined) {
+  const pathname = usePathname();
+  const told = useRef(false);
+
+  useEffect(() => {
+    if (!counts) return;
+
+    seedSeen(counts);
+    lowerSeen(counts);
+
+    // Once per page load, before the queue on screen is marked: what came in while away.
+    if (!told.current) {
+      told.current = true;
+      const seen = readSeen();
+      const sentence = seen ? arrivalSentence(seenAsCounts(seen), counts) : null;
+      if (sentence) {
+        toast.info(`Since you last looked: ${sentence}.`, {
+          id: "work-since-last",
+          duration: 12000,
+          action: { label: "Open", onClick: () => window.location.assign(firstNew(counts)) },
+        });
+      }
+    }
+
+    // The queue somebody is standing on is seen, including anything that arrives while they are on it.
+    for (const queue of WORK_QUEUES) {
+      if (pathname.startsWith(queuePath(queue))) markSeen(queue.count, counts[queue.count] ?? 0);
+    }
+    // The two inbox tabs carry their own counts for the sidebar.
+    for (const tab of INBOX_TABS) {
+      if (tab.countKey && pathname.startsWith(tab.url)) markSeen(tab.countKey, counts[tab.countKey] ?? 0);
+    }
+  }, [counts, pathname]);
+}
+
+/** The first queue with something new in it. */
+function firstNew(counts: AdminCounts) {
+  const seen = readSeen();
+  return WORK_QUEUES.find((queue) => freshIn(seen, counts, queue.count) > 0)?.url ?? firstWaiting(counts);
 }
 
 /** '(3) AdHoc Admin' in the tab title.

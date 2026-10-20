@@ -27,6 +27,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import Logo from "./common/Logo";
 import { useAdminCounts } from "@/hooks/use-admin-counts";
+import { freshIn, useSeen } from "@/lib/seen-counts";
 import { getCachedUser } from "@/lib/auth";
 import { REVIEW_TABS, REVIEW_URLS, reviewTotal } from "@/components/dashboard/review-tabs";
 import { INBOX_TABS, MONEY_TABS, PEOPLE_TABS, urlsOf } from "@/components/dashboard/section-tabs";
@@ -55,6 +56,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   // Every badge in one request, asked again on a timer so a queue that fills
   // while somebody is working elsewhere says so. See useAdminCounts.
   const { data: counts } = useAdminCounts();
+  // What arrived since each queue was last opened, for the red "new" marks.
+  const seen = useSeen();
 
   // Opens on the first tab with something waiting, so a click lands on work.
   const firstWaiting =
@@ -96,6 +99,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         title: tab.label,
         url: tab.url,
         badge: counts?.[tab.count],
+        fresh: freshIn(seen, counts, tab.count),
       })),
     },
     {
@@ -105,7 +109,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       icon: <HugeiconsIcon icon={InboxIcon} strokeWidth={2} />,
       // Open threads only. Answered ones are waiting on the other person.
       badge: counts?.support,
-      children: INBOX_TABS.map((tab) => ({ title: tab.label, url: tab.url })),
+      children: INBOX_TABS.map((tab) => ({
+        title: tab.label,
+        url: tab.url,
+        fresh: tab.countKey ? freshIn(seen, counts, tab.countKey) : 0,
+      })),
     },
     {
       title: "People",
