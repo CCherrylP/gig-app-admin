@@ -45,6 +45,8 @@ const ACTION_LABELS: Record<string, string> = {
   "candidate.delete": "Deleted candidate",
   "employer.approve": "Approved employer",
   "employer.reject": "Rejected employer",
+  "admin.create": "Added admin",
+  "admin.remove": "Removed admin",
 };
 
 /** A plain label for an action code, or the code itself if it is new. */
