@@ -113,5 +113,7 @@ export const certById = (id: string) => BY_ID.get(id) ?? null;
 export function certName(id: string) {
   const known = BY_ID.get(id);
   if (known) return known.name;
+  // One an employer typed in themselves: its name follows the prefix.
+  if (id.startsWith("custom:")) return `${id.slice("custom:".length)} (employer's own)`;
   return id.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
