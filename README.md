@@ -72,9 +72,8 @@ away, and it should land on the login screen rather than on an empty table.
 
 The design system is careerhop-admin's, copied rather than reimplemented:
 `components/ui/*`, `app/globals.css`, the sidebar shell and the login layout are
-the same files. What changed is the brand — the AdHoc mark from
-`gig-app/assets`, on its own navy (`#103572`, sampled from the app icon) so the
-white pig is visible against a light sidebar.
+the same files. What changed is the brand: the otter app icon from
+`gig-app/assets/otter-logo.png`, shown as a small rounded tile.
 
 Keep it that way. If a shadcn component needs updating, take it from
 careerhop-admin rather than editing it here, so the two dashboards do not drift
