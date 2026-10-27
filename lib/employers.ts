@@ -139,6 +139,27 @@ export function deleteEmployer(userId: string) {
   return fetchWithAuth<{ deleted: true }>(`/admin/employers/${userId}`, { method: "DELETE" });
 }
 
+/** An employer login with no company: removed from a team, or a sign-up that stopped halfway. */
+export interface UnfinishedEmployer {
+  userId: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  createdAt: string;
+  hasLoggedIn: boolean;
+}
+
+export function listUnfinishedEmployers() {
+  return fetchWithAuth<{ employers: UnfinishedEmployer[] }>("/admin/employers/unfinished");
+}
+
+/** Closes the login for good, the same way as deleting an employer. */
+export function deleteUnfinishedEmployer(userId: string) {
+  return fetchWithAuth<{ deleted: true }>(`/admin/employers/unfinished/${userId}`, {
+    method: "DELETE",
+  });
+}
+
 /** Mirrors MIN_COINS / MAX_COINS in the API's invoice controller and MIN_TOPUP
  *  in the app's data/coins. Change all three together. */
 export const MIN_TOPUP_COINS = 50_000;

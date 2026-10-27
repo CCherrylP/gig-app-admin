@@ -45,6 +45,8 @@ const ACTION_LABELS: Record<string, string> = {
   "candidate.delete": "Deleted candidate",
   "employer.approve": "Approved employer",
   "employer.reject": "Rejected employer",
+  "employer.delete": "Deleted employer",
+  "employer.delete_unfinished": "Deleted unfinished employer",
   "admin.create": "Added admin",
   "admin.remove": "Removed admin",
 };

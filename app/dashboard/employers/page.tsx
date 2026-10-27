@@ -5,6 +5,7 @@ import { ReviewTabs } from "@/components/dashboard/review-tabs";
 import { PeopleTabs } from "@/components/dashboard/section-tabs";
 import { ReferredByField, suggestedReferralCode } from "@/components/dashboard/referred-by-field";
 import { DeleteEmployerDialog } from "@/components/dashboard/delete-employer-dialog";
+import { UnfinishedEmployers } from "@/components/dashboard/unfinished-employers";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
@@ -43,6 +44,7 @@ import {
   decideEmployer,
   deleteEmployer,
   listEmployers,
+  listUnfinishedEmployers,
   type EmployerFilter,
   type EmployerReview,
 } from "@/lib/employers";
@@ -50,11 +52,15 @@ import { relative } from "@/lib/format";
 
 // One screen, two ways in. Under To review it opens on Pending, the calls to
 // make. Under People (/dashboard/people/employers) it opens on All, as a list.
-const FILTERS: { value: EmployerFilter; label: string }[] = [
+// "unfinished" is not an approval status: logins with no company, listed separately.
+type Tab = EmployerFilter | "unfinished";
+
+const FILTERS: { value: Tab; label: string }[] = [
   { value: "all", label: "All" },
   { value: "pending", label: "Pending" },
   { value: "approved", label: "Approved" },
   { value: "rejected", label: "Rejected" },
+  { value: "unfinished", label: "Unfinished" },
 ];
 
 type Decision = {
@@ -65,13 +71,21 @@ type Decision = {
 export default function EmployersPage() {
   const queryClient = useQueryClient();
   const directory = usePathname().startsWith("/dashboard/people");
-  const [filter, setFilter] = useState<EmployerFilter>(directory ? "all" : "pending");
+  const [filter, setFilter] = useState<Tab>(directory ? "all" : "pending");
   const [search, setSearch] = useState("");
   const [decision, setDecision] = useState<Decision | null>(null);
+  const unfinishedTab = filter === "unfinished";
 
   const { data, isLoading } = useQuery({
     queryKey: ["employers", filter],
-    queryFn: () => listEmployers(filter),
+    queryFn: () => listEmployers(filter as EmployerFilter),
+    enabled: !unfinishedTab,
+  });
+
+  // Always loaded, so the tab shows its count.
+  const unfinished = useQuery({
+    queryKey: ["employers-unfinished"],
+    queryFn: listUnfinishedEmployers,
   });
 
   const mutation = useMutation({
@@ -155,12 +169,24 @@ export default function EmployersPage() {
       <FilterTabs
         options={FILTERS.map((f) => ({
           ...f,
-          count: f.value === "pending" ? data?.pendingCount : undefined,
+          count:
+            f.value === "pending"
+              ? data?.pendingCount
+              : f.value === "unfinished"
+                ? unfinished.data?.employers.length || undefined
+                : undefined,
         }))}
         value={filter}
         onChange={setFilter}
       />
 
+      {unfinishedTab ? (
+        <UnfinishedEmployers
+          employers={unfinished.data?.employers}
+          isLoading={unfinished.isLoading}
+          search={search}
+        />
+      ) : (
       <Card>
         <CardContent className="p-0">
           {isLoading ? (
@@ -207,6 +233,7 @@ export default function EmployersPage() {
           )}
         </CardContent>
       </Card>
+      )}
 
       <DecisionDialog
         decision={decision}
