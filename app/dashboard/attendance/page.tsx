@@ -67,7 +67,7 @@ import { date, money, relative } from "@/lib/format";
 // that have run and lost their clock, and shifts that have not run yet.
 const FILTERS: { value: AttendanceFilter; label: string }[] = [
   { value: "all", label: "All" },
-  { value: "attention", label: "Needs a look" },
+  { value: "attention", label: "Needs review" },
   { value: "unpaid", label: "Not paid" },
   { value: "missing", label: "Missing clock in/out" },
   { value: "unapproved", label: "Waiting on employer" },
@@ -79,14 +79,14 @@ const FILTERS: { value: AttendanceFilter; label: string }[] = [
  *  scanned code" is good news on the review queues and simply wrong on the two
  *  that are about shifts rather than evidence. */
 const EMPTY: Record<AttendanceFilter, string> = {
-  all: "Nothing here yet.",
-  attention: "Nothing here. Every check-in was a scanned code inside the fence.",
+  all: "No records yet.",
+  attention: "Nothing to review. Every check-in was a scanned code within the geofence.",
   missing:
-    "No shift has lost its clock. Every shift that has run was clocked at both ends, or has been settled.",
-  unapproved: "No finished shift is waiting on an employer to approve it.",
-  upcoming: "Nothing booked that has not already run.",
-  reviewed: "No selfie check-in has been decided yet.",
-  unpaid: "No shift is waiting on a selfie check before pay.",
+    "No missing clock-ins or clock-outs. Every finished shift was clocked at both ends or has been settled.",
+  unapproved: "No finished shifts are waiting for employer approval.",
+  upcoming: "No upcoming shifts.",
+  reviewed: "No selfie check-ins have been reviewed yet.",
+  unpaid: "No shifts are waiting on a selfie check before pay.",
 };
 
 const isFilter = (value: string | null): value is AttendanceFilter =>
@@ -173,7 +173,7 @@ function AttendanceQueue({ initial }: { initial: AttendanceFilter }) {
       queryClient.invalidateQueries({ queryKey: ["attendance"] });
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       setReleasing(null);
-      toast.success("Hours signed off. The candidate and employer have been told.");
+      toast.success("Hours signed off. The candidate and employer have been notified.");
     },
     onError: (error: Error) => {
       // ALREADY_APPROVED is the one that matters: two admins on the same row,
@@ -189,7 +189,7 @@ function AttendanceQueue({ initial }: { initial: AttendanceFilter }) {
       queryClient.invalidateQueries({ queryKey: ["attendance"] });
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       setPaying(null);
-      toast.success("Selfie approved and shift paid. The candidate and employer have been told.");
+      toast.success("Selfie approved and shift paid. The candidate and employer have been notified.");
     },
     onError: (error: Error) => {
       toast.error(error.message || "Could not pay this shift");
@@ -373,7 +373,7 @@ function PayDialog({
                 </span>{" "}
                 will be paid in full,{" "}
                 <span className="font-medium text-foreground">{money(amount)}</span>. The
-                candidate and employer are told, and this cannot be undone.
+                candidate and employer are notified. This cannot be undone.
               </>
             )}
           </DialogDescription>
@@ -466,8 +466,8 @@ function ReleaseDialog({
                 <span className="font-medium text-foreground">
                   {money(amount)}
                 </span>
-                . The employer is told, any unused hold is refunded to them, and
-                this cannot be undone.
+                . The employer is notified and any unused hold is refunded. This
+                cannot be undone.
               </>
             ) : record && (
               <>
@@ -475,18 +475,18 @@ function ReleaseDialog({
                 <span className="font-medium text-foreground">
                   {record.candidateName ?? "this candidate"}
                 </span>{" "}
-                for the whole scheduled{" "}
+                for the full scheduled{" "}
                 <span className="font-medium text-foreground">
                   {formatHours(minutes)}
                 </span>{" "}
-                of their {record.roleName} shift —{" "}
+                of their {record.roleName} shift:{" "}
                 <span className="font-medium text-foreground">
                   {money(amount)}
                 </span>
-                . Pay is the scheduled hours anyway, so a clock that missed an
-                end changes what we can prove rather than what is owed. The
-                employer&apos;s unearned hold is refunded in the same
-                transaction, and this cannot be undone.
+                . Pay is based on scheduled hours, so a missing clock-in or
+                clock-out affects what we can prove, not what is owed. The
+                employer&apos;s unused hold is refunded in the same
+                transaction. This cannot be undone.
               </>
             )}
           </DialogDescription>
@@ -541,22 +541,22 @@ function ReleaseDialog({
               {proratedValid ? (
                 prorated === null ? (
                   <>
-                    The full scheduled hours. The employer set that time aside
+                    The full scheduled hours. The employer reserved this time
                     and the hold already covers it.
                   </>
                 ) : (
                   <>
                     Prorated to {formatHours(prorated)} of{" "}
-                    {formatHours(scheduled)}. The rest of the hold goes back to
-                    the employer, and the platform fee follows the hours — we do
-                    not keep a fee for hours nobody worked.
+                    {formatHours(scheduled)}. The rest of the hold returns to
+                    the employer, and the platform fee is reduced to match. No
+                    fee is charged for hours not worked.
                   </>
                 )
               ) : (
                 <>
-                  Between 0 and the scheduled {formatHours(scheduled)}. Paying
-                  more than was posted would come out of a hold that only ever
-                  covered the scheduled hours.
+                  Enter a value between 0 and the scheduled{" "}
+                  {formatHours(scheduled)}. The hold only covers the scheduled
+                  hours.
                 </>
               )}
             </p>
@@ -565,7 +565,7 @@ function ReleaseDialog({
 
         <div className="flex flex-col gap-2 px-6 pb-4">
           <label htmlFor="release-reason" className="text-sm font-medium">
-            Why is this being settled by hand?
+            Reason for settling manually
           </label>
           <Input
             id="release-reason"
@@ -585,9 +585,8 @@ function ReleaseDialog({
                 : "text-xs text-muted-foreground"
             }
           >
-            At least 10 characters. Somebody is being paid for hours no clock
-            recorded, and a payment with nothing written against it is one
-            nobody can account for later.
+            At least 10 characters. This payment is not fully backed by clock
+            records, so the reason is kept for the audit trail.
           </p>
         </div>
 
@@ -761,7 +760,7 @@ function AttendanceRow({
                 className="shrink-0"
               />
               {record.checkInDistance}m
-              {tooFar && ` — outside ${GEOFENCE_M}m`}
+              {tooFar && `, outside ${GEOFENCE_M}m`}
             </span>
           )}
 
@@ -797,7 +796,7 @@ function AttendanceRow({
           ) : (
             // Null is not "unreviewed" — it is "nothing to review". A supervisor
             // scanned, and there is no photograph for staff to judge.
-            <span className="text-xs text-muted-foreground">Vouched</span>
+            <span className="text-xs text-muted-foreground">Not required</span>
           )}
           {held && (
             <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400">

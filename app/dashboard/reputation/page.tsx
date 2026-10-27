@@ -110,7 +110,7 @@ export default function ReputationPage() {
       <PeopleTabs />
       <PageHeader
         title="Reviews & blocks"
-        description="Every rating and every block. View only, since each belongs to the person who made it."
+        description="All ratings and blocks. View only, as each belongs to the person who made it."
       >
         <SearchInput
           value={search}
@@ -122,13 +122,13 @@ export default function ReputationPage() {
 
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard
-          label="Live blocks"
+          label="Active blocks"
           count={blocks.data?.activeCount ?? "—"}
           icon={UserBlock01Icon}
           cls="text-amber-500"
         />
         <StatCard
-          label="People blocked somewhere"
+          label="Candidates with a block"
           count={blocks.data?.blockedCandidateCount ?? "—"}
           icon={UserBlock01Icon}
         />
@@ -151,8 +151,8 @@ export default function ReputationPage() {
                 icon={UserBlock01Icon}
                 message={
                   term
-                    ? "Nothing matches that search."
-                    : "No employer has blocked anybody."
+                    ? "No results match your search."
+                    : "No employer has blocked a candidate."
                 }
               />
             ) : (
@@ -178,7 +178,7 @@ export default function ReputationPage() {
               icon={StarIcon}
               message={
                 term
-                  ? "Nothing matches that search."
+                  ? "No results match your search."
                   : tab === "companies"
                     ? "No candidate has rated a company yet."
                     : "No ratings about candidates yet."
@@ -192,7 +192,7 @@ export default function ReputationPage() {
               headers={[
                 tab === "companies" ? "Company" : "Candidate",
                 "Rating",
-                "What they wrote",
+                "Comment",
                 "Status",
               ]}
               widths={["w-[26%]", "w-[18%]", "w-[40%]", "w-[16%]"]}
@@ -244,7 +244,7 @@ function BlockRow({ block }: { block: BlockedCandidate }) {
               // A lifted row said "—" here before; it says nothing now.
               !lifted && (
                 <span className="truncate text-xs text-muted-foreground">
-                  Only blocked here
+                  Blocked by this company only
                 </span>
               )
             )}
@@ -358,7 +358,7 @@ function RatingRow({ row, tab }: { row: Rating; tab: Tab }) {
         {row.body ? (
           <span className="line-clamp-2 text-xs">{row.body}</span>
         ) : (
-          <span className="text-xs text-muted-foreground">No words, just a score</span>
+          <span className="text-xs text-muted-foreground">No comment, rating only</span>
         )}
         {row.editedAt && (
           <span className="mt-0.5 block text-[11px] text-muted-foreground">
@@ -375,7 +375,7 @@ function RatingRow({ row, tab }: { row: Rating; tab: Tab }) {
             employer reads, not a public page. */}
         {row.status === "pending" && row.about === "company" && (
           <span className="mt-1 block truncate text-[11px] text-muted-foreground">
-            With the employer
+            Awaiting employer
           </span>
         )}
       </td>

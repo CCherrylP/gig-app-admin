@@ -126,7 +126,7 @@ export default function AdminsPage() {
           <DialogHeader>
             <DialogTitle>Remove this admin?</DialogTitle>
             <DialogDescription>
-              {removing?.name ?? "They"} will lose access to this dashboard straight away and can no longer sign in.
+              {removing?.name ?? "They"} will lose access to this dashboard immediately and can no longer sign in.
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center justify-end gap-2 border-t px-6 py-4">
@@ -185,7 +185,7 @@ function AddAdminDialog({
       setDone({ email: admin.email ?? email.trim() });
       setPassword("");
     },
-    onError: (cause: Error) => setError(cause.message || "Could not add them. Try again."),
+    onError: (cause: Error) => setError(cause.message || "Could not add the admin. Try again."),
   });
 
   const nameProblem = name.trim().length < 2 ? "Enter their name." : null;
@@ -207,7 +207,7 @@ function AddAdminDialog({
           <DialogDescription>
             {done
               ? "Give them the login and password in person or by direct message."
-              : "They can sign in straight away. The login doesn't need to be a real email."}
+              : "They can sign in immediately. The login does not need to be a real email address."}
           </DialogDescription>
         </DialogHeader>
 

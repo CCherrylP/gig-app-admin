@@ -162,7 +162,7 @@ export default function PayoutSheetPage() {
       toast.success(`Marked ${result.marked} as paid`);
     },
     onError: (error) =>
-      toast.error(error instanceof Error ? error.message : "Could not save that"),
+      toast.error(error instanceof Error ? error.message : "Could not save the change."),
   });
 
   const exportXlsx = useMutation({
@@ -189,7 +189,7 @@ export default function PayoutSheetPage() {
       <PayrollSwitch />
       <PageHeader
         title="Payroll by person"
-        description="One line per worker, with what they are owed and the shifts behind it."
+        description="One line per worker, showing the amount owed and the shifts it covers."
       >
         <SearchInput
           value={search}
@@ -364,8 +364,8 @@ export default function PayoutSheetPage() {
               icon={UserGroupIcon}
               message={
                 search
-                  ? "Nobody matches that search."
-                  : "Nobody worked a shift in this period."
+                  ? "No candidates match your search."
+                  : "No shifts were worked in this period."
               }
             />
           ) : (
@@ -433,7 +433,7 @@ export default function PayoutSheetPage() {
             <DialogDescription>
               {(() => {
                 const count = confirming?.shifts.filter((shift) => shift.status === "ready").length ?? 0;
-                return `${count} ${count === 1 ? "shift" : "shifts"}, ${money(confirming?.readyCents ?? 0)} in total. Only do this after the money has gone out from the bank.`;
+                return `${count} ${count === 1 ? "shift" : "shifts"}, ${money(confirming?.readyCents ?? 0)} in total. Only do this after the bank transfer has been sent.`;
               })()}
             </DialogDescription>
           </DialogHeader>

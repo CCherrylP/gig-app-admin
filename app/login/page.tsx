@@ -32,11 +32,11 @@ export default function LoginPage() {
               <Logo />
               <div className="space-y-4">
                 <p className="text-4xl font-semibold tracking-tight text-foreground">
-                  The two decisions a machine cannot make.
+                  Reviews that need a person.
                 </p>
                 <p className="max-w-xl text-sm leading-6 text-muted-foreground">
-                  Sign in to read the certificates candidates upload before they
-                  can apply for work, and to confirm the bank transfers that
+                  Sign in to review the certificates candidates upload before
+                  they apply for work, and to confirm the bank transfers that
                   credit an employer&apos;s coins.
                 </p>
               </div>
@@ -46,10 +46,9 @@ export default function LoginPage() {
                     Certificate reviews
                   </p>
                   <p className="mt-1 text-muted-foreground">
-                    A licence is a photograph of a document. Whether it is real,
-                    current and the holder&apos;s own is a person reading it —
-                    worked oldest first, because the longest wait is the one
-                    keeping somebody from a shift.
+                    Staff check that each licence is genuine, current and
+                    belongs to the holder. Reviews are worked oldest first, so
+                    no candidate waits too long to apply for shifts.
                   </p>
                 </div>
                 <div className="rounded-3xl border border-border bg-background p-4">
@@ -57,9 +56,9 @@ export default function LoginPage() {
                     Invoice confirmations
                   </p>
                   <p className="mt-1 text-muted-foreground">
-                    The only place coins are created. Somebody finds the transfer
-                    on a bank statement and says so — a company that could mark
-                    its own invoice paid would have an unlimited float.
+                    This is the only place coins are created. Staff match each
+                    transfer to the bank statement before confirming it, so
+                    companies cannot mark their own invoices as paid.
                   </p>
                 </div>
               </div>

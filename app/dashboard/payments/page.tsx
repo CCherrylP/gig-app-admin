@@ -120,8 +120,8 @@ function PaymentsQueue() {
         title="Payments"
         description={
           term
-            ? `Transfers ${label} says it made. Check your bank, then confirm.`
-            : "Transfers businesses say they made. Check your bank, then confirm."
+            ? `Transfers reported by ${label}. Check the bank statement, then confirm.`
+            : "Transfers reported by businesses. Check the bank statement, then confirm."
         }
       />
 
@@ -134,7 +134,7 @@ function PaymentsQueue() {
             className="ml-auto inline-flex items-center gap-1 text-xs text-primary hover:underline"
           >
             <HugeiconsIcon icon={Cancel01Icon} size={13} strokeWidth={2} />
-            Show every company
+            Show all companies
           </Link>
         </div>
       )}
@@ -188,7 +188,7 @@ function PaymentsQueue() {
                 message={
                   term
                     ? "No receipts waiting from this company."
-                    : "No receipts waiting on staff."
+                    : "No receipts awaiting review."
                 }
               />
             ) : (
@@ -349,7 +349,7 @@ function InvoiceDialog({
       onOpenChange(false);
       toast.success(
         status === "paid"
-          ? "Payment confirmed — coins credited"
+          ? "Payment confirmed. Coins credited."
           : "Invoice cancelled",
       );
     },
@@ -471,7 +471,7 @@ function InvoiceDialog({
               >
                 {decide.isPending
                   ? "Confirming…"
-                  : `Yes — credit ${invoice ? formatCoins(invoice.coins) : ""} coins`}
+                  : `Yes, credit ${invoice ? formatCoins(invoice.coins) : ""} coins`}
               </Button>
             </>
           ) : (

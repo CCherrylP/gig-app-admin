@@ -88,7 +88,7 @@ export default function SocialReportsPage() {
       );
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Could not record that decision");
+      toast.error(error.message || "Could not save the decision.");
       setDecision(null);
       queryClient.invalidateQueries({ queryKey: ["post-reports"] });
       queryClient.invalidateQueries({ queryKey: ["comment-reports"] });
@@ -102,7 +102,7 @@ export default function SocialReportsPage() {
       queryKey: ["post-reports", filter],
       queryFn: () => listPostReports(filter),
       select: (fresh) => fresh.posts.find((post) => post.postId === postId)?.photoUrls[index],
-      onMissing: () => toast.error("That photo could not be opened. Try again."),
+      onMissing: () => toast.error("Could not open the photo. Try again."),
     });
   }
 
@@ -135,7 +135,7 @@ export default function SocialReportsPage() {
       <ReviewTabs />
       <PageHeader
         title="Social posting reports"
-        description="Feed posts and comments people flagged. Three reports hide one from everyone but its writer until you decide. Keep it if it is fine, or remove it."
+        description="Reported feed posts and comments. After three reports, an item is hidden from everyone except its writer until it is reviewed. Keep it or remove it."
       >
         <SearchInput
           value={search}
@@ -164,7 +164,7 @@ export default function SocialReportsPage() {
           ) : empty ? (
             <EmptyState
               icon={Alert02Icon}
-              message={search ? "Nothing matches that search." : `No reported ${queue} here.`}
+              message={search ? "No results match your search." : `No reported ${queue}.`}
             />
           ) : queue === "posts" ? (
             // FIVE COLUMNS, down from six. The writer leads, as a person does on
@@ -413,15 +413,15 @@ function DecisionDialog({
     <Dialog open={!!decision} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{removing ? `Remove this ${noun}` : `Keep this ${noun}`}</DialogTitle>
+          <DialogTitle>{removing ? `Remove this ${noun}?` : `Keep this ${noun}?`}</DialogTitle>
           <DialogDescription>
             {decision && (
               <>
                 A {noun} by <span className="font-medium text-foreground">{decision.item.author.name}</span> with{" "}
                 {decision.item.openCount} open report{decision.item.openCount === 1 ? "" : "s"}.{" "}
                 {removing
-                  ? `The ${noun} is deleted for good, and its writer is told it was removed for breaking the community rules. This cannot be undone.`
-                  : `Its reports are marked reviewed. If it was hidden, it shows again. People who reported it still won't see it.`}
+                  ? `The ${noun} is permanently deleted. Its writer is told it broke the community rules. This cannot be undone.`
+                  : `Its reports are marked as reviewed. If it was hidden, it becomes visible again. People who reported it will still not see it.`}
               </>
             )}
           </DialogDescription>

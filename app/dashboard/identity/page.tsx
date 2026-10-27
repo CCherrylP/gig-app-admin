@@ -137,7 +137,7 @@ function IdentityQueue({ candidate }: { candidate: string }) {
       queryClient.invalidateQueries({ queryKey: COUNTS_KEY });
       setRejecting(null);
       setReviewing(null);
-      toast.success(decision === "verified" ? "ID approved. They can apply now." : "ID rejected. They have been told why.");
+      toast.success(decision === "verified" ? "ID approved. They can apply now." : "ID rejected. The candidate has been sent the reason.");
     },
     onError: (error: Error) => toast.error(error.message || "Could not save that decision"),
   });
@@ -206,8 +206,8 @@ function IdentityQueue({ candidate }: { candidate: string }) {
                   : search
                     ? "Nothing matches that search."
                     : filter === "pending"
-                      ? "No IDs waiting. Every one sent in has been checked."
-                      : "Nothing here."
+                      ? "No IDs waiting for review."
+                      : "No records."
               }
             />
           ) : (
@@ -298,7 +298,7 @@ function IdentityRow({
                     : "text-muted-foreground",
                 )}
               >
-                Says: {workStatusLabel(record.workStatus ?? null) ?? "work status not answered"}
+                Declared: {workStatusLabel(record.workStatus ?? null) ?? "work status not answered"}
               </span>
             )}
             <span className="truncate text-xs text-muted-foreground">
@@ -394,7 +394,7 @@ function CardSummary({ record, enabled }: { record: IdentityRecord; enabled: boo
     if (record.hasFront === false) return <span className="text-xs text-muted-foreground">—</span>;
     return (
       <span className="text-xs text-muted-foreground">
-        {failed ? "Not read automatically. Check the photos by eye." : "Open Review to read it."}
+        {failed ? "Not read automatically. Check the photos manually." : "Open Review to read it."}
       </span>
     );
   }
@@ -615,7 +615,7 @@ function ReviewBody({
           )}
           {!card && !isLoading && (
             <p className="mt-2 text-xs text-muted-foreground">
-              The card could not be read automatically. Check the details on the photos by eye.
+              The card could not be read automatically. Check the details on the photos manually.
             </p>
           )}
         </div>

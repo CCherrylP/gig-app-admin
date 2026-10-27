@@ -65,7 +65,7 @@ export default function SalesPage() {
       <MoneyTabs />
       <PageHeader
         title="Sales"
-        description="Every signed-off shift: the bill, the fee we kept, and who earned a referral. 10% goes to accounts only where an agency referral paid."
+        description="Every signed-off shift, with the bill, the fee kept and any referral earned. Accounts receive 10% only where an agency referral was paid."
       />
 
       <div className="flex flex-wrap items-center gap-3">

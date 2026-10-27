@@ -86,14 +86,14 @@ export function ShiftsChart() {
             <CardTitle>The next two weeks</CardTitle>
             <CardDescription>
               {isLoading
-                ? "Counting seats…"
+                ? "Loading…"
                 : seats === 0
-                  ? "Nothing on the calendar yet."
+                  ? "No shifts scheduled."
                   : `${booked} of ${seats} seats booked · ${filled}% filled`}
             </CardDescription>
           </div>
           <Link href="/dashboard/shifts" className="shrink-0 text-xs text-primary hover:underline">
-            Open shifts
+            View shifts
           </Link>
         </div>
       </CardHeader>
@@ -188,12 +188,12 @@ export function MoneyChart() {
             <CardTitle>Money in</CardTitle>
             <CardDescription>
               {isLoading
-                ? "Adding it up…"
+                ? "Loading…"
                 : `This month: S$${thisMonth.received.toLocaleString("en-SG")} received of S$${thisMonth.invoiced.toLocaleString("en-SG")} invoiced`}
             </CardDescription>
           </div>
           <Link href="/dashboard/money" className="shrink-0 text-xs text-primary hover:underline">
-            Open money
+            View money
           </Link>
         </div>
       </CardHeader>

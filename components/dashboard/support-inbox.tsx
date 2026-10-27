@@ -96,7 +96,7 @@ function MessageBubble({ message }: { message: SupportMessage }) {
             className="mt-px shrink-0 opacity-60"
           />
           <span>
-            <span className="font-medium">Automated reply — </span>
+            <span className="font-medium">Automated reply: </span>
             {message.body}
           </span>
         </div>
@@ -398,7 +398,7 @@ export function SupportInbox({
       applyThread(result);
       // Says what the reply DID, not that a request succeeded. The push is the
       // reason this feature exists, and staff should know it went out.
-      toast.success("Reply sent, they have been notified");
+      toast.success("Reply sent. The user has been notified.");
     },
 
     onError: (error: Error, body, context) => {
@@ -408,7 +408,7 @@ export function SupportInbox({
         queryClient.setQueryData(context.key, context.previous);
       }
       setDraft((current) => current || body);
-      toast.error(error.message || "Could not send that reply");
+      toast.error(error.message || "Could not send the reply.");
     },
 
     // Both paths, so a failed send cannot leave the conversation frozen on a
@@ -426,7 +426,7 @@ export function SupportInbox({
       );
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Could not change that");
+      toast.error(error.message || "Could not update the conversation.");
     },
   });
 
@@ -497,9 +497,9 @@ export function SupportInbox({
                     icon={BubbleChatQuestionIcon}
                     message={
                       search.trim()
-                        ? "Nothing matches that search."
+                        ? "No results match your search."
                         : filter === "open"
-                          ? "Nothing waiting. Every question has been answered."
+                          ? "No open questions."
                           : "No conversations here."
                     }
                   />
@@ -533,7 +533,7 @@ export function SupportInbox({
                 <div className="flex flex-1 items-center justify-center">
                   <EmptyState
                     icon={BubbleChatQuestionIcon}
-                    message="Pick a conversation to read it."
+                    message="Select a conversation to view it."
                   />
                 </div>
               ) : !thread && loadingThread ? (
@@ -542,7 +542,7 @@ export function SupportInbox({
                 </div>
               ) : !thread ? (
                 <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-                  That conversation is no longer there.
+                  This conversation is no longer available.
                 </div>
               ) : (
                 <>
@@ -618,7 +618,7 @@ export function SupportInbox({
                       is the point of a subject line, not an accident. */}
                   <div className="border-b bg-muted/30 px-4 py-2">
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Could not be answered by the FAQ
+                      Not answered by the FAQ
                     </p>
                     <p className="mt-0.5 text-sm">{thread.question}</p>
                   </div>
@@ -649,7 +649,7 @@ export function SupportInbox({
                             }
                           }}
                           rows={2}
-                          placeholder="Write a reply… they get a notification on their phone."
+                          placeholder="Write a reply. The user is notified on their phone."
                           className="min-h-[2.5rem] flex-1 resize-none rounded-md border border-input bg-input/30 px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                         />
                         <Button

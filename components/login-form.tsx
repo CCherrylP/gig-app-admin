@@ -139,7 +139,7 @@ export function LoginForm({
 
     if (!ok) {
       setCode("");
-      toast.error("That code did not work. Try again.");
+      toast.error("Incorrect code. Try again.");
       return;
     }
     enterDashboard(me);

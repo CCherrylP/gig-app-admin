@@ -95,7 +95,7 @@ export function BankFileButton({ rows }: { rows: PayrollRow[] }) {
       }
 
       if (final.lines.length === 0) {
-        toast.error("Nobody left to put in the file. Reload the page to see who was exported.");
+        toast.error("No one is left to include in the file. Reload the page to see who was exported.");
         return;
       }
 
@@ -121,14 +121,14 @@ export function BankFileButton({ rows }: { rows: PayrollRow[] }) {
           <DialogHeader>
             <DialogTitle>Download bank file</DialogTitle>
             <DialogDescription>
-              The OCBC bulk salary file for everyone ready to pay by bank transfer. Upload it,
-              then mark them paid here once it has gone through.
+              The OCBC bulk salary file for everyone ready to be paid by bank transfer. Upload
+              it, then mark them as paid here once the transfer has gone through.
             </DialogDescription>
           </DialogHeader>
 
           <div className="flex flex-col gap-1.5">
             <label htmlFor="value-date" className="text-xs font-medium">
-              Value date (the day the money lands)
+              Value date (the day the payment arrives)
             </label>
             <input
               id="value-date"
@@ -199,10 +199,10 @@ export function BankFileButton({ rows }: { rows: PayrollRow[] }) {
 
           <div className="space-y-2 rounded-md border border-destructive/40 p-3 text-sm">
             <p className="font-medium text-destructive">
-              Downloading twice pays twice.
+              Downloading twice can pay people twice.
             </p>
             <p className="text-xs text-muted-foreground">
-              Each person goes in one file only. Mark them paid once the upload has gone through.
+              Each person should be in one file only. Mark them as paid once the upload has gone through.
             </p>
             <p className="text-xs">
               {last

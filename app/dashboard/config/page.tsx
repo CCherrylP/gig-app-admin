@@ -91,7 +91,7 @@ const FIELDS: {
     key: "coinPriceCents",
     group: "money",
     label: "Coin price",
-    help: "What one coin costs, in cents. The same for every company. There are no packs, no bonus coins and no negotiated rates. It is also what a coin buys: a shift's wages are converted into coins through this number, so changing it changes both at once, and balances companies have already paid for do not move with it.",
+    help: "The price of one coin, in cents. It is the same for every company, with no packs, bonus coins or negotiated rates. Shift wages are also converted into coins at this price, so changing it affects both. Balances that companies have already paid for do not change.",
     unit: "cents",
     toStored: (typed) => typed,
     toTyped: (stored) => stored,
@@ -102,7 +102,7 @@ const FIELDS: {
     key: "placementFeeCents",
     group: "money",
     label: "Platform fee",
-    help: "Charged per hour of every shift created, flat. In money rather than coins, so it stays the same price when the coin price moves. Flat rather than a percentage of wages on purpose: a percentage would earn more when an employer pays better.",
+    help: "A flat charge per hour of every shift created. It is set in money, not coins, so it does not change when the coin price changes. It is flat rather than a percentage of wages, so employers who pay more are not charged more.",
     unit: "cents / hour",
     toStored: (typed) => typed,
     toTyped: (stored) => stored,
@@ -116,7 +116,7 @@ const FIELDS: {
     key: "agencyFeeCents",
     group: "money",
     label: "Agency platform fee",
-    help: "The platform fee for employment agencies, instead of the one above. Urgent listings still add the urgent fee on top.",
+    help: "The platform fee for employment agencies, used instead of the fee above. Urgent listings still add the urgent fee.",
     unit: "cents / hour",
     toStored: (typed) => typed,
     toTyped: (stored) => stored,
@@ -130,7 +130,7 @@ const FIELDS: {
     key: "invoiceTermsDays",
     group: "money",
     label: "Invoice terms",
-    help: "Days a company has to settle an invoiced top-up. Not credit, the coins wait for the payment, so this is the date they are asked to pay by.",
+    help: "The number of days a company has to pay an invoiced top-up. This is not credit. Coins are only added after payment, so this sets the payment due date.",
     unit: "days",
     toStored: (typed) => typed,
     toTyped: (stored) => stored,
@@ -140,8 +140,8 @@ const FIELDS: {
   {
     key: "maxDailyMinutes",
     group: "hours",
-    label: "Most hours in a day",
-    help: "Counted on one calendar day, against the PAID hours of everything somebody holds (the booked window minus any unpaid break). An overnight shift counts entirely on the day it starts. 12 hours is the Employment Act's figure and the default here.",
+    label: "Maximum hours per day",
+    help: "Counts the paid hours of all of a person's bookings on one calendar day (booked time minus unpaid breaks). An overnight shift counts on the day it starts. The default is 12 hours, as set by the Employment Act.",
     unit: "hours a day",
     toStored: toMinutes,
     toTyped: toHours,
@@ -155,8 +155,8 @@ const FIELDS: {
   {
     key: "maxWeeklyMinutes",
     group: "hours",
-    label: "Most hours in a week",
-    help: "Monday to Sunday, in Singapore. This is the one that catches the long grind no single day would fail: six back-to-back twelve-hour shifts overlap at no point, so nothing else on this platform would refuse them. 44 hours is the Employment Act's figure and the default here.",
+    label: "Maximum hours per week",
+    help: "Monday to Sunday, Singapore time. This catches long runs of shifts that pass the daily limit, such as six 12-hour shifts in a row. The default is 44 hours, as set by the Employment Act.",
     unit: "hours a week",
     toStored: toMinutes,
     toTyped: toHours,
@@ -172,7 +172,7 @@ const FIELDS: {
     key: "referralMonths",
     group: "referral",
     label: "Referral length",
-    help: "How long a referral earns for, from the day it starts. Changes apply to new referrals only. Existing ones keep their end date.",
+    help: "How long a referral earns, from the day it starts. Changes apply to new referrals only. Existing referrals keep their end date.",
     unit: "months",
     toStored: (typed) => typed,
     toTyped: (stored) => stored,
@@ -223,10 +223,10 @@ export default function ConfigPage() {
       setDraft({});
       setCaps(null);
       setLink(null);
-      toast.success("Platform settings updated");
+      toast.success("Platform settings updated.");
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Could not save those settings");
+      toast.error(error.message || "Could not save the settings.");
     },
   });
 
@@ -295,11 +295,11 @@ export default function ConfigPage() {
 
       {/* --- hours ------------------------------------------------------- */}
 
-      <SectionHeading title="Hours limits" description="The most one person can work." />
+      <SectionHeading title="Hours limits" description="The maximum hours one person can work." />
 
       <Note tone="amber">
-        A new limit only stops new bookings. Shifts people already have stay
-        booked. Set a limit to <span className="font-medium">0</span> to turn it off.
+        A new limit only applies to new bookings. Existing bookings are not
+        affected. Set a limit to <span className="font-medium">0</span> to turn it off.
       </Note>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -527,8 +527,8 @@ function LinkBaseCard({
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
         <p className="text-xs leading-5 text-muted-foreground">
-          The web address people share. Each link is this address plus /r/ and
-          their code. Leave it empty to share the code only.
+          The web address people share. Each link is this address, then /r/,
+          then their code. Leave it empty to share the code only.
         </p>
         <Input
           type="url"
@@ -584,7 +584,7 @@ function RoleTypeCaps({
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base">Weekly limit per kind of work</CardTitle>
+          <CardTitle className="text-base">Weekly limit by type of work</CardTitle>
           <HugeiconsIcon
             icon={Clock01Icon}
             strokeWidth={1.5}
@@ -592,17 +592,16 @@ function RoleTypeCaps({
           />
         </div>
         <CardDescription>
-          Optional, and on top of the weekly total above. Whichever is tighter
-          refuses first. It exists because the totals cannot say the thing that
-          matters about demanding work: 44 hours of cashier shifts and 44 hours of
-          warehouse picking are the same number and not the same week.
+          Optional. Applies in addition to the weekly limit above, and the
+          stricter limit is used. Use it for demanding work, since 44 hours of
+          warehouse picking is harder than 44 hours of cashier shifts.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {capped.length === 0 ? (
           <p className="text-xs text-muted-foreground">
-            No limits per kind of work. Every kind counts only against the two
-            totals above.
+            No limits by type of work. All work counts only against the daily
+            and weekly limits above.
           </p>
         ) : (
           <div className="flex flex-col divide-y">
@@ -611,7 +610,7 @@ function RoleTypeCaps({
               const minutes = typed.trim() === "" ? null : toMinutes(Number(typed));
               const error =
                 minutes === null
-                  ? "Say how many hours"
+                  ? "Enter the number of hours"
                   : capError("maxWeeklyMinutes", minutes);
               const roles = rolesFor(industryId);
 
@@ -630,7 +629,7 @@ function RoleTypeCaps({
                           // error — a listing of that kind may be posted
                           // tomorrow — but worth saying, because it is what a
                           // typo looks like from here.
-                          "No roles on the board are filed under this. Check the spelling."
+                          "No roles on the board use this type. Check the spelling."
                         : `${roles} role${roles === 1 ? "" : "s"} on the board`}
                     </span>
                   </div>
@@ -682,8 +681,8 @@ function RoleTypeCaps({
           >
             <option value="">
               {available.length === 0
-                ? "Every kind of work already has a limit"
-                : "Add a kind of work…"}
+                ? "Every type of work already has a limit"
+                : "Add a type of work…"}
             </option>
             {available.map((type) => (
               <option key={type.industryId} value={type.industryId}>
@@ -710,9 +709,9 @@ function RoleTypeCaps({
           </Button>
           {settings.roleTypes.length === 0 && (
             <p className="text-xs text-muted-foreground">
-              No roles on the board carry an industry yet, so there is nothing to
-              cap by kind. Roles posted before that field existed do not have one
-              and are only ever counted against the two totals.
+              No roles on the board have an industry yet, so there is nothing to
+              limit by type. Older roles have no industry and only count against
+              the daily and weekly limits.
             </p>
           )}
         </div>
@@ -739,9 +738,9 @@ function boundsError(key: keyof typeof BOUNDS, value: number) {
 function capError(key: "maxDailyMinutes" | "maxWeeklyMinutes", minutes: number) {
   if (!Number.isInteger(minutes)) return "Use whole or half hours";
   if (minutes === 0) return null;
-  if (minutes < MIN_CAP_MINUTES) return "An hour at least, or 0 for no limit";
+  if (minutes < MIN_CAP_MINUTES) return "At least 1 hour, or 0 for no limit";
   if (minutes > BOUNDS[key].max) {
-    return key === "maxDailyMinutes" ? "A day is 24 hours" : "A week is 168 hours";
+    return key === "maxDailyMinutes" ? "Maximum is 24 hours" : "Maximum is 168 hours";
   }
   return null;
 }
@@ -767,7 +766,7 @@ function allowedText(field: (typeof FIELDS)[number]) {
 
   if (field.group !== "hours") return `Allowed: ${bound.min}–${bound.max}`;
 
-  return `An hour at least, or 0 for no limit. Up to ${toHours(bound.max)}.`;
+  return `At least 1 hour, or 0 for no limit. Up to ${toHours(bound.max)}.`;
 }
 
 /** The stored map as hours-per-kind, for the form. */
@@ -830,7 +829,7 @@ function normalizeLink(typed: string) {
 function linkError(typed: string) {
   const value = normalizeLink(typed);
   if (value === null) return null;
-  if (value.length > LINK_BASE_MAX) return `${LINK_BASE_MAX} characters at most`;
+  if (value.length > LINK_BASE_MAX) return `Maximum ${LINK_BASE_MAX} characters`;
   if (!/^https:\/\/[^\s/]+(\/\S*)?$/.test(value)) return "Must start with https://";
   return null;
 }

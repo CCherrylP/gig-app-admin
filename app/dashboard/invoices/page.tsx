@@ -132,7 +132,7 @@ function InvoiceQueue() {
       setDecision(null);
       toast.success(
         status === "paid"
-          ? "Payment confirmed — coins credited"
+          ? "Payment confirmed. Coins credited."
           : "Invoice cancelled",
       );
     },
@@ -209,7 +209,7 @@ function InvoiceQueue() {
             <EmptyState
               icon={Invoice01Icon}
               message={
-                search ? "Nothing matches that search." : "Nothing in this queue."
+                search ? "No results match your search." : "There are no invoices here."
               }
             />
           ) : (
@@ -398,7 +398,7 @@ function DecisionDialog({
           <DialogDescription>
             {decision && paying && (
               <>
-                {decision.invoice.number} —{" "}
+                {decision.invoice.number}:{" "}
                 <span className="font-medium text-foreground">
                   {money(decision.invoice.totalCents)}
                 </span>{" "}
@@ -406,15 +406,15 @@ function DecisionDialog({
                 <span className="font-medium text-foreground">
                   {coins(decision.invoice.coins)} coins
                 </span>{" "}
-                and cannot be undone — only confirm it against the transfer on
-                the bank statement, not against an uploaded receipt.
+                and cannot be undone. Confirm it against the transfer on the
+                bank statement, not against an uploaded receipt.
               </>
             )}
             {decision && !paying && (
               <>
                 {decision.invoice.number} for {decision.invoice.companyName}. No
-                coins are credited. The invoice stays on record as cancelled
-                rather than disappearing, so it can still be reconciled.
+                coins are credited. The invoice stays on record as cancelled so
+                it can still be reconciled.
               </>
             )}
           </DialogDescription>

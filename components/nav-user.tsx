@@ -101,7 +101,7 @@ export function NavUser({
                 // Supabase holds the session, so ending it is the whole logout —
                 // there is no server-side session on gig-app-api to revoke.
                 await signOut();
-                toast.success("You have successfully logged out");
+                toast.success("You have logged out.");
                 window.location.replace("/login");
               }}
             >

@@ -139,7 +139,7 @@ export default function PayrollPage() {
       toast.success(`Marked ${result.marked} as paid`);
     },
     onError: (error) =>
-      toast.error(error instanceof Error ? error.message : "Could not save that"),
+      toast.error(error instanceof Error ? error.message : "Could not save the change."),
   });
 
   const toggle = (id: string) =>
@@ -176,7 +176,7 @@ export default function PayrollPage() {
       <PayrollSwitch />
       <PageHeader
         title="Payroll by shift"
-        description="Pay workers in your bank, then tick the shifts off here."
+        description="Pay workers through the bank, then mark the shifts as paid here."
       >
         <div className="flex flex-wrap items-center gap-2">
           <select
@@ -343,7 +343,7 @@ export default function PayrollPage() {
               message={
                 tab === "ready"
                   ? "Nothing to pay for this month."
-                  : "Nothing here for this month."
+                  : "No shifts for this month."
               }
             />
           ) : (
@@ -354,7 +354,7 @@ export default function PayrollPage() {
                 <input
                   key="all"
                   type="checkbox"
-                  aria-label="Select every payable row"
+                  aria-label="Select all payable rows"
                   checked={allChosen}
                   onChange={toggleAll}
                   disabled={selectable.length === 0}
@@ -408,7 +408,7 @@ export default function PayrollPage() {
               Mark {chosen.length} {chosen.length === 1 ? "shift" : "shifts"} paid?
             </DialogTitle>
             <DialogDescription>
-              Total {money(chosenCents)}. Only do this after the money has gone out from the bank.
+              Total {money(chosenCents)}. Only do this after the bank transfer has been sent.
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2">
@@ -473,7 +473,7 @@ function PayoutCheck({
       else window.location.href = url;
     } catch {
       tab?.close();
-      toast.error("That screenshot could not be opened.");
+      toast.error("Could not open the screenshot.");
     } finally {
       setOpening(false);
     }

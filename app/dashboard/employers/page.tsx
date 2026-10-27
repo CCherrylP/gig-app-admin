@@ -170,10 +170,10 @@ export default function EmployersPage() {
               icon={BuildingIcon}
               message={
                 search
-                  ? "Nothing matches that search."
+                  ? "No results match your search."
                   : filter === "all"
                     ? "No employers have signed up yet."
-                    : "Nothing in this queue."
+                    : "This queue is empty."
               }
             />
           ) : (
@@ -440,7 +440,7 @@ function DecisionDialog({
                 at {employer.companyName} (UEN {employer.companyUen}).{" "}
                 {approving
                   ? "They will be able to post jobs and spend the company's coins."
-                  : "They keep their seat but can do nothing in the company's name."}
+                  : "They keep their account but cannot act for the company."}
               </>
             )}
           </DialogDescription>
@@ -455,9 +455,9 @@ function DecisionDialog({
                 <span className="font-medium text-foreground">
                   {employer.companyName}
                 </span>{" "}
-                verified — it is currently{" "}
-                {employer.companyVerificationStatus}, and both halves have to
-                pass before anyone at this UEN can post.
+                as verified. It is currently{" "}
+                {employer.companyVerificationStatus}. Both the person and the
+                business must be approved before anyone at this UEN can post.
               </p>
             )}
 

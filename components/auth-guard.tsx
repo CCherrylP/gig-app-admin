@@ -86,7 +86,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       <div className="flex min-h-svh flex-col items-center justify-center gap-4 p-6 text-center">
         <div className="max-w-md space-y-2">
           <h1 className="font-heading text-xl font-semibold">
-            Cannot check your account
+            Unable to verify your account
           </h1>
           <p className="text-sm text-muted-foreground">{problem}</p>
         </div>

@@ -121,9 +121,9 @@ export default function EmployerDetailPage() {
               strokeWidth={1.5}
               className="size-10 text-muted-foreground/30"
             />
-            <p className="text-sm font-medium">No such employer</p>
+            <p className="text-sm font-medium">Employer not found</p>
             <p className="text-xs text-muted-foreground">
-              The seat may have been removed since this link was made.
+              This account may have been removed since the link was created.
             </p>
           </CardContent>
         </Card>
@@ -210,7 +210,7 @@ function Detail({
       setCompanyRole(employer.userId, companyRole),
     onSuccess: (_result, companyRole) => {
       queryClient.invalidateQueries({ queryKey: ["employers"] });
-      toast.success(companyRole === "admin" ? "Now company admin" : "Now a member");
+      toast.success(companyRole === "admin" ? "Set as company admin" : "Set as member");
     },
     onError: (error: Error) =>
       toast.error(error.message || "Could not change their role"),
@@ -309,7 +309,7 @@ function Detail({
           {employer.companyIsAgency && (
             <Meta
               label="Employment agency · EA licence"
-              value={employer.companyEaLicenceNo ?? "Missing, ask on the call"}
+              value={employer.companyEaLicenceNo ?? "Missing. Ask on the call."}
             />
           )}
           <Meta
@@ -353,7 +353,7 @@ function Detail({
               label="Phone"
               value={employer.phone}
               icon={CallIcon}
-              hint="The number to ring, this queue IS a phone call."
+              hint="Use this number for the verification call."
             />
             {/* No Singpass row. An employer is not asked to verify personally:
                 what stands behind them is the phone call confirming they work
@@ -362,9 +362,9 @@ function Detail({
                 nobody is meant to take, and made an ordinary account look
                 half-finished. */}
             <p className="text-xs text-muted-foreground">
-              Read-only. Name and phone come from the account and the email from
-              the sign-in — editing one here would leave a checked value standing
-              over something nobody checked.
+              Read-only. Name and phone come from the account, and email comes
+              from the sign-in. Editing them here would replace checked values
+              with unchecked ones.
             </p>
           </CardContent>
         </Card>
@@ -382,12 +382,12 @@ function Detail({
               <ReadOnly
                 label="UEN"
                 value={employer.companyUen}
-                hint="ACRA's answer, and the identity joining by UEN rests on."
+                hint="From ACRA. Staff who join by UEN are matched on this."
               />
               {employer.companyIsAgency && (
                 <ReadOnly
                   label="EA licence"
-                  value={employer.companyEaLicenceNo ?? "Missing, ask on the call"}
+                  value={employer.companyEaLicenceNo ?? "Missing. Ask on the call."}
                   hint="This business signed up as an employment agency."
                 />
               )}
@@ -413,7 +413,7 @@ function Detail({
               value={address}
               onChange={setAddress}
               placeholder="12 River Road #02-14, Singapore 179024"
-              hint="Where the work is. Autofilled from ACRA and shown to candidates judging the commute."
+              hint="Where the work takes place. Filled in from ACRA and shown to candidates."
             />
 
             {/* Its own section, because it answers a different question from the
@@ -448,13 +448,13 @@ function Detail({
                       <span className="font-medium text-foreground">
                         {employer.companyAddress}
                       </span>
-                      , and follow it if the outlet ever moves.
+                      . If the outlet address changes, invoices follow it.
                     </>
                   ) : (
                     <>
-                      There is no outlet address either, so invoices for{" "}
-                      {employer.companyName} print with no address on them at
-                      all. Untick this to give the bill somewhere to go.
+                      There is no outlet address, so invoices for{" "}
+                      {employer.companyName} will have no address. Untick this
+                      to add a billing address.
                     </>
                   )}
                 </p>
@@ -464,11 +464,11 @@ function Detail({
                     id="billing"
                     value={billing}
                     onChange={(e) => setBilling(e.target.value)}
-                    placeholder="Head office, where the bill goes"
+                    placeholder="Head office address"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Where invoices are addressed when the finance office is not
-                    the outlet — a chain bills a head office, not a shop floor.
+                    Use this when invoices go somewhere other than the outlet,
+                    such as a head office.
                   </p>
                 </>
               )}
@@ -478,7 +478,7 @@ function Detail({
               <p className="text-xs text-muted-foreground">
                 {dirty
                   ? "Unsaved changes."
-                  : "Descriptive fields only. Saving changes nothing about what anyone may do."}
+                  : "These are details only. Saving does not change any permissions."}
               </p>
               <Button
                 size="sm"
@@ -571,7 +571,7 @@ function CoinsAndPayments({ employer }: { employer: EmployerReview }) {
       toast.success(
         invoice.emailedTo
           ? `${invoice.number} raised and emailed to ${invoice.emailedTo}`
-          : `${invoice.number} raised, no email on this account, so send it yourself`,
+          : `${invoice.number} raised. This account has no email, so send it manually.`,
       );
       setCoins(String(MIN_TOPUP_COINS));
     },
@@ -622,7 +622,7 @@ function CoinsAndPayments({ employer }: { employer: EmployerReview }) {
             amounts; this is the one somebody types. */}
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="coins">Other — how much</Label>
+            <Label htmlFor="coins">Other amount</Label>
             <div className="flex items-center gap-2">
               <Input
                 id="coins"
@@ -656,8 +656,8 @@ function CoinsAndPayments({ employer }: { employer: EmployerReview }) {
           {!valid ? (
             <>
               Between {MIN_TOPUP_COINS.toLocaleString("en-SG")} and{" "}
-              {MAX_TOPUP_COINS.toLocaleString("en-SG")} whole coins, the same
-              limits employers get in the app.
+              {MAX_TOPUP_COINS.toLocaleString("en-SG")} whole coins. These are
+              the same limits employers have in the app.
             </>
           ) : (
             <>
@@ -672,9 +672,9 @@ function CoinsAndPayments({ employer }: { employer: EmployerReview }) {
                   year from the invoice date.{" "}
                 </>
               ) : null}
-              Raises the bill for {employer.companyName} and emails it. It creates
-              no coins — those appear only when the transfer is confirmed against
-              a bank statement.
+              Raises an invoice for {employer.companyName} and emails it. No
+              coins are created until the transfer is confirmed against a bank
+              statement.
             </>
           )}
         </p>
@@ -691,7 +691,7 @@ function CoinsAndPayments({ employer }: { employer: EmployerReview }) {
         >
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>That top-up already exists</DialogTitle>
+              <DialogTitle>This top-up already exists</DialogTitle>
               <DialogDescription>{duplicate}</DialogDescription>
             </DialogHeader>
             <div className="flex items-center justify-end gap-2 border-t px-6 py-4">
@@ -701,7 +701,7 @@ function CoinsAndPayments({ employer }: { employer: EmployerReview }) {
                 onClick={() => setDuplicate(null)}
                 disabled={raise.isPending}
               >
-                Keep the one bill
+                Keep existing invoice
               </Button>
               <Button
                 variant="destructive"
@@ -709,7 +709,7 @@ function CoinsAndPayments({ employer }: { employer: EmployerReview }) {
                 onClick={() => raise.mutate(true)}
                 disabled={raise.isPending}
               >
-                {raise.isPending ? "Raising…" : "Raise a second one"}
+                {raise.isPending ? "Raising…" : "Raise another invoice"}
               </Button>
             </div>
           </DialogContent>
@@ -724,9 +724,9 @@ function CoinsAndPayments({ employer }: { employer: EmployerReview }) {
             <span className="font-medium">
               This business is {employer.companyVerificationStatus}.
             </span>{" "}
-            The invoice will still go out. Nobody here can post a job or spend
-            coins until it is verified, though — so a paid top-up would sit
-            unusable.
+            The invoice will still be sent. However, no one at this business
+            can post jobs or spend coins until it is verified, so a paid
+            top-up cannot be used yet.
           </p>
         )}
 
@@ -803,12 +803,12 @@ function DecisionBand({
           <p className="text-sm font-medium">
             {approved
               ? "Approved to act for this business"
-              : "Awaiting the call"}
+              : "Awaiting verification call"}
           </p>
           <p className="max-w-prose text-xs text-muted-foreground">
             {approved
               ? "They can post jobs and spend the company's coins. Deleting closes their login and removes them from the company."
-              : "They can do nothing in the company's name until this is approved."}
+              : "They cannot act for the company until this is approved."}
           </p>
         </div>
 
@@ -858,8 +858,9 @@ function DecisionBand({
           <span className="font-medium text-foreground">
             {employer.companyName}
           </span>{" "}
-          verified — it is currently {employer.companyVerificationStatus}, and
-          both halves have to pass before anyone at this UEN can post.
+          as verified. It is currently {employer.companyVerificationStatus}.
+          Both the person and the business must be approved before anyone at
+          this UEN can post.
         </p>
       )}
 

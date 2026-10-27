@@ -379,7 +379,7 @@ export function PageHeader({
   children,
 }: {
   title: string;
-  description: string;
+  description?: string;
   children?: React.ReactNode;
 }) {
   // The section's own colour and icon, picked by address so no page has to
@@ -401,7 +401,7 @@ export function PageHeader({
         )}
         <div>
           <h1 className="font-heading text-2xl font-semibold">{title}</h1>
-          <p className="text-sm text-muted-foreground">{description}</p>
+          {description && <p className="text-sm text-muted-foreground">{description}</p>}
         </div>
       </div>
       {children}

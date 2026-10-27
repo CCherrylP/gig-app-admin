@@ -82,7 +82,7 @@ export function WorkWaiting() {
             size="sm"
             className="relative gap-2"
             aria-label={
-              total === 0 ? "Nothing waiting" : `${total} things waiting on you`
+              total === 0 ? "Nothing waiting" : `${total} items waiting for review`
             }
           />
         }
@@ -113,11 +113,11 @@ export function WorkWaiting() {
       <DropdownMenuContent align="end" className="w-80 p-0">
         <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
           <div className="flex min-w-0 flex-col">
-            <span className="text-sm font-medium">Waiting on you</span>
+            <span className="text-sm font-medium">Waiting for review</span>
             <span className="text-xs text-muted-foreground">
               {total === 0
-                ? "Nothing to clear."
-                : `${total} ${total === 1 ? "thing" : "things"} to clear.`}
+                ? "No items waiting."
+                : `${total} ${total === 1 ? "item" : "items"} to review.`}
             </span>
           </div>
           {/* A manual check beside the automatic one. Thirty seconds is a long
@@ -126,7 +126,7 @@ export function WorkWaiting() {
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label="Check again now"
+            aria-label="Refresh now"
             disabled={isFetching}
             onClick={(event) => {
               // The menu would close on a plain click, and closing the panel is
@@ -186,7 +186,7 @@ export function WorkWaiting() {
               className="w-full"
               render={<Link href={firstWaiting(counts)} />}
             >
-              Start clearing
+              Start reviewing
             </Button>
           </div>
         )}
@@ -245,7 +245,7 @@ function useSinceLastVisit(counts: AdminCounts | undefined) {
       const seen = readSeen();
       const sentence = seen ? arrivalSentence(seenAsCounts(seen), counts) : null;
       if (sentence) {
-        toast.info(`Since you last looked: ${sentence}.`, {
+        toast.info(`Since your last visit: ${sentence}.`, {
           id: "work-since-last",
           duration: 12000,
           action: { label: "Open", onClick: () => window.location.assign(firstNew(counts)) },

@@ -104,7 +104,7 @@ export default function ReferralsPage() {
       <MoneyTabs />
       <PageHeader
         title="Referrals"
-        description="Who referred whom, and what they earn from our fee."
+        description="Referral links between accounts, and the commission each referrer earns from our fee."
       >
         <FilterTabs options={SECTIONS} value={section} onChange={setSection} />
       </PageHeader>
@@ -153,8 +153,8 @@ function StaffSection() {
         <CardHeader>
           <CardTitle className="text-base">Add or change staff</CardTitle>
           <CardDescription>
-            BD and TA staff need a candidate account. Enter the email of their
-            candidate account. Saving an existing person changes their team.
+            BD and TA staff need a candidate account. Enter the email for that
+            account. Saving an existing staff member changes their team.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -341,7 +341,7 @@ function ReferralsSection() {
     <>
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Set referrer by hand</CardTitle>
+          <CardTitle className="text-base">Set referrer manually</CardTitle>
           <CardDescription>
             For someone who signed up without a code. This replaces any
             referrer they already have. Any candidate&apos;s code works for a
@@ -697,14 +697,14 @@ function CommissionsSection() {
           {isLoading ? (
             <LoadingRows />
           ) : rows.length === 0 ? (
-            <EmptyState icon={MoneyBag02Icon} message="Nothing here for this month." />
+            <EmptyState icon={MoneyBag02Icon} message="No commissions for this month." />
           ) : (
             <TableShell
               headers={[
                 <input
                   key="all"
                   type="checkbox"
-                  aria-label="Select every row not cashed out"
+                  aria-label="Select all rows not cashed out"
                   checked={allChosen}
                   onChange={toggleAll}
                   disabled={selectable.length === 0}

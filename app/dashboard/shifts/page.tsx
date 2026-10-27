@@ -217,14 +217,14 @@ export default function ShiftsPage() {
       toast.success(
         shift.locked
           ? `Shift moved to ${dayLabel(shift.onDate)}, ${shift.startTime}–${shift.endTime}. Everyone on it has been told.`
-          : `Shift saved — ${dayLabel(shift.onDate)}, ${shift.startTime}–${shift.endTime}.`,
+          : `Shift saved: ${dayLabel(shift.onDate)}, ${shift.startTime}–${shift.endTime}.`,
       );
     },
     onError: (error: Error) => {
       // SHIFT_SETTLED, SHIFT_CLASH, SHIFT_IN_USE and CANNOT_AFFORD all land
       // here, and the API's sentence names the person or the amount — which is
       // more use than anything this screen could say about it.
-      toast.error(error.message || "Could not save that change");
+      toast.error(error.message || "Could not save the change.");
       queryClient.invalidateQueries({ queryKey: ["shifts"] });
     },
   });
@@ -267,7 +267,7 @@ export default function ShiftsPage() {
           cls="text-amber-600 dark:text-amber-400"
         />
         <StatCard
-          label="Shifts with somebody on"
+          label="Shifts with bookings"
           count={data?.bookedCount ?? "—"}
           icon={CheckmarkCircle02Icon}
           cls="text-emerald-600 dark:text-emerald-400"
@@ -329,7 +329,7 @@ export default function ShiftsPage() {
             </CardTitle>
             {day && (
               <Button variant="outline" size="sm" onClick={() => setDay(null)}>
-                Show the whole month
+                Show full month
               </Button>
             )}
           </div>
@@ -342,9 +342,9 @@ export default function ShiftsPage() {
               icon={Calendar03Icon}
               message={
                 search
-                  ? "Nothing matches that search."
+                  ? "No shifts match your search."
                   : day
-                    ? "Nothing is on that day."
+                    ? "No shifts on this day."
                     : "No shifts in this month."
               }
             />
@@ -375,8 +375,8 @@ export default function ShiftsPage() {
           )}
           {data?.truncated && (
             <p className="border-t px-6 py-3 text-xs text-muted-foreground">
-              This month has more shifts than one page holds, so the list is cut.
-              Narrow it with the search or the tabs.
+              This month has more shifts than one page can show. Use the search
+              or tabs to narrow the list.
             </p>
           )}
         </CardContent>
@@ -718,19 +718,19 @@ function EditShiftDialog({
       <DialogContent className="max-h-[90vh] max-w-xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {shift?.settled ? "This shift has been settled" : "Correct this shift"}
+            {shift?.settled ? "This shift is settled" : "Edit shift"}
           </DialogTitle>
           <DialogDescription>
             {shift && (
               <>
-                {shift.roleName} at {shift.companyName} —{" "}
+                {shift.roleName} at {shift.companyName}:{" "}
                 <span className="font-medium text-foreground">{shift.gigTitle}</span>,{" "}
                 {shift.location}. The role pays{" "}
                 <span className="font-medium text-foreground">
                   {money(shift.payPerHourCents)}
                 </span>{" "}
-                an hour, and that is fixed here: the rate is the deal, and it
-                belongs to the listing.
+                an hour. The rate belongs to the listing and cannot be changed
+                here.
               </>
             )}
           </DialogDescription>
@@ -743,10 +743,9 @@ function EditShiftDialog({
                 until they have already typed the change. */}
             {shift.settled ? (
               <Notice tone="blocked">
-                The hours on this shift have been signed off, so somebody has
-                already been paid for them. Editing them now would leave a payslip
-                describing a shift that no longer exists — correct the sign-off
-                from Clock in / clock out instead. Everything below is read-only.
+                The hours on this shift have been signed off and paid. Editing
+                them would make the payslip wrong. Correct the sign-off from
+                Clock in / clock out instead. The fields below are read-only.
               </Notice>
             ) : shift.locked ? (
               <Notice tone="warn">
@@ -757,12 +756,12 @@ function EditShiftDialog({
                 {shift.bookings
                   .map((booking) => booking.candidateName ?? "an unnamed candidate")
                   .join(", ")}
-                . Moving it changes their week, and they are told as soon as it
-                saves. A move that would double-book any of them is refused.
+                . They are notified as soon as the change is saved. A change that
+                would double-book any of them is refused.
               </Notice>
             ) : (
               <Notice tone="calm">
-                Nobody is booked on this shift yet, so this is a plain correction.
+                No one is booked on this shift yet.
               </Notice>
             )}
 
@@ -795,8 +794,8 @@ function EditShiftDialog({
                   }
                 />
                 <p className="text-xs text-muted-foreground">
-                  {shift.filled} booked. Raising it opens a seat; it cannot go
-                  below the people already on it.
+                  {shift.filled} booked. It cannot go below the number already
+                  booked.
                 </p>
               </Field>
 
@@ -823,7 +822,7 @@ function EditShiftDialog({
                   }
                 />
                 <p className="text-xs text-muted-foreground">
-                  An end before the start runs overnight, which is allowed.
+                  An end time before the start time means an overnight shift.
                 </p>
               </Field>
 
@@ -870,7 +869,7 @@ function EditShiftDialog({
                   }
                 />
                 <p className="text-xs text-muted-foreground">
-                  Two half-hours on a twelve-hour shift is an ordinary roster.
+                  For example, two 30-minute breaks on a 12-hour shift.
                 </p>
               </Field>
             </div>
@@ -911,24 +910,22 @@ function EditShiftDialog({
 
             {breaksTooLong && (
               <Notice tone="blocked">
-                The breaks are longer than the shift. There would be nothing to
-                pay.
+                The breaks are longer than the shift.
               </Notice>
             )}
 
             {belowBooked && (
               <Notice tone="blocked">
                 {shift.filled} {shift.filled === 1 ? "person is" : "people are"}{" "}
-                already booked, so this cannot be cut to {form.headcount}. A seat
-                with somebody in it is not one arithmetic can delete.
+                already booked, so this cannot be reduced to {form.headcount}.
               </Notice>
             )}
 
             {!shift.settled && changed && (
               <p className="text-xs text-muted-foreground">
-                Saving re-prices the listing: the employer&apos;s held wages and
-                placement fee move by the difference, in the same transaction, and
-                the change is refused if their balance cannot cover it.
+                Saving re-prices the listing. The employer&apos;s held wages and
+                placement fee change by the difference. The change is refused if
+                their balance cannot cover it.
               </p>
             )}
           </div>
@@ -949,7 +946,7 @@ function EditShiftDialog({
               disabled={isPending || blocked || !changed}
               onClick={() => onSave(edit)}
             >
-              {isPending ? "Saving…" : changed ? "Save the correction" : "No change yet"}
+              {isPending ? "Saving…" : changed ? "Save changes" : "No changes"}
             </Button>
           )}
         </DialogFooter>

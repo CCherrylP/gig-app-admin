@@ -67,7 +67,7 @@ export default function MoneyPage() {
       <MoneyTabs />
       <PageHeader
         title="Overview"
-        description="What companies paid us, what we earned, and what is still owed."
+        description="Payments received, revenue earned and amounts still owed."
       />
 
       {allTime && <AllTime data={allTime} />}
@@ -157,7 +157,7 @@ export default function MoneyPage() {
           ) : companies.length === 0 ? (
             <EmptyState
               icon={Invoice01Icon}
-              message="No invoices raised and no coins moved this month."
+              message="No invoices or coin movements this month."
             />
           ) : (
             <TableShell
@@ -240,7 +240,7 @@ const FEE_PARTS = [
   {
     key: "earnedCents",
     label: "Earned",
-    note: "$2 an hour for hours actually worked. This is ours.",
+    note: "$2 an hour for hours worked. This is our revenue.",
     colour: "bg-emerald-500",
   },
   {
@@ -251,8 +251,8 @@ const FEE_PARTS = [
   },
   {
     key: "toRefundCents",
-    label: "To give back",
-    note: "Jobs that are over, for seats nobody filled. Goes back to the company when the job closes.",
+    label: "To refund",
+    note: "Fees for unfilled seats on finished jobs. Refunded to the company when the job closes.",
     colour: "bg-amber-500",
   },
   {

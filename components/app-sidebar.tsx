@@ -113,6 +113,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       children: INBOX_TABS.map((tab) => ({
         title: tab.label,
         url: tab.url,
+        badge: tab.countKey ? counts?.[tab.countKey] : undefined,
         fresh: tab.countKey ? freshIn(seen, counts, tab.countKey) : 0,
       })),
     },

@@ -120,8 +120,8 @@ export default function CandidatesPage() {
       setTarget(null);
       toast.success(
         suspended
-          ? "Candidate suspended, they have been told why"
-          : "Suspension lifted, they can book again",
+          ? "Candidate suspended and notified of the reason"
+          : "Suspension lifted. They can book again.",
       );
     },
     onError: (error: Error) => {
@@ -146,7 +146,7 @@ export default function CandidatesPage() {
       setCapping(null);
       toast.success(
         cap.maxDailyMinutes === null && cap.maxWeeklyMinutes === null
-          ? "Back on the platform's hours limits"
+          ? "Platform hours limits restored"
           : "Hours limit saved for this candidate",
       );
     },
@@ -186,7 +186,7 @@ export default function CandidatesPage() {
       <PeopleTabs />
       <PageHeader
         title="Candidates"
-        description="Find a worker and see what is stopping them from applying."
+        description="Find a worker and see what is preventing them from applying."
       >
         <SearchInput
           value={search}
@@ -229,7 +229,7 @@ export default function CandidatesPage() {
             <EmptyState
               icon={UserGroupIcon}
               message={
-                search ? "Nobody matches that search." : "No candidates yet."
+                search ? "No candidates match that search." : "No candidates yet."
               }
             />
           ) : (
@@ -552,7 +552,7 @@ function CandidateRow({
               says nothing. */}
           {candidate.pendingCertificates > 0 && (
             <span className="truncate text-[11px] font-medium tabular-nums text-amber-600 dark:text-amber-400">
-              Waiting on us: {candidate.pendingCertificates} cert
+              Pending review: {candidate.pendingCertificates} cert
               {candidate.pendingCertificates === 1 ? "" : "s"}
             </span>
           )}
@@ -683,10 +683,10 @@ function HoursCapDialog({
                 <span className="font-medium text-foreground">
                   {candidate.name ?? "this candidate"}
                 </span>{" "}
-                unless something here says otherwise. Set one only when the cap
-                is a fact about them rather than policy. A student pass allows 16
-                hours a week during term, and no platform-wide number can say
-                that without capping everybody at 16.
+                unless you set one here. Set a limit only when it applies to
+                this person, not as policy. For example, a student pass allows
+                16 hours a week during term, and a platform-wide limit cannot
+                reflect that without capping everyone at 16.
               </>
             )}
           </DialogDescription>
@@ -695,11 +695,10 @@ function HoursCapDialog({
         {candidate && (
           <div className="flex flex-col gap-4 px-6 pb-4">
             <div className="rounded-lg border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-              Nothing they already hold is affected: a limit refuses the{" "}
-              <span className="font-medium text-foreground">next</span> shift they
-              try to take. They are not notified when one is set. It takes
-              nothing away, and they meet it only at the point they would exceed
-              it, where the refusal carries the reason below.
+              Shifts they already hold are not affected. A limit only refuses
+              the <span className="font-medium text-foreground">next</span> shift
+              that would exceed it, and the refusal shows the reason below. They
+              are not notified when a limit is set.
             </div>
 
             <CapField
@@ -740,9 +739,7 @@ function HoursCapDialog({
                       : "text-xs text-muted-foreground"
                   }
                 >
-                  At least 10 characters. It is the sentence they read when a
-                  shift is refused, and a limit with nothing written against it is
-                  one they cannot answer.
+                  At least 10 characters. They see this when a shift is refused.
                 </p>
               </div>
             )}
@@ -845,7 +842,7 @@ function CapField({
       </div>
       {bad && (
         <p className="text-xs font-medium text-destructive">
-          An hour at least. Choose &ldquo;No limit&rdquo; to exempt them instead.
+          Enter at least 1 hour, or choose &ldquo;No limit&rdquo; to exempt them.
         </p>
       )}
     </div>
@@ -892,10 +889,8 @@ function SuspensionDialog({
                 <span className="font-medium text-foreground">
                   {candidate.name ?? "This candidate"}
                 </span>{" "}
-                will be able to book shifts again, and any timed block still
-                standing against them is cleared at the same time. Otherwise
-                they would be told they are reinstated and still find the app
-                refusing.
+                will be able to book shifts again. Any active timed block is
+                also cleared, so the app does not keep refusing their bookings.
               </>
             )}
             {candidate && !suspended && (
@@ -931,8 +926,7 @@ function SuspensionDialog({
                   : "text-xs text-muted-foreground"
               }
             >
-              At least 10 characters. It goes to them as a notification, and a
-              block with no reason on it is one nobody can answer.
+              At least 10 characters. They receive this as a notification.
             </p>
           </div>
         )}

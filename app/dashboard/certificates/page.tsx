@@ -125,7 +125,7 @@ export default function CertificatesPage() {
       <ReviewTabs />
       <PageHeader
         title="Certificates"
-        description="Check uploaded certificates. Oldest first, since these workers cannot apply yet."
+        description="Check uploaded certificates. Oldest first, as these workers cannot apply until they are checked."
       >
         <SearchInput
           value={search}
@@ -273,7 +273,7 @@ function CertificateRow({
             </span>
           ) : (
             <span className="truncate text-xs text-muted-foreground">
-              Does not lapse
+              No expiry
             </span>
           )}
         </div>
@@ -351,7 +351,7 @@ function DecisionDialog({
                 </span>
                 .{" "}
                 {verifying
-                  ? "Employers will treat it as checked, and it cannot be set back to pending, only the candidate re-uploading returns it to this queue."
+                  ? "Employers will see it as checked. It cannot be set back to pending. It returns to this queue only if the candidate uploads it again."
                   : "The candidate can upload a replacement, which returns it to this queue."}
               </>
             )}

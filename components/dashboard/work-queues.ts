@@ -54,7 +54,7 @@ const NOTES: Partial<
   },
   attendance: {
     note: "Selfie check-ins and missed clock-outs.",
-    arrival: { one: "new clock-in to look at", many: "new clock-ins to look at" },
+    arrival: { one: "new clock-in to review", many: "new clock-ins to review" },
   },
   appeals: {
     note: "Penalty appeals to decide.",
@@ -69,11 +69,11 @@ const NOTES: Partial<
     arrival: { one: "new PayNow number to check", many: "new PayNow numbers to check" },
   },
   postReports: {
-    note: "Posts somebody reported.",
+    note: "Posts reported by users.",
     arrival: { one: "new reported post", many: "new reported posts" },
   },
   unpaidReviewCount: {
-    note: "Shifts not paid yet because the selfie needs a check.",
+    note: "Unpaid shifts waiting for a selfie check.",
     arrival: {
       one: "shift waiting for a selfie check before pay",
       many: "shifts waiting for a selfie check before pay",
@@ -88,7 +88,7 @@ const NOTES: Partial<
   },
 };
 
-const UNKNOWN = { one: "new thing to look at", many: "new things to look at" };
+const UNKNOWN = { one: "new item to review", many: "new items to review" };
 
 export const WORK_QUEUES: WorkQueue[] = [
   ...REVIEW_TABS.map((tab) => ({

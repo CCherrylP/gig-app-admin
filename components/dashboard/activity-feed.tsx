@@ -200,7 +200,7 @@ export function ActivityFeed({
             ))}
           </div>
         ) : shown.length === 0 ? (
-          <EmptyState icon={LOOKS.support.icon} message="Nothing has happened yet." />
+          <EmptyState icon={LOOKS.support.icon} message="No recent activity." />
         ) : (
           // A timeline: a thin rule down the left joining the icons, so the list
           // reads as a sequence of things that happened rather than a table.

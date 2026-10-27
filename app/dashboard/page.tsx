@@ -99,10 +99,10 @@ function Hero() {
           </h1>
           <p className="text-sm text-muted-foreground">
             {isLoading
-              ? "Checking what came in…"
+              ? "Loading…"
               : allClear
-                ? "Every queue is clear. Nothing is waiting on you."
-                : `${waiting} ${waiting === 1 ? "thing is" : "things are"} waiting across ${busy} ${
+                ? "All queues are clear."
+                : `${waiting} ${waiting === 1 ? "item is" : "items are"} waiting across ${busy} ${
                     busy === 1 ? "queue" : "queues"
                   }.`}
           </p>
@@ -128,7 +128,7 @@ function Hero() {
         ) : allClear ? (
           <div className="flex items-center gap-3 rounded-xl bg-emerald-100/80 px-4 py-3 text-emerald-800 animate-in zoom-in-95 dark:bg-emerald-900/40 dark:text-emerald-200">
             <HugeiconsIcon icon={SparklesIcon} strokeWidth={1.8} className="size-6" />
-            <span className="text-sm font-medium">All clear. Nice work.</span>
+            <span className="text-sm font-medium">All clear</span>
           </div>
         ) : (
           <div className="flex items-center gap-5">
@@ -136,7 +136,7 @@ function Hero() {
               <p className="font-heading text-5xl font-semibold leading-none">
                 <CountUp value={waiting} />
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">waiting on you</p>
+              <p className="mt-1 text-xs text-muted-foreground">waiting for review</p>
             </div>
             <Button size="lg" render={<Link href={firstWaiting(counts)} />}>
               Start with {next?.label ?? "the queue"}
@@ -332,7 +332,7 @@ export default function DashboardPage() {
             href="/dashboard/employers"
             icon={LOOKS.employers.icon}
             accent={LOOKS.employers.tint}
-            emptyMessage="Nobody waiting on a call."
+            emptyMessage="No employers waiting for verification."
             rows={pendingEmployers.slice(0, 3).map((employer) => ({
               key: employer.userId,
               seed: employer.userId,
@@ -348,7 +348,7 @@ export default function DashboardPage() {
             href="/dashboard/certificates"
             icon={LOOKS.certificates.icon}
             accent={LOOKS.certificates.tint}
-            emptyMessage="Nothing awaiting a decision."
+            emptyMessage="No certificates waiting for review."
             rows={pendingCerts.slice(0, 3).map((review) => ({
               key: `${review.candidateId}-${review.certId}`,
               seed: review.candidateId,

@@ -42,7 +42,7 @@ export function ReferredByField({
           : link?.valid
             ? `They signed up from ${who}'s link. Confirm it on the call, or clear the box.`
             : link
-              ? `They signed up with code ${link.code}, but it can't refer a business.`
+              ? `They signed up with code ${link.code}, but that code cannot refer a business.`
               : "Ask who referred them. Any candidate's referral code works, including BD staff. Leave blank if no one did."}
       </p>
     </div>

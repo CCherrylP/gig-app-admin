@@ -75,7 +75,7 @@ export function NavMain({
                   // says there is something, and hovering is where "four
                   // employers to verify" can actually be read.
                   item.badge && item.badge > 0
-                    ? `${item.title} — ${item.badge} waiting`
+                    ? `${item.title}: ${item.badge} waiting`
                     : item.title
                 }
               >
@@ -146,7 +146,7 @@ function NavCollapsible({
               isActive={childActive}
               tooltip={
                 item.badge && item.badge > 0
-                  ? `${item.title} — ${item.badge} waiting`
+                  ? `${item.title}: ${item.badge} waiting`
                   : item.title
               }
             >
@@ -198,7 +198,7 @@ function NavCollapsible({
                       className="shrink-0 rounded-full bg-red-500 px-1.5 text-[10px] font-semibold leading-4 text-white"
                       aria-label={`${child.fresh} new`}
                     >
-                      new
+                      {child.fresh > 99 ? "99+" : child.fresh} new
                     </span>
                   )}
                   {child.badge != null && child.badge > 0 && (

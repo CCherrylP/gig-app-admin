@@ -113,6 +113,13 @@ export default function AppealsPage() {
     queryFn: () => listAccountAppeals(filter),
   });
 
+  // Open on the tab with work waiting, once, so nobody lands on an empty queue.
+  const [autoPicked, setAutoPicked] = useState(false);
+  if (!autoPicked && data && account.data) {
+    setAutoPicked(true);
+    if (!data.pendingCount && account.data.pendingCount) setQueue("account");
+  }
+
   const mutation = useMutation({
     mutationFn: ({ appeal, outcome }: Decision) =>
       decideAppeal(appeal.withdrawalId, outcome),
@@ -231,8 +238,8 @@ export default function AppealsPage() {
         title="Appeals"
         description={
           queue === "incident"
-            ? "A worker dropped a shift and says it should not count. Check their proof against the shift date."
-            : "A worker is blocked from booking and is asking to come back. Look at their history and what has changed."
+            ? undefined
+            : "These workers are blocked from booking and have asked to return. Review their history and what has changed."
         }
       >
         <SearchInput
@@ -288,7 +295,7 @@ export default function AppealsPage() {
                 message={
                   search
                     ? "Nothing matches that search."
-                    : "Nobody is asking to be unblocked."
+                    : "No unblock requests."
                 }
               />
             ) : (
@@ -712,7 +719,7 @@ function AccountDecisionDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {granting ? "Let them book again" : "Keep this account blocked"}
+            {granting ? "Unblock this account" : "Keep this account blocked"}
           </DialogTitle>
           <DialogDescription>
             {decision && (
@@ -726,20 +733,20 @@ function AccountDecisionDialog({
                 {decision.appeal.shiftsDone === 1 ? "" : "s"}.{" "}
                 {granting ? (
                   <>
-                    Unblocking clears the suspension AND any timed block still
-                    running, so they can book immediately.{" "}
+                    Unblocking clears the suspension and any active timed
+                    block, so they can book immediately.{" "}
                     <span className="font-medium text-foreground">
-                      The strikes are not cleared
+                      The strikes are not cleared.
                     </span>{" "}
-                    — this is a decision about access, not a finding that the
-                    incidents never happened, so the next one still escalates
-                    from where they are.
+                    This decision restores access. It does not mean the
+                    incidents did not happen, so the next strike still
+                    escalates from their current count.
                   </>
                 ) : (
                   <>
-                    The block stands and they stay unable to take work. They can
-                    file again — unlike a shift appeal, this one has no deadline
-                    and no one-per-customer rule.
+                    The block stays and they cannot take work. They can appeal
+                    again. Unlike a shift appeal, this one has no deadline and
+                    no limit on the number of appeals.
                   </>
                 )}
               </>
@@ -804,8 +811,8 @@ function DecisionDialog({
                 {waiving
                   ? "The late cancellation stops counting against them."
                   : "The restriction stands and still counts."}{" "}
-                There is one appeal per withdrawal, so this cannot be re-filed
-                and it cannot be set back to pending.
+                Each withdrawal allows one appeal, so this cannot be refiled or
+                set back to pending.
               </>
             )}
           </DialogDescription>

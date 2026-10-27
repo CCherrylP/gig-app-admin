@@ -113,11 +113,11 @@ export default function PayoutChecksPage() {
       setNote("");
 
       toast.success(
-        verification === "verified" ? "Marked as checked" : "Turned down, they have been told",
+        verification === "verified" ? "Marked as checked." : "Rejected. The candidate has been notified.",
       );
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Could not record that decision");
+      toast.error(error.message || "Could not save the decision.");
     },
   });
 
@@ -146,7 +146,7 @@ export default function PayoutChecksPage() {
       else window.location.assign(url);
     } catch {
       tab?.close();
-      toast.error("That screenshot could not be opened.");
+      toast.error("Could not open the screenshot.");
     } finally {
       setOpening(null);
     }
@@ -171,7 +171,7 @@ export default function PayoutChecksPage() {
       <ReviewTabs />
       <PageHeader
         title="PayNow checks"
-        description="Check each PayNow number belongs to the worker. A wrong transfer cannot be undone."
+        description="Check that each PayNow number belongs to the worker. A wrong transfer cannot be undone."
       >
         <SearchInput
           value={search}
@@ -198,7 +198,7 @@ export default function PayoutChecksPage() {
             <EmptyState
               icon={CheckmarkBadge01Icon}
               message={
-                search ? "Nothing matches that search." : "Nothing in this queue."
+                search ? "No results match your search." : "This queue is empty."
               }
             />
           ) : (
@@ -247,7 +247,7 @@ export default function PayoutChecksPage() {
                         <RevealNumber value={account.number} />
                       </div>
                       <span className="truncate text-xs text-muted-foreground">
-                        {account.holderName ?? "no name given"}
+                        {account.holderName ?? "No name given"}
                       </span>
                     </div>
                   </td>
@@ -263,7 +263,7 @@ export default function PayoutChecksPage() {
                         // screenshot actually matters, so it is worth saying out
                         // loud rather than leaving somebody to spot it.
                         <div className="truncate text-[11px] text-amber-600">
-                          different number
+                          Different number
                         </div>
                       )}
                   </td>
@@ -321,7 +321,7 @@ export default function PayoutChecksPage() {
                         }}
                       >
                         <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
-                        Does not
+                        No match
                       </Button>
 
                       {/* Nothing to check it against, so nothing to approve.
@@ -354,12 +354,12 @@ export default function PayoutChecksPage() {
             <DialogTitle>
               {decision?.verification === "verified"
                 ? "Mark this number as checked?"
-                : "Turn this down?"}
+                : "Reject this number?"}
             </DialogTitle>
             <DialogDescription>
               {decision?.verification === "verified" ? (
                 <>
-                  You are saying the screenshot shows{" "}
+                  You are confirming the screenshot shows{" "}
                   <span className="font-medium">{decision?.account.holderName ?? "this person"}</span>{" "}
                   registered to{" "}
                   <span className="font-mono">{decision?.account.number}</span>. Payroll will show
@@ -370,8 +370,8 @@ export default function PayoutChecksPage() {
                   <span className="font-medium">
                     {decision?.account.candidateName ?? "They"}
                   </span>{" "}
-                  will see your reason and can send another screenshot. Their pay is not held up
-                  either way.
+                  will see your reason and can send another screenshot. Their pay is not
+                  affected.
                 </>
               )}
             </DialogDescription>
@@ -380,7 +380,7 @@ export default function PayoutChecksPage() {
           {decision?.verification === "rejected" && (
             <div className="flex flex-col gap-1.5">
               <label htmlFor="payout-note" className="text-xs font-medium">
-                Why not? They read this.
+                Reason (shown to the candidate)
               </label>
               <textarea
                 id="payout-note"
@@ -396,7 +396,7 @@ export default function PayoutChecksPage() {
                   after it. */}
               {!note.trim() && (
                 <span className="text-[11px] text-amber-600">
-                  Say what was wrong, or they cannot fix it.
+                  Required, so they know what to fix.
                 </span>
               )}
             </div>
@@ -417,7 +417,7 @@ export default function PayoutChecksPage() {
                 ? "Saving…"
                 : decision?.verification === "verified"
                   ? "Yes, it matches"
-                  : "Turn it down"}
+                  : "Reject"}
             </Button>
           </div>
         </DialogContent>
@@ -426,8 +426,8 @@ export default function PayoutChecksPage() {
       <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
         <HugeiconsIcon icon={Alert02Icon} strokeWidth={2} className="mt-0.5 size-4 shrink-0" />
         <span>
-          This does not hold anybody&rsquo;s pay. An unchecked number can still be paid by hand, and
-          Payroll shows the state beside it. Only checked bank accounts go into the bank file, so
+          This does not hold anyone&rsquo;s pay. An unchecked number can still be paid manually,
+          and Payroll shows its status. Only checked bank accounts go into the bank file, so
           check numbers here to keep that file complete.
         </span>
       </div>
