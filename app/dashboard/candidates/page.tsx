@@ -16,6 +16,7 @@ import {
   CheckmarkCircle02Icon,
   Clock01Icon,
   Delete02Icon,
+  PencilEdit02Icon,
 } from "@hugeicons/core-free-icons";
 
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,7 @@ import {
   hasOwnCap,
   listCandidates,
   ratingLabel,
+  setCandidateName,
   setHoursCap,
   setSuspension,
   type BookingFilter,
@@ -92,6 +94,7 @@ export default function CandidatesPage() {
   // other's row out from under it.
   const [capping, setCapping] = useState<CandidateSummary | null>(null);
   const [deleting, setDeleting] = useState<CandidateSummary | null>(null);
+  const [renaming, setRenaming] = useState<CandidateSummary | null>(null);
 
   // The search goes to the API rather than filtering a page in the browser —
   // this list is capped at fifty rows, so a client-side filter would only ever
@@ -152,6 +155,19 @@ export default function CandidatesPage() {
     },
     onError: (error: Error) => {
       toast.error(error.message || "Could not save that limit");
+    },
+  });
+
+  const nameMutation = useMutation({
+    mutationFn: ({ candidate, name }: { candidate: CandidateSummary; name: string }) =>
+      setCandidateName(candidate.userId, name),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["candidates"] });
+      setRenaming(null);
+      toast.success("Name updated. The candidate has been notified.");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Could not update that name");
     },
   });
 
@@ -247,6 +263,7 @@ export default function CandidatesPage() {
                   candidate={candidate}
                   onToggle={() => setTarget(candidate)}
                   onEditHours={() => setCapping(candidate)}
+                  onEditName={() => setRenaming(candidate)}
                   onDelete={() => setDeleting(candidate)}
                 />
               ))}
@@ -298,6 +315,15 @@ export default function CandidatesPage() {
         isPending={capMutation.isPending}
       />
 
+      <NameDialog
+        candidate={renaming}
+        onOpenChange={(open) => {
+          if (!open) setRenaming(null);
+        }}
+        onSave={(name) => renaming && nameMutation.mutate({ candidate: renaming, name })}
+        isPending={nameMutation.isPending}
+      />
+
       <DeleteDialog
         candidate={deleting}
         onOpenChange={(open) => {
@@ -307,6 +333,91 @@ export default function CandidatesPage() {
         isPending={deleteMutation.isPending}
       />
     </div>
+  );
+}
+
+/** Edit a candidate's name. For a verified candidate, check it against their NRIC first. */
+function NameDialog({
+  candidate,
+  onOpenChange,
+  onSave,
+  isPending,
+}: {
+  candidate: CandidateSummary | null;
+  onOpenChange: (open: boolean) => void;
+  onSave: (name: string) => void;
+  isPending: boolean;
+}) {
+  const [name, setName] = useState("");
+  const [prevId, setPrevId] = useState<string | null>(null);
+
+  // Load the current name when a different row opens the dialog.
+  if ((candidate?.userId ?? null) !== prevId) {
+    setPrevId(candidate?.userId ?? null);
+    setName(candidate?.name ?? "");
+  }
+
+  const trimmed = name.trim();
+  const unchanged = trimmed === (candidate?.name ?? "").trim();
+
+  return (
+    <Dialog open={!!candidate} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Edit name</DialogTitle>
+          <DialogDescription>
+            {candidate?.verified ? (
+              <>
+                This candidate&apos;s ID is approved, so they can&apos;t change their name
+                themselves. Make sure it matches their NRIC.{" "}
+                <Link
+                  href={`/dashboard/identity?candidate=${candidate.userId}`}
+                  className="font-medium text-foreground hover:underline"
+                >
+                  View ID
+                </Link>
+              </>
+            ) : (
+              "The candidate can also change this themselves until their ID is approved."
+            )}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex flex-col gap-2 px-6 pb-4">
+          <label htmlFor="candidate-name" className="text-sm font-medium">
+            Full name
+          </label>
+          <Input
+            id="candidate-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            maxLength={120}
+            autoFocus
+          />
+          <p className="text-xs text-muted-foreground">
+            They get a notification with the new name. Payroll and invoices use it from now on.
+          </p>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 border-t px-6 py-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onOpenChange(false)}
+            disabled={isPending}
+          >
+            Back
+          </Button>
+          <Button
+            size="sm"
+            disabled={isPending || !trimmed || unchanged}
+            onClick={() => onSave(trimmed)}
+          >
+            {isPending ? "Saving…" : "Save name"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -394,11 +505,13 @@ function CandidateRow({
   candidate,
   onToggle,
   onEditHours,
+  onEditName,
   onDelete,
 }: {
   candidate: CandidateSummary;
   onToggle: () => void;
   onEditHours: () => void;
+  onEditName: () => void;
   onDelete: () => void;
 }) {
   const name = candidate.name ?? "Unnamed candidate";
@@ -561,6 +674,10 @@ function CandidateRow({
 
       <td className="px-4 py-3">
         <div className="flex flex-wrap items-center justify-end gap-1.5">
+          <Button variant="outline" size="xs" onClick={onEditName}>
+            <HugeiconsIcon icon={PencilEdit02Icon} strokeWidth={2} />
+            Name
+          </Button>
           <Button variant="outline" size="xs" onClick={onEditHours}>
             <HugeiconsIcon icon={Clock01Icon} strokeWidth={2} />
             Hours

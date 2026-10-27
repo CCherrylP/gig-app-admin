@@ -151,6 +151,15 @@ export function setHoursCap(
   });
 }
 
+/** Correct a candidate's name, including a verified one they can't edit.
+ *  The API notifies them and writes it to the audit log. */
+export function setCandidateName(userId: string, name: string) {
+  return fetchWithAuth<CandidatesResponse>(`/admin/candidates/${userId}/name`, {
+    method: "PATCH",
+    body: JSON.stringify({ name }),
+  });
+}
+
 /** Delete the account: the login is closed and every personal detail wiped,
  *  but the shifts and payments stay so payroll still adds up. Cannot be undone.
  *
