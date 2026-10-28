@@ -13,9 +13,11 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogBody, FormField } from "@/components/dashboard/form";
 import {
   EmptyState,
   InitialsAvatar,
@@ -137,19 +139,18 @@ export function UnfinishedEmployers({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex flex-col gap-1.5 px-6">
-            <label htmlFor="delete-unfinished-confirm" className="text-xs font-medium">
-              Type DELETE to confirm
-            </label>
-            <Input
-              id="delete-unfinished-confirm"
-              value={typed}
-              onChange={(event) => setTyped(event.target.value)}
-              autoComplete="off"
-            />
-          </div>
+          <DialogBody>
+            <FormField label="Type DELETE to confirm" htmlFor="delete-unfinished-confirm">
+              <Input
+                id="delete-unfinished-confirm"
+                value={typed}
+                onChange={(event) => setTyped(event.target.value)}
+                autoComplete="off"
+              />
+            </FormField>
+          </DialogBody>
 
-          <div className="flex justify-end gap-2 px-6 pb-6 pt-4">
+          <DialogFooter>
             <Button variant="outline" onClick={() => setDeleting(null)}>
               Cancel
             </Button>
@@ -161,7 +162,7 @@ export function UnfinishedEmployers({
               <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
               {remove.isPending ? "Deleting…" : "Delete login"}
             </Button>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

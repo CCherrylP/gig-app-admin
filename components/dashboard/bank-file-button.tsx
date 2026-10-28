@@ -24,6 +24,7 @@ import {
   stampBankExport,
   valueDateProblem,
 } from "@/lib/bank-file";
+import { selectClass } from "@/components/dashboard/form";
 import { money } from "@/lib/format";
 import type { PayrollRow } from "@/lib/reports";
 
@@ -193,7 +194,7 @@ export function BankFileButton({ rows }: { rows: PayrollRow[] }) {
                 type="date"
                 value={valueDate}
                 onChange={(event) => setValueDate(event.target.value || nextWorkingDay())}
-                className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
+                className={selectClass}
               />
               <p className="text-xs text-muted-foreground">
                 {dateProblem ?? "The day the money reaches their bank."}
@@ -240,7 +241,7 @@ export function BankFileButton({ rows }: { rows: PayrollRow[] }) {
                 <label className="flex items-start gap-2 pt-1 text-sm">
                   <input
                     type="checkbox"
-                    className="mt-0.5"
+                    className="mt-0.5 size-4 accent-primary"
                     checked={again}
                     onChange={(event) => setAgain(event.target.checked)}
                   />
@@ -268,7 +269,7 @@ export function BankFileButton({ rows }: { rows: PayrollRow[] }) {
               <label className="flex items-start gap-2 text-sm">
                 <input
                   type="checkbox"
-                  className="mt-0.5"
+                  className="mt-0.5 size-4 accent-primary"
                   checked={understood}
                   onChange={(event) => setUnderstood(event.target.checked)}
                 />

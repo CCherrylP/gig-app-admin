@@ -7,6 +7,7 @@ import { ChartLineData01Icon } from "@hugeicons/core-free-icons";
 import { MoneyTabs } from "@/components/dashboard/section-tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState, PageHeader, TableShell, TableSkeleton } from "@/components/dashboard/data-views";
+import { filterSelectClass } from "@/components/dashboard/form";
 import { currentMonth, monthLabel, recentMonths } from "@/lib/reports";
 import { getSalesReport, type SalesRow } from "@/lib/sales";
 import { money } from "@/lib/format";
@@ -45,8 +46,6 @@ const right = (label: string) => (
   </span>
 );
 
-const selectClass = "h-9 rounded-md border border-border bg-background px-3 text-sm";
-
 export default function SalesPage() {
   const [month, setMonth] = useState(currentMonth());
   const [company, setCompany] = useState("");
@@ -69,7 +68,7 @@ export default function SalesPage() {
       />
 
       <div className="flex flex-wrap items-center gap-3">
-        <select value={month} onChange={(e) => setMonth(e.target.value)} aria-label="Month" className={selectClass}>
+        <select value={month} onChange={(e) => setMonth(e.target.value)} aria-label="Month" className={filterSelectClass}>
           {recentMonths().map((value) => (
             <option key={value} value={value}>
               {monthLabel(value)}
@@ -81,7 +80,7 @@ export default function SalesPage() {
           value={company}
           onChange={(e) => setCompany(e.target.value)}
           aria-label="Company"
-          className={selectClass}
+          className={filterSelectClass}
         >
           <option value="">All companies</option>
           {(data?.companies ?? []).map((option) => (
@@ -95,7 +94,7 @@ export default function SalesPage() {
           value={sort}
           onChange={(e) => setSort(e.target.value as SortKey)}
           aria-label="Sort"
-          className={selectClass}
+          className={filterSelectClass}
         >
           {SORTS.map((option) => (
             <option key={option.value} value={option.value}>

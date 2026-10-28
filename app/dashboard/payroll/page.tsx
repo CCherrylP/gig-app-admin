@@ -21,6 +21,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -34,6 +35,8 @@ import {
   TableShell,
   initials,
 } from "@/components/dashboard/data-views";
+import { filterSelectClass } from "@/components/dashboard/form";
+import { cn } from "@/lib/utils";
 import {
   currentMonth,
   downloadPayrollXlsx,
@@ -185,7 +188,7 @@ export default function PayrollPage() {
               setMonth(event.target.value);
               setSelected(new Set());
             }}
-            className="h-9 rounded-md border border-border bg-background px-3 text-sm"
+            className={filterSelectClass}
           >
             {recentMonths().map((value) => (
               <option key={value} value={value}>
@@ -200,7 +203,7 @@ export default function PayrollPage() {
               setCompany(event.target.value);
               setSelected(new Set());
             }}
-            className="h-9 max-w-52 rounded-md border border-border bg-background px-3 text-sm"
+            className={cn(filterSelectClass, "max-w-52")}
           >
             <option value="">All companies</option>
             {(data?.companies ?? []).map((item) => (
@@ -411,7 +414,7 @@ export default function PayrollPage() {
               Total {money(chosenCents)}. Only do this after the bank transfer has been sent.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex justify-end gap-2">
+          <DialogFooter>
             <Button
               variant="outline"
               onClick={() => setConfirming(false)}
@@ -425,7 +428,7 @@ export default function PayrollPage() {
             >
               {markPaid.isPending ? "Saving…" : `Mark ${chosen.length} paid`}
             </Button>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
@@ -484,8 +487,8 @@ function PayoutCheck({
       <span
         className={
           good
-            ? "text-[11px] text-muted-foreground"
-            : "text-[11px] font-medium text-amber-600"
+            ? "text-xs text-muted-foreground"
+            : "text-xs font-medium text-amber-600"
         }
       >
         {VERIFICATION_LABEL[verification]}
@@ -496,7 +499,7 @@ function PayoutCheck({
           type="button"
           onClick={open}
           disabled={opening}
-          className="text-[11px] underline underline-offset-2 hover:text-primary disabled:opacity-50"
+          className="text-xs underline underline-offset-2 hover:text-primary disabled:opacity-50"
         >
           {opening ? "opening…" : "view proof"}
         </button>
@@ -612,7 +615,7 @@ function Row({
           screen is somebody transferring a number that was never confirmed.
         */}
         {row.estimated && (
-          <div className="text-[11px] font-medium text-amber-600">estimate</div>
+          <div className="text-xs font-medium text-amber-600">estimate</div>
         )}
       </td>
 

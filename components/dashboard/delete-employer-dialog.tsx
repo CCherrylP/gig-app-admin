@@ -10,9 +10,11 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogBody, FormField } from "@/components/dashboard/form";
 
 /** The warning before deleting an employer. Typing DELETE, because there is no undo. */
 export function DeleteEmployerDialog({
@@ -60,25 +62,24 @@ export function DeleteEmployerDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <ul className="list-disc space-y-1 pl-5 text-xs text-muted-foreground">
-          <li>The company stays, with its jobs, coins and invoices.</li>
-          <li>Jobs they posted keep running. The company admin manages them.</li>
-          <li>Not allowed if they are the company&apos;s only admin. Make someone else admin first.</li>
-        </ul>
+        <DialogBody>
+          <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+            <li>The company stays, with its jobs, coins and invoices.</li>
+            <li>Jobs they posted keep running. The company admin manages them.</li>
+            <li>Not allowed if they are the company&apos;s only admin. Make someone else admin first.</li>
+          </ul>
 
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="delete-employer-confirm" className="text-xs font-medium">
-            Type DELETE to confirm
-          </label>
-          <Input
-            id="delete-employer-confirm"
-            value={typed}
-            onChange={(event) => setTyped(event.target.value)}
-            autoComplete="off"
-          />
-        </div>
+          <FormField label="Type DELETE to confirm" htmlFor="delete-employer-confirm">
+            <Input
+              id="delete-employer-confirm"
+              value={typed}
+              onChange={(event) => setTyped(event.target.value)}
+              autoComplete="off"
+            />
+          </FormField>
+        </DialogBody>
 
-        <div className="flex justify-end gap-2">
+        <DialogFooter>
           <Button variant="outline" onClick={close}>
             Cancel
           </Button>
@@ -90,7 +91,7 @@ export function DeleteEmployerDialog({
             <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
             {isPending ? "Deleting…" : "Delete employer"}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

@@ -9,14 +9,15 @@ import { Add01Icon, Delete02Icon, UserShield01Icon } from "@hugeicons/core-free-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogBody, FormField } from "@/components/dashboard/form";
 import {
   EmptyState,
   InitialsAvatar,
@@ -129,7 +130,7 @@ export default function AdminsPage() {
               {removing?.name ?? "They"} will lose access to this dashboard immediately and can no longer sign in.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex items-center justify-end gap-2 border-t px-6 py-4">
+          <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setRemoving(null)} disabled={remove.isPending}>
               Keep
             </Button>
@@ -141,7 +142,7 @@ export default function AdminsPage() {
             >
               {remove.isPending ? "Removing…" : "Remove"}
             </Button>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
@@ -212,7 +213,7 @@ function AddAdminDialog({
         </DialogHeader>
 
         {done ? (
-          <div className="flex flex-col gap-3 px-6 pb-4 text-sm">
+          <DialogBody className="gap-3 text-sm">
             <p>
               Login: <span className="font-medium">{done.email}</span>
             </p>
@@ -220,9 +221,9 @@ function AddAdminDialog({
               On their first sign-in they scan a QR code with an authenticator app, such as Google
               Authenticator or Microsoft Authenticator.
             </p>
-          </div>
+          </DialogBody>
         ) : (
-          <div className="flex flex-col gap-4 px-6 pb-4">
+          <DialogBody>
             <Field label="Name" problem={tried ? nameProblem : null}>
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane Tan" autoFocus />
             </Field>
@@ -243,10 +244,10 @@ function AddAdminDialog({
               />
             </Field>
             {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
-          </div>
+          </DialogBody>
         )}
 
-        <div className="flex items-center justify-end gap-2 border-t px-6 py-4">
+        <DialogFooter>
           {done ? (
             <Button size="sm" onClick={close}>
               Done
@@ -261,7 +262,7 @@ function AddAdminDialog({
               </Button>
             </>
           )}
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -279,14 +280,8 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <Label>{label}</Label>
+    <FormField label={label} error={problem} hint={hint}>
       {children}
-      {problem ? (
-        <span className="text-xs text-red-600 dark:text-red-400">{problem}</span>
-      ) : (
-        hint && <span className="text-xs text-muted-foreground">{hint}</span>
-      )}
-    </div>
+    </FormField>
   );
 }

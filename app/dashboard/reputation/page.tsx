@@ -285,7 +285,7 @@ function BlockRow({ block }: { block: BlockedCandidate }) {
           styles={BLOCK_STYLES}
         />
         {lifted && (
-          <span className="mt-1 block truncate text-[11px] text-muted-foreground">
+          <span className="mt-1 block truncate text-xs text-muted-foreground">
             {relative(block.liftedAt)}
           </span>
         )}
@@ -361,7 +361,7 @@ function RatingRow({ row, tab }: { row: Rating; tab: Tab }) {
           <span className="text-xs text-muted-foreground">No comment, rating only</span>
         )}
         {row.editedAt && (
-          <span className="mt-0.5 block text-[11px] text-muted-foreground">
+          <span className="mt-0.5 block text-xs text-muted-foreground">
             Edited {relative(row.editedAt)}
           </span>
         )}
@@ -374,7 +374,7 @@ function RatingRow({ row, tab }: { row: Rating; tab: Tab }) {
             candidate publishes at once — a private reference the next
             employer reads, not a public page. */}
         {row.status === "pending" && row.about === "company" && (
-          <span className="mt-1 block truncate text-[11px] text-muted-foreground">
+          <span className="mt-1 block truncate text-xs text-muted-foreground">
             Awaiting employer
           </span>
         )}

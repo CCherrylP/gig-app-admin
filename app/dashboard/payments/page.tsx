@@ -21,6 +21,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -34,6 +35,7 @@ import {
   TableShell,
   initials,
 } from "@/components/dashboard/data-views";
+import { DialogBody, FormNote } from "@/components/dashboard/form";
 import {
   decideInvoice,
   listInvoices,
@@ -290,14 +292,14 @@ function PaymentRow({
                 "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
             }}
           />
-          <span className="text-[11px] text-muted-foreground">
+          <span className="text-xs text-muted-foreground">
             Receipt {relative(invoice.paymentProofAt)}
           </span>
           <span
             className={
               overdue
-                ? "text-[11px] font-medium text-destructive"
-                : "text-[11px] text-muted-foreground"
+                ? "text-xs font-medium text-destructive"
+                : "text-xs text-muted-foreground"
             }
           >
             {overdue ? "Overdue since" : "Due"} {date(invoice.dueAt)}
@@ -397,7 +399,7 @@ function InvoiceDialog({
         </DialogHeader>
 
         {invoice && (
-          <div className="flex flex-col gap-3 px-6 pb-4">
+          <DialogBody>
             <dl className="grid grid-cols-2 gap-y-2 text-sm">
               <dt className="text-muted-foreground">Amount</dt>
               <dd className="text-right font-medium tabular-nums">
@@ -445,15 +447,15 @@ function InvoiceDialog({
             {/* Evidence, not a decision. What settles an invoice is the transfer
                 on the bank statement — a screenshot is the easiest artefact
                 here to fake, and confirming is what creates the coins. */}
-            <p className="rounded-lg border border-amber-500/30 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-900/15 dark:text-amber-200">
+            <FormNote tone="warning">
               Confirm against the transfer on the bank statement, not against the
               uploaded receipt. This is the only thing in the system that creates
               coins, and it cannot be undone.
-            </p>
-          </div>
+            </FormNote>
+          </DialogBody>
         )}
 
-        <div className="flex items-center justify-end gap-2 border-t px-6 py-4">
+        <DialogFooter>
           {confirming ? (
             <>
               <Button
@@ -495,7 +497,7 @@ function InvoiceDialog({
               </Button>
             </>
           )}
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

@@ -20,6 +20,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -357,7 +358,7 @@ function DecisionDialog({
             )}
           </DialogDescription>
         </DialogHeader>
-        <div className="flex items-center justify-end gap-2 border-t px-6 py-4">
+        <DialogFooter>
           <Button
             variant="outline"
             size="sm"
@@ -374,7 +375,7 @@ function DecisionDialog({
           >
             {isPending ? "Saving…" : verifying ? "Verify" : "Reject"}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

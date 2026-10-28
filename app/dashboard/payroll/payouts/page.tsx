@@ -19,6 +19,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -33,6 +34,7 @@ import {
   TableSkeleton,
   initials,
 } from "@/components/dashboard/data-views";
+import { DialogBody, FormField, textareaClass } from "@/components/dashboard/form";
 import {
   listPayouts,
   payoutProof,
@@ -262,7 +264,7 @@ export default function PayoutChecksPage() {
                         // legitimate and common. It is the case where the
                         // screenshot actually matters, so it is worth saying out
                         // loud rather than leaving somebody to spot it.
-                        <div className="truncate text-[11px] text-amber-600">
+                        <div className="truncate text-xs text-amber-600">
                           Different number
                         </div>
                       )}
@@ -279,7 +281,7 @@ export default function PayoutChecksPage() {
                         />
                       </div>
                       {account.verification === "rejected" && account.reviewNote && (
-                        <span className="text-[11px] text-muted-foreground">
+                        <span className="text-xs text-muted-foreground">
                           {account.reviewNote}
                         </span>
                       )}
@@ -287,11 +289,11 @@ export default function PayoutChecksPage() {
                           button to show. Skipped under "No proof sent", which
                           already says it. */}
                       {!account.hasProof && account.verification !== "unverified" && (
-                        <span className="truncate text-[11px] text-muted-foreground">
+                        <span className="truncate text-xs text-muted-foreground">
                           No screenshot sent
                         </span>
                       )}
-                      <span className="truncate text-[11px] text-muted-foreground">
+                      <span className="truncate text-xs text-muted-foreground">
                         {relative(account.updatedAt)}
                       </span>
                     </div>
@@ -378,31 +380,30 @@ export default function PayoutChecksPage() {
           </DialogHeader>
 
           {decision?.verification === "rejected" && (
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="payout-note" className="text-xs font-medium">
-                Reason (shown to the candidate)
-              </label>
-              <textarea
-                id="payout-note"
-                value={note}
-                onChange={(event) => setNote(event.target.value)}
-                rows={3}
-                maxLength={500}
-                placeholder="The name on the screenshot is not the name on the account."
-                className="rounded-md border px-3 py-2 text-sm"
-              />
-              {/* Required, and the API refuses without it — a refusal with no
-                  reason produces the same upload again, and a second refusal
-                  after it. */}
-              {!note.trim() && (
-                <span className="text-[11px] text-amber-600">
-                  Required, so they know what to fix.
-                </span>
-              )}
-            </div>
+            <DialogBody>
+              <FormField label="Reason (shown to the candidate)" htmlFor="payout-note">
+                <textarea
+                  id="payout-note"
+                  value={note}
+                  onChange={(event) => setNote(event.target.value)}
+                  rows={3}
+                  maxLength={500}
+                  placeholder="The name on the screenshot is not the name on the account."
+                  className={textareaClass}
+                />
+                {/* Required, and the API refuses without it — a refusal with no
+                    reason produces the same upload again, and a second refusal
+                    after it. */}
+                {!note.trim() && (
+                  <span className="text-xs text-amber-600">
+                    Required, so they know what to fix.
+                  </span>
+                )}
+              </FormField>
+            </DialogBody>
           )}
 
-          <div className="flex justify-end gap-2">
+          <DialogFooter>
             <Button variant="outline" onClick={() => setDecision(null)}>
               Cancel
             </Button>
@@ -419,7 +420,7 @@ export default function PayoutChecksPage() {
                   ? "Yes, it matches"
                   : "Reject"}
             </Button>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

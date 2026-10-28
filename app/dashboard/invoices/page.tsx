@@ -20,6 +20,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -299,14 +300,14 @@ function InvoiceRow({
           <span
             className={
               overdue
-                ? "text-[11px] font-medium text-destructive"
-                : "text-[11px] text-muted-foreground"
+                ? "text-xs font-medium text-destructive"
+                : "text-xs text-muted-foreground"
             }
           >
             {overdue ? "Overdue since" : "Due"} {date(invoice.dueAt)}
           </span>
           {invoice.paymentProofAt && invoice.status === "unpaid" && (
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-xs text-muted-foreground">
               Receipt {relative(invoice.paymentProofAt)}
             </span>
           )}
@@ -419,7 +420,7 @@ function DecisionDialog({
             )}
           </DialogDescription>
         </DialogHeader>
-        <div className="flex items-center justify-end gap-2 border-t px-6 py-4">
+        <DialogFooter>
           <Button
             variant="outline"
             size="sm"
@@ -440,7 +441,7 @@ function DecisionDialog({
                 ? "Confirm payment"
                 : "Cancel invoice"}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

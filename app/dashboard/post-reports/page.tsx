@@ -9,7 +9,14 @@ import { Alert02Icon, Cancel01Icon, CheckmarkCircle02Icon } from "@hugeicons/cor
 import { ReviewTabs } from "@/components/dashboard/review-tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   EmptyState,
   FilterTabs,
@@ -426,14 +433,14 @@ function DecisionDialog({
             )}
           </DialogDescription>
         </DialogHeader>
-        <div className="flex items-center justify-end gap-2 border-t px-6 py-4">
+        <DialogFooter>
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={isPending}>
             Back
           </Button>
           <Button variant={removing ? "destructive" : "default"} size="sm" onClick={onConfirm} disabled={isPending}>
             {isPending ? "Saving…" : removing ? `Remove ${noun}` : `Keep ${noun}`}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

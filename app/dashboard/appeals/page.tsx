@@ -19,6 +19,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -520,7 +521,7 @@ function AppealRow({
         <div className="flex min-w-0 flex-col items-start gap-1">
           <StatusPill status={appeal.outcome} styles={OUTCOME_STYLES} />
           {/* When it was filed, moved here from a narrow column of its own. */}
-          <span className="truncate text-[11px] text-muted-foreground">
+          <span className="truncate text-xs text-muted-foreground">
             Filed {relative(appeal.submittedAt)}
           </span>
         </div>
@@ -673,7 +674,7 @@ function AccountAppealRow({
       <td className="px-4 py-3">
         <div className="flex min-w-0 flex-col items-start gap-1">
           <StatusPill status={appeal.outcome} styles={OUTCOME_STYLES} />
-          <span className="truncate text-[11px] text-muted-foreground">
+          <span className="truncate text-xs text-muted-foreground">
             Filed {relative(appeal.submittedAt)}
           </span>
         </div>
@@ -753,7 +754,7 @@ function AccountDecisionDialog({
             )}
           </DialogDescription>
         </DialogHeader>
-        <div className="flex items-center justify-end gap-2 border-t px-6 py-4">
+        <DialogFooter>
           <Button
             variant="outline"
             size="sm"
@@ -770,7 +771,7 @@ function AccountDecisionDialog({
           >
             {isPending ? "Saving…" : granting ? "Unblock account" : "Keep ban"}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -817,7 +818,7 @@ function DecisionDialog({
             )}
           </DialogDescription>
         </DialogHeader>
-        <div className="flex items-center justify-end gap-2 border-t px-6 py-4">
+        <DialogFooter>
           <Button
             variant="outline"
             size="sm"
@@ -834,7 +835,7 @@ function DecisionDialog({
           >
             {isPending ? "Saving…" : waiving ? "Waive penalty" : "Decline"}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

@@ -35,9 +35,11 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogBody, FormField } from "@/components/dashboard/form";
 import {
   GEOFENCE_M,
   approveAndPay,
@@ -379,7 +381,7 @@ function PayDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex items-center justify-end gap-2 border-t px-6 py-4">
+        <DialogFooter>
           <Button
             variant="outline"
             size="sm"
@@ -391,7 +393,7 @@ function PayDialog({
           <Button size="sm" disabled={isPending} onClick={onConfirm}>
             {isPending ? "Paying…" : `Approve and pay ${money(amount)}`}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -492,105 +494,104 @@ function ReleaseDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {/* FULL OR PRORATED, and full is the default rather than a choice
-            somebody has to make. The scheduled hours are what the employer set
-            aside and what the hold already covers, so paying them in full is the
-            ordinary answer; cutting them is the exception and takes a deliberate
-            number. Below what was clocked, the API asks for a reason — and this
-            route always requires one anyway. */}
-        {record && (
-          <div className="flex flex-col gap-2 px-6 pb-2">
-            <span className="text-sm font-medium">How much to pay</span>
-            <div className="flex flex-wrap items-center gap-1.5">
-              <Button
-                type="button"
-                variant={prorated === null ? "default" : "outline"}
-                size="sm"
-                onClick={() => setHours("")}
-              >
-                Full {formatHours(scheduled)}
-              </Button>
-              {clocked !== null && clocked !== scheduled && (
+        <DialogBody>
+          {/* FULL OR PRORATED, and full is the default rather than a choice
+              somebody has to make. The scheduled hours are what the employer set
+              aside and what the hold already covers, so paying them in full is the
+              ordinary answer; cutting them is the exception and takes a deliberate
+              number. Below what was clocked, the API asks for a reason — and this
+              route always requires one anyway. */}
+          {record && (
+            <div className="flex flex-col gap-1.5">
+              <span className="text-sm font-medium">How much to pay</span>
+              <div className="flex flex-wrap items-center gap-1.5">
                 <Button
                   type="button"
-                  variant={prorated === clocked ? "default" : "outline"}
+                  variant={prorated === null ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setHours(String(toHours(clocked)))}
+                  onClick={() => setHours("")}
                 >
-                  Clocked {formatHours(clocked)}
+                  Full {formatHours(scheduled)}
                 </Button>
-              )}
-              <Input
-                inputMode="decimal"
-                value={hours}
-                onChange={(e) => setHours(e.target.value)}
-                placeholder="Other"
-                aria-label="Hours to pay"
-                aria-invalid={!proratedValid}
-                className="h-8 w-24 tabular-nums"
-              />
-              <span className="text-xs text-muted-foreground">hours</span>
-            </div>
-            <p
-              className={
-                proratedValid
-                  ? "text-xs text-muted-foreground"
-                  : "text-xs font-medium text-destructive"
-              }
-            >
-              {proratedValid ? (
-                prorated === null ? (
-                  <>
-                    The full scheduled hours. The employer reserved this time
-                    and the hold already covers it.
-                  </>
+                {clocked !== null && clocked !== scheduled && (
+                  <Button
+                    type="button"
+                    variant={prorated === clocked ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setHours(String(toHours(clocked)))}
+                  >
+                    Clocked {formatHours(clocked)}
+                  </Button>
+                )}
+                <Input
+                  inputMode="decimal"
+                  value={hours}
+                  onChange={(e) => setHours(e.target.value)}
+                  placeholder="Other"
+                  aria-label="Hours to pay"
+                  aria-invalid={!proratedValid}
+                  className="h-8 w-24 tabular-nums"
+                />
+                <span className="text-xs text-muted-foreground">hours</span>
+              </div>
+              <p
+                className={
+                  proratedValid
+                    ? "text-xs text-muted-foreground"
+                    : "text-xs font-medium text-destructive"
+                }
+              >
+                {proratedValid ? (
+                  prorated === null ? (
+                    <>
+                      The full scheduled hours. The employer reserved this time
+                      and the hold already covers it.
+                    </>
+                  ) : (
+                    <>
+                      Prorated to {formatHours(prorated)} of{" "}
+                      {formatHours(scheduled)}. The rest of the hold returns to
+                      the employer, and the platform fee is reduced to match. No
+                      fee is charged for hours not worked.
+                    </>
+                  )
                 ) : (
                   <>
-                    Prorated to {formatHours(prorated)} of{" "}
-                    {formatHours(scheduled)}. The rest of the hold returns to
-                    the employer, and the platform fee is reduced to match. No
-                    fee is charged for hours not worked.
+                    Enter a value between 0 and the scheduled{" "}
+                    {formatHours(scheduled)}. The hold only covers the scheduled
+                    hours.
                   </>
-                )
-              ) : (
-                <>
-                  Enter a value between 0 and the scheduled{" "}
-                  {formatHours(scheduled)}. The hold only covers the scheduled
-                  hours.
-                </>
-              )}
+                )}
+              </p>
+            </div>
+          )}
+
+          <FormField label="Reason for settling manually" htmlFor="release-reason">
+            <Input
+              id="release-reason"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder={
+                force
+                  ? "Candidate wrote in, employer did not reply after 2 reminders"
+                  : "Phone died before clock-out; supervisor confirmed by phone"
+              }
+              autoFocus
+            />
+            <p
+              className={
+                tooShort && reason.length > 0
+                  ? "text-xs font-medium text-destructive"
+                  : "text-xs text-muted-foreground"
+              }
+            >
+              At least 10 characters. This payment is not fully backed by clock
+              records, so the reason is kept for the audit trail.
             </p>
-          </div>
-        )}
+          </FormField>
+        </DialogBody>
 
-        <div className="flex flex-col gap-2 px-6 pb-4">
-          <label htmlFor="release-reason" className="text-sm font-medium">
-            Reason for settling manually
-          </label>
-          <Input
-            id="release-reason"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder={
-              force
-                ? "Candidate wrote in, employer did not reply after 2 reminders"
-                : "Phone died before clock-out; supervisor confirmed by phone"
-            }
-            autoFocus
-          />
-          <p
-            className={
-              tooShort && reason.length > 0
-                ? "text-xs font-medium text-destructive"
-                : "text-xs text-muted-foreground"
-            }
-          >
-            At least 10 characters. This payment is not fully backed by clock
-            records, so the reason is kept for the audit trail.
-          </p>
-        </div>
-
-        <div className="flex items-center justify-end gap-2 border-t px-6 py-4">
+        <DialogFooter>
           <Button
             variant="outline"
             size="sm"
@@ -610,7 +611,7 @@ function ReleaseDialog({
                 ? `Approve ${money(amount)}`
                 : `Release ${money(amount)}`}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

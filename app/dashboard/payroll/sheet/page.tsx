@@ -24,6 +24,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -37,6 +38,8 @@ import {
   TableShell,
   initials,
 } from "@/components/dashboard/data-views";
+import { filterSelectClass } from "@/components/dashboard/form";
+import { cn } from "@/lib/utils";
 import { RevealNumber } from "@/components/dashboard/reveal-number";
 import { BankFileButton } from "@/components/dashboard/bank-file-button";
 import {
@@ -206,7 +209,7 @@ export default function PayoutSheetPage() {
           <select
             value={month}
             onChange={(event) => setMonth(event.target.value)}
-            className="h-9 rounded-md border border-border bg-background px-3 text-sm"
+            className={filterSelectClass}
           >
             {recentMonths().map((value) => (
               <option key={value} value={value}>
@@ -219,14 +222,14 @@ export default function PayoutSheetPage() {
             type="date"
             value={anchor}
             onChange={(event) => setAnchor(event.target.value || today())}
-            className="h-9 rounded-md border border-border bg-background px-3 text-sm"
+            className={filterSelectClass}
           />
         )}
 
         <select
           value={company}
           onChange={(event) => setCompany(event.target.value)}
-          className="h-9 max-w-52 rounded-md border border-border bg-background px-3 text-sm"
+          className={cn(filterSelectClass, "max-w-52")}
         >
           <option value="">All companies</option>
           {(data?.companies ?? []).map((item) => (
@@ -437,7 +440,7 @@ export default function PayoutSheetPage() {
               })()}
             </DialogDescription>
           </DialogHeader>
-          <div className="flex justify-end gap-2">
+          <DialogFooter>
             <Button
               variant="outline"
               onClick={() => setConfirming(null)}
@@ -451,7 +454,7 @@ export default function PayoutSheetPage() {
             >
               {markPaid.isPending ? "Saving…" : "Mark paid"}
             </Button>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

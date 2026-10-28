@@ -27,9 +27,11 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { FormField } from "@/components/dashboard/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -427,7 +429,7 @@ function Detail({
                 — nothing collects this at sign-up — reads as a deliberate answer
                 rather than a blank box somebody takes for "the invoices were
                 going nowhere". */}
-            <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted/30 p-3">
+            <div className="flex flex-col gap-3 rounded-lg border border-border bg-muted/30 p-4">
               <Label>Billing address</Label>
 
               <label className="flex cursor-pointer items-start gap-2 text-sm">
@@ -694,7 +696,7 @@ function CoinsAndPayments({ employer }: { employer: EmployerReview }) {
               <DialogTitle>This top-up already exists</DialogTitle>
               <DialogDescription>{duplicate}</DialogDescription>
             </DialogHeader>
-            <div className="flex items-center justify-end gap-2 border-t px-6 py-4">
+            <DialogFooter>
               <Button
                 variant="outline"
                 size="sm"
@@ -711,7 +713,7 @@ function CoinsAndPayments({ employer }: { employer: EmployerReview }) {
               >
                 {raise.isPending ? "Raising…" : "Raise another invoice"}
               </Button>
-            </div>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 
@@ -918,16 +920,14 @@ function TextField({
   hint?: string;
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <Label htmlFor={id}>{label}</Label>
+    <FormField label={label} htmlFor={id} hint={hint}>
       <Input
         id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
       />
-      {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
-    </div>
+    </FormField>
   );
 }
 
@@ -944,7 +944,7 @@ function ReadOnly({
 }) {
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+      <span className="text-xs uppercase tracking-wide text-muted-foreground">
         {label}
       </span>
       <span className="flex items-center gap-1.5 text-sm font-medium">

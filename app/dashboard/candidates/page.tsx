@@ -25,10 +25,17 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+  DialogBody,
+  FormField,
+  FormNote,
+  selectClass,
+} from "@/components/dashboard/form";
 import {
   EmptyState,
   FilterTabs,
@@ -383,23 +390,23 @@ function NameDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-2 px-6 pb-4">
-          <label htmlFor="candidate-name" className="text-sm font-medium">
-            Full name
-          </label>
-          <Input
-            id="candidate-name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            maxLength={120}
-            autoFocus
-          />
-          <p className="text-xs text-muted-foreground">
-            They get a notification with the new name. Payroll and invoices use it from now on.
-          </p>
-        </div>
+        <DialogBody>
+          <FormField
+            label="Full name"
+            htmlFor="candidate-name"
+            hint="They get a notification with the new name. Payroll and invoices use it from now on."
+          >
+            <Input
+              id="candidate-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              maxLength={120}
+              autoFocus
+            />
+          </FormField>
+        </DialogBody>
 
-        <div className="flex items-center justify-end gap-2 border-t px-6 py-4">
+        <DialogFooter>
           <Button
             variant="outline"
             size="sm"
@@ -415,7 +422,7 @@ function NameDialog({
           >
             {isPending ? "Saving…" : "Save name"}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -466,24 +473,23 @@ function DeleteDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <p className="text-xs text-muted-foreground">
-          Not allowed while they are owed money or have upcoming shifts. Pay them and cancel
-          those first.
-        </p>
+        <DialogBody>
+          <p className="text-sm text-muted-foreground">
+            Not allowed while they are owed money or have upcoming shifts. Pay them and cancel
+            those first.
+          </p>
 
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="delete-confirm" className="text-xs font-medium">
-            Type DELETE to confirm
-          </label>
-          <Input
-            id="delete-confirm"
-            value={typed}
-            onChange={(event) => setTyped(event.target.value)}
-            autoComplete="off"
-          />
-        </div>
+          <FormField label="Type DELETE to confirm" htmlFor="delete-confirm">
+            <Input
+              id="delete-confirm"
+              value={typed}
+              onChange={(event) => setTyped(event.target.value)}
+              autoComplete="off"
+            />
+          </FormField>
+        </DialogBody>
 
-        <div className="flex justify-end gap-2">
+        <DialogFooter>
           <Button variant="outline" onClick={close}>
             Cancel
           </Button>
@@ -495,7 +501,7 @@ function DeleteDialog({
             <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
             {isPending ? "Deleting…" : "Delete account"}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -610,10 +616,10 @@ function CandidateRow({
               <div>
                 <StatusPill status="suspended" label="Suspended" />
               </div>
-              <span className="line-clamp-2 text-[11px] text-foreground/80">
+              <span className="line-clamp-2 text-xs text-foreground/80">
                 {candidate.suspensionReason ?? "No reason recorded"}
               </span>
-              <span className="truncate text-[11px] text-muted-foreground">
+              <span className="truncate text-xs text-muted-foreground">
                 {relative(candidate.suspendedAt)}
                 {/* Null here means the SWEEP did it, which is a different fact
                     from a missing one — and it is the first thing asked when
@@ -626,7 +632,7 @@ function CandidateRow({
               <div>
                 <StatusPill status="blocked" label="Blocked" styles={BOOKING_STYLES} />
               </div>
-              <span className="truncate text-[11px] text-muted-foreground">
+              <span className="truncate text-xs text-muted-foreground">
                 Until {date(candidate.bookingBlockedUntil)}
               </span>
             </>
@@ -643,7 +649,7 @@ function CandidateRow({
               they cannot. It is not a penalty, so it sits under the pill as a
               qualifier rather than replacing it. */}
           {hasOwnCap(candidate) && (
-            <span className="line-clamp-2 text-[11px] text-sky-700 dark:text-sky-300">
+            <span className="line-clamp-2 text-xs text-sky-700 dark:text-sky-300">
               <HugeiconsIcon
                 icon={Clock01Icon}
                 size={11}
@@ -664,7 +670,7 @@ function CandidateRow({
               is part of the same answer, and a row with nothing pending simply
               says nothing. */}
           {candidate.pendingCertificates > 0 && (
-            <span className="truncate text-[11px] font-medium tabular-nums text-amber-600 dark:text-amber-400">
+            <span className="truncate text-xs font-medium tabular-nums text-amber-600 dark:text-amber-400">
               Pending review: {candidate.pendingCertificates} cert
               {candidate.pendingCertificates === 1 ? "" : "s"}
             </span>
@@ -790,7 +796,7 @@ function HoursCapDialog({
 
   return (
     <Dialog open={!!candidate} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Hours limit for this candidate</DialogTitle>
           <DialogDescription>
@@ -810,13 +816,13 @@ function HoursCapDialog({
         </DialogHeader>
 
         {candidate && (
-          <div className="flex flex-col gap-4 px-6 pb-4">
-            <div className="rounded-lg border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+          <DialogBody>
+            <FormNote>
               Shifts they already hold are not affected. A limit only refuses
               the <span className="font-medium text-foreground">next</span> shift
               that would exceed it, and the refusal shows the reason below. They
               are not notified when a limit is set.
-            </div>
+            </FormNote>
 
             <CapField
               label="In one day"
@@ -837,10 +843,7 @@ function HoursCapDialog({
             />
 
             {!clearing && (
-              <div className="flex flex-col gap-2">
-                <label htmlFor="cap-reason" className="text-sm font-medium">
-                  Reason (the candidate sees this)
-                </label>
+              <FormField label="Reason (the candidate sees this)" htmlFor="cap-reason">
                 <Input
                   id="cap-reason"
                   value={form.reason}
@@ -858,7 +861,7 @@ function HoursCapDialog({
                 >
                   At least 10 characters. They see this when a shift is refused.
                 </p>
-              </div>
+              </FormField>
             )}
 
             {candidate.hoursCapSetAt && (
@@ -867,10 +870,10 @@ function HoursCapDialog({
                 {candidate.hoursCapSetById ? " by staff" : ""}.
               </p>
             )}
-          </div>
+          </DialogBody>
         )}
 
-        <div className="flex items-center justify-end gap-2 border-t px-6 py-4">
+        <DialogFooter>
           <Button
             variant="outline"
             size="sm"
@@ -897,7 +900,7 @@ function HoursCapDialog({
                 ? "Use the platform's limits"
                 : "Save this limit"}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -925,16 +928,13 @@ function CapField({
     (!Number.isFinite(minutes) || minutes < MIN_CAP_MINUTES);
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-sm font-medium">
-        {label}
-      </label>
+    <FormField label={label} htmlFor={id}>
       <div className="flex flex-wrap items-center gap-2">
         <select
           id={id}
           value={mode}
           onChange={(e) => onMode(e.target.value as CapMode)}
-          className="h-9 rounded-md border border-border bg-background px-3 text-sm"
+          className={cn(selectClass, "w-auto")}
         >
           {MODES.map((option) => (
             <option key={option.value} value={option.value}>
@@ -962,7 +962,7 @@ function CapField({
           Enter at least 1 hour, or choose &ldquo;No limit&rdquo; to exempt them.
         </p>
       )}
-    </div>
+    </FormField>
   );
 }
 
@@ -1025,30 +1025,29 @@ function SuspensionDialog({
         </DialogHeader>
 
         {candidate && !suspended && (
-          <div className="flex flex-col gap-2 px-6 pb-4">
-            <label htmlFor="reason" className="text-sm font-medium">
-              Reason (the candidate sees this)
-            </label>
-            <Input
-              id="reason"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Did not turn up for two confirmed shifts…"
-              autoFocus
-            />
-            <p
-              className={
-                tooShort && reason.length > 0
-                  ? "text-xs font-medium text-destructive"
-                  : "text-xs text-muted-foreground"
-              }
-            >
-              At least 10 characters. They receive this as a notification.
-            </p>
-          </div>
+          <DialogBody>
+            <FormField label="Reason (the candidate sees this)" htmlFor="reason">
+              <Input
+                id="reason"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="Did not turn up for two confirmed shifts…"
+                autoFocus
+              />
+              <p
+                className={
+                  tooShort && reason.length > 0
+                    ? "text-xs font-medium text-destructive"
+                    : "text-xs text-muted-foreground"
+                }
+              >
+                At least 10 characters. They receive this as a notification.
+              </p>
+            </FormField>
+          </DialogBody>
         )}
 
-        <div className="flex items-center justify-end gap-2 border-t px-6 py-4">
+        <DialogFooter>
           <Button
             variant="outline"
             size="sm"
@@ -1071,7 +1070,7 @@ function SuspensionDialog({
                 ? "Lift suspension"
                 : "Suspend"}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

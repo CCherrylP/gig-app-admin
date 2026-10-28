@@ -26,9 +26,11 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogBody, FormNote } from "@/components/dashboard/form";
 import {
   EmptyState,
   FilterTabs,
@@ -358,7 +360,7 @@ function EmployerRow({
               it in one click. */}
           <StatusPill status={employer.status} />
           {employer.companyIsAgency && (
-            <span className="truncate text-[11px] font-medium text-violet-600 dark:text-violet-400">
+            <span className="truncate text-xs font-medium text-violet-600 dark:text-violet-400">
               Agency · EA {employer.companyEaLicenceNo ?? "missing"}
             </span>
           )}
@@ -473,11 +475,11 @@ function DecisionDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {employer && (
-          <div className="flex flex-col gap-3 px-6 pb-4">
+        {employer && approving && (
+          <DialogBody>
             {/* TOLD, not asked — and only where it changes something. */}
             {approving && !companyDecided && (
-              <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+              <FormNote>
                 Approving also marks{" "}
                 <span className="font-medium text-foreground">
                   {employer.companyName}
@@ -485,7 +487,7 @@ function DecisionDialog({
                 as verified. It is currently{" "}
                 {employer.companyVerificationStatus}. Both the person and the
                 business must be approved before anyone at this UEN can post.
-              </p>
+              </FormNote>
             )}
 
             {approving && (
@@ -495,10 +497,10 @@ function DecisionDialog({
                 onChange={setReferralCode}
               />
             )}
-          </div>
+          </DialogBody>
         )}
 
-        <div className="flex items-center justify-end gap-2 border-t px-6 py-4">
+        <DialogFooter>
           <Button
             variant="outline"
             size="sm"
@@ -522,7 +524,7 @@ function DecisionDialog({
           >
             {isPending ? "Saving…" : approving ? "Approve" : "Reject"}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

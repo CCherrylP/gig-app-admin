@@ -25,6 +25,7 @@ import {
   TableShell,
   initials,
 } from "@/components/dashboard/data-views";
+import { filterSelectClass } from "@/components/dashboard/form";
 import {
   currentMonth,
   getMoneyReport,
@@ -78,7 +79,7 @@ export default function MoneyPage() {
           value={month}
           onChange={(event) => setMonth(event.target.value)}
           aria-label="Month"
-          className="h-9 rounded-md border border-border bg-background px-3 text-sm"
+          className={filterSelectClass}
         >
           {recentMonths().map((value) => (
             <option key={value} value={value}>

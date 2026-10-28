@@ -24,6 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/dashboard/data-views";
+import { selectClass } from "@/components/dashboard/form";
 import {
   BOUNDS,
   LINK_BASE_MAX,
@@ -355,7 +356,7 @@ export default function ConfigPage() {
 
       {/* --- saving ------------------------------------------------------ */}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-5">
         <p className="text-xs text-muted-foreground">
           Last changed {dateTime(data.updatedAt)}
           {data.updatedById ? "" : " (never edited from this dashboard)"}
@@ -468,8 +469,8 @@ function SettingCard({
           {field.format(current)}
         </CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-col gap-2">
-        <p className="text-xs leading-5 text-muted-foreground">{field.help}</p>
+      <CardContent className="flex flex-col gap-3">
+        <p className="text-xs leading-relaxed text-muted-foreground">{field.help}</p>
         <div className="flex items-center gap-2">
           <Input
             type="number"
@@ -525,8 +526,8 @@ function LinkBaseCard({
           {current ? `${current}/r/CODE` : "Code only, no link"}
         </CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-col gap-2">
-        <p className="text-xs leading-5 text-muted-foreground">
+      <CardContent className="flex flex-col gap-3">
+        <p className="text-xs leading-relaxed text-muted-foreground">
           The web address people share. Each link is this address, then /r/,
           then their code. Leave it empty to share the code only.
         </p>
@@ -597,7 +598,7 @@ function RoleTypeCaps({
           warehouse picking is harder than 44 hours of cashier shifts.
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-3">
+      <CardContent className="flex flex-col gap-4">
         {capped.length === 0 ? (
           <p className="text-xs text-muted-foreground">
             No limits by type of work. All work counts only against the daily
@@ -672,12 +673,12 @@ function RoleTypeCaps({
           </div>
         )}
 
-        <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+        <div className="flex flex-wrap items-center gap-2 border-t pt-4">
           <select
             value={adding}
             onChange={(e) => setAdding(e.target.value)}
             disabled={available.length === 0}
-            className="h-9 rounded-md border border-border bg-background px-3 text-sm disabled:opacity-50"
+            className={cn(selectClass, "sm:w-auto")}
           >
             <option value="">
               {available.length === 0

@@ -38,6 +38,7 @@ import {
   TableSkeleton,
   type IconType,
 } from "@/components/dashboard/data-views";
+import { DialogBody, FormField, selectClass } from "@/components/dashboard/form";
 import {
   BREAK_LENGTHS,
   SHIFT_STATE_LABEL,
@@ -612,7 +613,7 @@ function ShiftRow({
             // were paid for it. Saying so is what stops a closed job reading as
             // a live hole in the roster. Under the state now, since it qualifies
             // it, rather than lost as a fourth line under the job.
-            <span className="truncate text-[11px] text-muted-foreground">
+            <span className="truncate text-xs text-muted-foreground">
               Listing closed
             </span>
           )}
@@ -715,7 +716,7 @@ function EditShiftDialog({
 
   return (
     <Dialog open={!!shift} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-xl overflow-y-auto">
+      <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>
             {shift?.settled ? "This shift is settled" : "Edit shift"}
@@ -737,7 +738,7 @@ function EditShiftDialog({
         </DialogHeader>
 
         {shift && (
-          <div className="flex flex-col gap-4 px-6 pb-4">
+          <DialogBody>
             {/* WHAT THE EDIT WILL DO TO SOMEBODY, before the fields rather than
                 after them. A note under the save button is one nobody reads
                 until they have already typed the change. */}
@@ -766,7 +767,7 @@ function EditShiftDialog({
             )}
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Date" htmlFor="shift-date">
+              <FormField label="Date" htmlFor="shift-date">
                 <Input
                   id="shift-date"
                   type="date"
@@ -776,9 +777,18 @@ function EditShiftDialog({
                     setForm((f) => ({ ...f, onDate: event.target.value }))
                   }
                 />
-              </Field>
+              </FormField>
 
-              <Field label="How many people" htmlFor="shift-headcount">
+              <FormField
+                label="How many people"
+                htmlFor="shift-headcount"
+                hint={
+                  <>
+                    {shift.filled} booked. It cannot go below the number already
+                    booked.
+                  </>
+                }
+              >
                 <Input
                   id="shift-headcount"
                   type="number"
@@ -793,13 +803,9 @@ function EditShiftDialog({
                     }))
                   }
                 />
-                <p className="text-xs text-muted-foreground">
-                  {shift.filled} booked. It cannot go below the number already
-                  booked.
-                </p>
-              </Field>
+              </FormField>
 
-              <Field label="Starts" htmlFor="shift-start">
+              <FormField label="Starts" htmlFor="shift-start">
                 <Input
                   id="shift-start"
                   type="time"
@@ -809,9 +815,13 @@ function EditShiftDialog({
                     setForm((f) => ({ ...f, startTime: event.target.value }))
                   }
                 />
-              </Field>
+              </FormField>
 
-              <Field label="Ends" htmlFor="shift-end">
+              <FormField
+                label="Ends"
+                htmlFor="shift-end"
+                hint="An end time before the start time means an overnight shift."
+              >
                 <Input
                   id="shift-end"
                   type="time"
@@ -821,12 +831,9 @@ function EditShiftDialog({
                     setForm((f) => ({ ...f, endTime: event.target.value }))
                   }
                 />
-                <p className="text-xs text-muted-foreground">
-                  An end time before the start time means an overnight shift.
-                </p>
-              </Field>
+              </FormField>
 
-              <Field label="Unpaid break" htmlFor="shift-break-minutes">
+              <FormField label="Unpaid break" htmlFor="shift-break-minutes">
                 <select
                   id="shift-break-minutes"
                   value={form.breakMinutes}
@@ -843,7 +850,7 @@ function EditShiftDialog({
                         minutes === 0 ? 0 : f.breakCount === 0 ? 1 : f.breakCount,
                     }));
                   }}
-                  className="h-9 rounded-md border border-border bg-background px-3 text-sm disabled:opacity-50"
+                  className={selectClass}
                 >
                   {BREAK_LENGTHS.map((minutes) => (
                     <option key={minutes} value={minutes}>
@@ -851,9 +858,13 @@ function EditShiftDialog({
                     </option>
                   ))}
                 </select>
-              </Field>
+              </FormField>
 
-              <Field label="How many breaks" htmlFor="shift-break-count">
+              <FormField
+                label="How many breaks"
+                htmlFor="shift-break-count"
+                hint="For example, two 30-minute breaks on a 12-hour shift."
+              >
                 <Input
                   id="shift-break-count"
                   type="number"
@@ -868,10 +879,7 @@ function EditShiftDialog({
                     }))
                   }
                 />
-                <p className="text-xs text-muted-foreground">
-                  For example, two 30-minute breaks on a 12-hour shift.
-                </p>
-              </Field>
+              </FormField>
             </div>
 
             {/* The consequence, in the two numbers that matter: the hours this
@@ -928,7 +936,7 @@ function EditShiftDialog({
                 their balance cannot cover it.
               </p>
             )}
-          </div>
+          </DialogBody>
         )}
 
         <DialogFooter>
@@ -952,25 +960,6 @@ function EditShiftDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function Field({
-  label,
-  htmlFor,
-  children,
-}: {
-  label: string;
-  htmlFor: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label htmlFor={htmlFor} className="text-sm font-medium">
-        {label}
-      </label>
-      {children}
-    </div>
   );
 }
 

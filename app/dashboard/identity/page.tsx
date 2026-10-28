@@ -24,9 +24,11 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DialogBody } from "@/components/dashboard/form";
 import {
   EmptyState,
   FilterTabs,
@@ -336,7 +338,7 @@ function IdentityRow({
               )}
             </div>
             {missingPhotos && (
-              <span className="flex items-center gap-1 text-[11px] font-medium text-red-600 dark:text-red-400">
+              <span className="flex items-center gap-1 text-xs font-medium text-red-600 dark:text-red-400">
                 <HugeiconsIcon icon={Alert02Icon} strokeWidth={2} className="size-3.5 shrink-0" />
                 {!record.hasBack && !record.hasSelfie
                   ? "No back, no selfie"
@@ -353,7 +355,7 @@ function IdentityRow({
       <td className="px-4 py-3">
         <StatusPill status={record.status} styles={STYLES} />
         {record.status === "rejected" && record.reviewNote && (
-          <span className="mt-1 block text-[11px] text-muted-foreground">{record.reviewNote}</span>
+          <span className="mt-1 block text-xs text-muted-foreground">{record.reviewNote}</span>
         )}
       </td>
 
@@ -519,7 +521,7 @@ function ReviewDialog({
 }) {
   return (
     <Dialog open={!!record} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-4xl">
+      <DialogContent className="sm:max-w-4xl">
         {record && <ReviewBody record={record} busy={busy} onApprove={onApprove} onReject={onReject} />}
       </DialogContent>
     </Dialog>
@@ -551,7 +553,9 @@ function ReviewBody({
         </DialogDescription>
       </DialogHeader>
 
-      <div className="flex flex-col gap-5 px-6 pb-4">
+      {/* The screen less the header and the Approve/Reject footer, so the
+          buttons stay on screen however short the window is. */}
+      <DialogBody className="max-h-[calc(100dvh-14rem)] gap-5">
         <div className="grid gap-3 sm:grid-cols-3">
           <Photo candidateId={record.candidateId} side="front" label="NRIC front" present={record.hasFront !== false} />
           <Photo candidateId={record.candidateId} side="back" label="NRIC back" present={record.hasBack} />
@@ -576,7 +580,7 @@ function ReviewBody({
           ) : (
             <table className="w-full">
               <thead>
-                <tr className="border-b text-left text-[11px] uppercase tracking-wide text-muted-foreground">
+                <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="py-1.5 font-medium"></th>
                   <th className="py-1.5 font-medium">Profile</th>
                   <th className="py-1.5 font-medium">On the NRIC</th>
@@ -619,9 +623,9 @@ function ReviewBody({
             </p>
           )}
         </div>
-      </div>
+      </DialogBody>
 
-      <div className="flex flex-wrap items-center justify-end gap-2 border-t px-6 py-4">
+      <DialogFooter className="flex-wrap">
         {missingPhotos && (
           <Button variant="outline" size="sm" onClick={() => onReject(RESEND_NOTE)} disabled={busy}>
             Ask to resend
@@ -636,7 +640,7 @@ function ReviewBody({
           <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} />
           {busy ? "Saving…" : "Approve"}
         </Button>
-      </div>
+      </DialogFooter>
     </>
   );
 }
@@ -675,16 +679,16 @@ function RejectDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-2 px-6 pb-4">
+        <DialogBody>
           <Input
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="The photo is blurry. Please retake it in good light."
             autoFocus
           />
-        </div>
+        </DialogBody>
 
-        <div className="flex items-center justify-end gap-2 border-t px-6 py-4">
+        <DialogFooter>
           <Button variant="outline" size="sm" onClick={onClose} disabled={busy}>
             Back
           </Button>
@@ -696,7 +700,7 @@ function RejectDialog({
           >
             {busy ? "Saving…" : "Reject"}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

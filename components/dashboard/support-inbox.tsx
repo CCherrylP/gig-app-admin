@@ -25,6 +25,7 @@ import {
   StatusPill,
   initials,
 } from "@/components/dashboard/data-views";
+import { textareaClass } from "@/components/dashboard/form";
 import {
   categoryLabel,
   getSupportThread,
@@ -120,7 +121,7 @@ function MessageBubble({ message }: { message: SupportMessage }) {
           {message.body}
         </div>
         <span
-          className="mt-1 px-1 text-[11px] text-muted-foreground"
+          className="mt-1 px-1 text-xs text-muted-foreground"
           title={dateTime(message.createdAt)}
         >
           {relative(message.createdAt)}
@@ -163,7 +164,7 @@ function ThreadRow({
             {thread.name ?? `${thread.userId.slice(0, 8)}…`}
           </span>
           <span
-            className="shrink-0 text-[11px] text-muted-foreground"
+            className="shrink-0 text-xs text-muted-foreground"
             title={dateTime(thread.lastMessageAt)}
           >
             {relative(thread.lastMessageAt)}
@@ -175,7 +176,7 @@ function ThreadRow({
         </p>
 
         <div className="mt-1.5 flex items-center gap-1.5">
-          <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
             {categoryLabel(thread.category)}
           </span>
           {thread.unreadCount > 0 && (
@@ -616,8 +617,8 @@ export function SupportInbox({
                       It IS also the last thing they typed in the funnel, so it
                       appears once more in the transcript below; that repetition
                       is the point of a subject line, not an accident. */}
-                  <div className="border-b bg-muted/30 px-4 py-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <div className="border-b bg-muted/30 px-4 py-2.5">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       Not answered by the FAQ
                     </p>
                     <p className="mt-0.5 text-sm">{thread.question}</p>
@@ -650,7 +651,7 @@ export function SupportInbox({
                           }}
                           rows={2}
                           placeholder="Write a reply. The user is notified on their phone."
-                          className="min-h-[2.5rem] flex-1 resize-none rounded-md border border-input bg-input/30 px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                          className={cn(textareaClass, "flex-1 resize-none")}
                         />
                         <Button
                           onClick={send}

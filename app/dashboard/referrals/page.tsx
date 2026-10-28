@@ -29,6 +29,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -44,6 +45,7 @@ import {
   TableShell,
   initials,
 } from "@/components/dashboard/data-views";
+import { filterSelectClass } from "@/components/dashboard/form";
 import {
   KIND_LABEL,
   TEAM_LABEL,
@@ -79,8 +81,6 @@ const PILL_STYLES: Record<string, string> = {
   PENDING: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
   PAID: "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300",
 };
-
-const SELECT_CLASS = "h-9 rounded-md border border-border bg-background px-3 text-sm";
 
 function errorText(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -175,7 +175,7 @@ function StaffSection() {
             <select
               value={team}
               onChange={(e) => setTeam(e.target.value as StaffTeam)}
-              className={SELECT_CLASS}
+              className={filterSelectClass}
             >
               <option value="bd">BD (businesses)</option>
               <option value="ta">TA (workers)</option>
@@ -370,7 +370,7 @@ function ReferralsSection() {
             <select
               value={target}
               onChange={(e) => setTarget(e.target.value as "company" | "candidate")}
-              className={SELECT_CLASS}
+              className={filterSelectClass}
             >
               <option value="company">Company UEN</option>
               <option value="candidate">Candidate email</option>
@@ -451,7 +451,7 @@ function ReferralsSection() {
                           styles={PILL_STYLES}
                         />
                         {row.manual && (
-                          <span className="truncate text-[11px] font-medium text-violet-600 dark:text-violet-400">
+                          <span className="truncate text-xs font-medium text-violet-600 dark:text-violet-400">
                             Manual
                           </span>
                         )}
@@ -579,7 +579,7 @@ function CommissionsSection() {
               setMonth(e.target.value);
               setSelected(new Set());
             }}
-            className={SELECT_CLASS}
+            className={filterSelectClass}
           >
             {recentMonths().map((value) => (
               <option key={value} value={value}>
@@ -824,7 +824,7 @@ function ConfirmDialog({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <div className="flex items-center justify-end gap-2 border-t px-6 py-4">
+        <DialogFooter>
           <Button
             variant="outline"
             size="sm"
@@ -836,7 +836,7 @@ function ConfirmDialog({
           <Button variant="destructive" size="sm" onClick={onConfirm} disabled={isPending}>
             {isPending ? "Saving…" : confirmLabel}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
