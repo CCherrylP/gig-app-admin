@@ -87,12 +87,9 @@ export function WorkWaiting() {
           />
         }
       >
-        {/* BOTH THE DOT AND THE NUMBER, and they are not redundant.
-            The dot on the corner of the bell is the thing peripheral vision
-            catches — it is what "there is something" looks like anywhere on the
-            web, and it is the half this screen was missing. The number beside it
-            is what decides whether somebody stops what they are doing, because
-            one certificate and fourteen are different mornings. */}
+        {/* ONE COUNT, the red one on the bell. It carries the number itself,
+            so a second badge beside it only said the same thing twice and made
+            both harder to read. */}
         <span className="relative inline-flex">
           <HugeiconsIcon icon={Notification03Icon} strokeWidth={2} />
           <CountDot count={total} className="absolute -right-1.5 -top-1.5" />
@@ -100,14 +97,9 @@ export function WorkWaiting() {
 
         {isLoading ? (
           <span className="text-xs text-muted-foreground">…</span>
-        ) : total > 0 ? (
-          // AMBER here beside a red dot, not a second red one. The dot is the
-          // alarm and this is the number it is about; two reds side by side would
-          // be the same shout twice and the figure is the part being read.
-          <CountBadge count={total} tone="amber" />
-        ) : (
+        ) : total === 0 ? (
           <span className="text-xs text-muted-foreground">All clear</span>
-        )}
+        ) : null}
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end" className="w-80 p-0">
