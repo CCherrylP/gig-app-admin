@@ -65,8 +65,8 @@ const NOTES: Partial<
     arrival: { one: "new transfer to confirm", many: "new transfers to confirm" },
   },
   payouts: {
-    note: "PayNow numbers to match to a name.",
-    arrival: { one: "new PayNow number to check", many: "new PayNow numbers to check" },
+    note: "PayNow numbers and bank accounts to match to a name.",
+    arrival: { one: "new payment method to check", many: "new payment methods to check" },
   },
   postReports: {
     note: "Posts reported by users.",

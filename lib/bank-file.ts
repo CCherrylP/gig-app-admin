@@ -87,6 +87,9 @@ const SWIFT: Record<string, string> = {
   Trust: "TRUTSGSGXXX",
 };
 
+/** A bank name's SWIFT code, or null if the bank file can't pay it. */
+export const bankCode = (bank: string | null) => (bank && SWIFT[bank]) || null;
+
 const HEADER_LENGTH = 1000;
 const DETAIL_LENGTH = 1004;
 

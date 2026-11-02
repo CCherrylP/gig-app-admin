@@ -51,7 +51,7 @@ export const LOOKS = {
 } satisfies Record<string, SectionLook>;
 
 /** Which look a page wears, by its address. Longest prefix wins, so
- *  /dashboard/payroll/payouts is PayNow checks rather than payroll. */
+ *  /dashboard/payroll/payouts is payment methods rather than payroll. */
 const BY_PATH: [string, SectionLook][] = (
   [
     ["/dashboard/people/employers", LOOKS.employers],

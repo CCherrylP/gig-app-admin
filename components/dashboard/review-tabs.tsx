@@ -12,7 +12,7 @@ export const REVIEW_TABS: { label: string; url: string; count: keyof AdminCounts
   { label: "Clock-ins", url: "/dashboard/attendance", count: "attendance" },
   { label: "Appeals", url: "/dashboard/appeals", count: "appeals" },
   { label: "Payments", url: "/dashboard/payments", count: "invoices" },
-  { label: "PayNow checks", url: "/dashboard/payroll/payouts", count: "payouts" },
+  { label: "Payment methods", url: "/dashboard/payroll/payouts", count: "payouts" },
   { label: "Social posting reports", url: "/dashboard/post-reports", count: "postReports" },
 ];
 

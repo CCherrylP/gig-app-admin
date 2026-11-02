@@ -44,6 +44,7 @@ import {
 import { VERIFICATION_LABEL, type PayoutVerification } from "@/lib/reports";
 import { relative } from "@/lib/format";
 import { RevealNumber } from "@/components/dashboard/reveal-number";
+import { bankCode } from "@/lib/bank-file";
 
 // DOES THIS PAYNOW NUMBER BELONG TO THE PERSON WE ARE ABOUT TO PAY.
 //
@@ -73,6 +74,11 @@ const FILTERS: { value: PayoutVerification | "all"; label: string }[] = [
   { value: "all", label: "All" },
 ];
 
+const METHODS: { value: PayoutAccount["kind"]; label: string }[] = [
+  { value: "paynow", label: "PayNow" },
+  { value: "bank", label: "Bank statement" },
+];
+
 /** StatusPill colours by the status STRING, so the four states are given the
  *  classes rather than a tone name. Keyed uppercase, which is what it does to
  *  whatever it is handed. */
@@ -92,6 +98,7 @@ export default function PayoutChecksPage() {
   // one is short — most people never change their number — so an empty "to
   // check" tab is a good sign rather than a wasted screen.
   const [filter, setFilter] = useState<PayoutVerification | "all">("pending");
+  const [method, setMethod] = useState<PayoutAccount["kind"]>("paynow");
   const [search, setSearch] = useState("");
   const [decision, setDecision] = useState<Decision | null>(null);
   const [note, setNote] = useState("");
@@ -155,25 +162,27 @@ export default function PayoutChecksPage() {
   }
 
   const accounts = useMemo(() => {
-    const all = data?.payouts ?? [];
+    const all = (data?.payouts ?? []).filter((account) => account.kind === method);
     const term = search.trim().toLowerCase();
 
     if (!term) return all;
 
     return all.filter((account) =>
-      [account.candidateName ?? "", account.candidateEmail ?? "", account.number]
+      [account.candidateName ?? "", account.candidateEmail ?? "", account.number, account.bank ?? ""]
         .join(" ")
         .toLowerCase()
         .includes(term),
     );
-  }, [data, search]);
+  }, [data, method, search]);
+
+  const isBank = method === "bank";
 
   return (
     <div className="flex flex-col gap-6 p-6">
       <ReviewTabs />
       <PageHeader
-        title="PayNow checks"
-        description="Check that each PayNow number belongs to the worker. A wrong transfer cannot be undone."
+        title="Payment methods"
+        description="Check that each PayNow number or bank account belongs to the worker. A wrong transfer cannot be undone."
       >
         <SearchInput
           value={search}
@@ -182,6 +191,20 @@ export default function PayoutChecksPage() {
           className="w-full sm:w-72"
         />
       </PageHeader>
+
+      <FilterTabs
+        options={METHODS.map((m) => ({
+          ...m,
+          // Per-method counts only make sense on the "To check" list.
+          count:
+            filter === "pending"
+              ? data?.payouts.filter((account) => account.kind === m.value).length
+              : undefined,
+        }))}
+        value={method}
+        onChange={setMethod}
+        className="self-start"
+      />
 
       <FilterTabs
         options={FILTERS.map((f) => ({
@@ -212,8 +235,8 @@ export default function PayoutChecksPage() {
               // said under the state instead of in a column of its own.
               headers={[
                 "Candidate",
-                "Paying to",
-                "On their account",
+                isBank ? "Account" : "Paying to",
+                isBank ? "Bank" : "On their account",
                 "State",
                 "Actions",
               ]}
@@ -254,6 +277,18 @@ export default function PayoutChecksPage() {
                     </div>
                   </td>
 
+                  {isBank ? (
+                    <td className="px-4 py-3">
+                      <div className="truncate">{account.bank ?? "No bank given"}</div>
+                      {bankCode(account.bank) ? (
+                        <div className="truncate font-mono text-xs text-muted-foreground select-all">
+                          {bankCode(account.bank)}
+                        </div>
+                      ) : (
+                        <div className="truncate text-xs text-amber-600">No bank code</div>
+                      )}
+                    </td>
+                  ) : (
                   <td className="px-4 py-3">
                     <div className="truncate font-mono text-xs text-muted-foreground select-all">
                       {account.candidatePhone ?? "—"}
@@ -269,6 +304,7 @@ export default function PayoutChecksPage() {
                         </div>
                       )}
                   </td>
+                  )}
 
                   <td className="px-4 py-3">
                     <div className="flex min-w-0 flex-col gap-1">
@@ -355,8 +391,8 @@ export default function PayoutChecksPage() {
           <DialogHeader>
             <DialogTitle>
               {decision?.verification === "verified"
-                ? "Mark this number as checked?"
-                : "Reject this number?"}
+                ? `Mark this ${isBank ? "account" : "number"} as checked?`
+                : `Reject this ${isBank ? "account" : "number"}?`}
             </DialogTitle>
             <DialogDescription>
               {decision?.verification === "verified" ? (
