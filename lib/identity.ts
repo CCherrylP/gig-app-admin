@@ -29,6 +29,8 @@ export interface IdentityRecord {
   card?: IdentityCard | null;
   /** What was read off the back. The address itself is never sent. */
   back?: { issued: string | null; hasAddress: boolean; missing: string[] } | null;
+  /** The full NRIC number, only until the ID is decided. */
+  nric?: string | null;
 }
 
 export interface IdentityResponse {
@@ -52,6 +54,8 @@ export function identityDocument(candidateId: string, side: IdentitySide = "fron
 export interface IdentityCard {
   /** S••••567D. */
   masked: string | null;
+  /** The full number, only until the ID is decided. */
+  nric?: string | null;
   name: string | null;
   /** yyyy-mm-dd. */
   dob: string | null;

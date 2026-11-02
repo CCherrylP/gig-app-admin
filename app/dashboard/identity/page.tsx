@@ -405,7 +405,9 @@ function CardSummary({ record, enabled }: { record: IdentityRecord; enabled: boo
 
   return (
     <div className="flex min-w-0 flex-col gap-0.5 text-xs">
-      <span className="truncate font-medium tabular-nums">{card.masked ?? "Number not read"}</span>
+      <span className="truncate font-mono font-medium select-all">
+        {record.nric ?? card.nric ?? card.masked ?? "Number not read"}
+      </span>
       {card.name && (
         <span className={cn("truncate", card.nameMatches === false ? bad : "text-muted-foreground")}>
           {card.name}
@@ -588,7 +590,16 @@ function ReviewBody({
                 </tr>
               </thead>
               <tbody>
-                <Compare label="NRIC no." profile={null} card={card?.masked} matches={null} />
+                <Compare
+                  label="NRIC no."
+                  profile={null}
+                  card={
+                    (record.nric ?? card?.nric ?? card?.masked) && (
+                      <span className="font-mono select-all">{record.nric ?? card?.nric ?? card?.masked}</span>
+                    )
+                  }
+                  matches={null}
+                />
                 <Compare label="Name" profile={record.name} card={card?.name} matches={card?.nameMatches} />
                 <Compare
                   label="Date of birth"
