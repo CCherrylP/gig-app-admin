@@ -42,6 +42,7 @@ import { DialogBody, FormField, selectClass } from "@/components/dashboard/form"
 import {
   BREAK_LENGTHS,
   SHIFT_STATE_LABEL,
+  checkInProofLabel,
   listShifts,
   payableMinutes,
   seatWageCents,
@@ -732,6 +733,12 @@ function EditShiftDialog({
                 </span>{" "}
                 an hour. The rate belongs to the listing and cannot be changed
                 here.
+                {checkInProofLabel(shift) && (
+                  <>
+                    {" "}Clock in:{" "}
+                    <span className="font-medium text-foreground">{checkInProofLabel(shift)}</span>.
+                  </>
+                )}
               </>
             )}
           </DialogDescription>

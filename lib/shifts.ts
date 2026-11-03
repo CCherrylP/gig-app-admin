@@ -65,6 +65,8 @@ export interface AdminShift {
   companyId: string;
   companyName: string;
   location: string;
+  /** How workers clock in, as the employer picked it. Null means a code or a selfie. */
+  checkInProof?: "code" | "selfie" | "both" | null;
 
   bookings: ShiftBooking[];
 
@@ -184,7 +186,22 @@ export const wageCents = (minutes: number, payPerHourCents: number) =>
 /** What one seat of this shift pays, as stored. Reads `paidMinutes` from the
  *  API rather than recomputing it: the window overstates the pay by the lunch
  *  hour, and that is the one number a candidate decides on. */
-export const seatWageCents = (shift: AdminShift) =>
+/** The clock-in rule in words, or null when an older API did not send it. */
+export function checkInProofLabel(shift: AdminShift): string | null {
+  if (shift.checkInProof === undefined) return null;
+  switch (shift.checkInProof) {
+    case "code":
+      return "Scan the QR code";
+    case "selfie":
+      return "Selfie at the location";
+    case "both":
+      return "QR code and a selfie";
+    default:
+      return "QR code or a selfie";
+  }
+}
+
+export const seatWageCents =(shift: AdminShift) =>
   wageCents(shift.paidMinutes, shift.payPerHourCents);
 
 /** Where a shift stands, for the pill and the calendar chip.
