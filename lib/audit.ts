@@ -49,6 +49,7 @@ const ACTION_LABELS: Record<string, string> = {
   "employer.delete_unfinished": "Deleted unfinished employer",
   "admin.create": "Added admin",
   "admin.remove": "Removed admin",
+  "logins.list": "Viewed sign-ins",
 };
 
 /** A plain label for an action code, or the code itself if it is new. */

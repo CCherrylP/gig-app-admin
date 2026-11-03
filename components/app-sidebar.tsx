@@ -25,6 +25,7 @@ import {
   Settings02Icon,
   FileSecurityIcon,
   UserShield01Icon,
+  Login01Icon,
 } from "@hugeicons/core-free-icons";
 import Logo from "./common/Logo";
 import { useAdminCounts } from "@/hooks/use-admin-counts";
@@ -158,6 +159,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       title: "Audit log",
       url: "/dashboard/audit",
       icon: <HugeiconsIcon icon={FileSecurityIcon} strokeWidth={2} />,
+    },
+    {
+      title: "Sign-ins",
+      url: "/dashboard/sign-ins",
+      icon: <HugeiconsIcon icon={Login01Icon} strokeWidth={2} />,
     },
   ];
 
