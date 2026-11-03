@@ -2,7 +2,7 @@
 
 import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -99,9 +99,11 @@ export default function IdentityPage() {
 
 function IdentityRoute() {
   const candidate = useSearchParams().get("candidate")?.trim() ?? "";
+  // /dashboard/identity/special is the sidebar's way in to the special cases.
+  const special = usePathname().endsWith("/special");
   // Keyed, so following a second link from inside the page starts fresh rather
   // than keeping the first one's tab.
-  return <IdentityQueue key={candidate} candidate={candidate} />;
+  return <IdentityQueue key={`${candidate}:${special}`} candidate={candidate} special={special} />;
 }
 
 /** The kept read when there is one; otherwise ask the API to read the photo. */
@@ -122,9 +124,9 @@ function useCard(record: IdentityRecord, enabled = true) {
   };
 }
 
-function IdentityQueue({ candidate }: { candidate: string }) {
+function IdentityQueue({ candidate, special }: { candidate: string; special: boolean }) {
   const queryClient = useQueryClient();
-  const [filter, setFilter] = useState<IdentityFilter>(candidate ? "all" : "pending");
+  const [filter, setFilter] = useState<IdentityFilter>(candidate ? "all" : special ? "special" : "pending");
   const [search, setSearch] = useState("");
   const [rejecting, setRejecting] = useState<{ record: IdentityRecord; note: string } | null>(null);
   const [reviewing, setReviewing] = useState<IdentityRecord | null>(null);

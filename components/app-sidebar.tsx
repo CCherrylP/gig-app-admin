@@ -123,11 +123,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       url: PEOPLE_TABS[0].url,
       match: urlsOf(PEOPLE_TABS),
       icon: <HugeiconsIcon icon={UserGroupIcon} strokeWidth={2} />,
-      children: PEOPLE_TABS.map((tab) => ({
-        title: tab.label,
-        url: tab.url,
-        match: tab.match,
-      })),
+      children: [
+        ...PEOPLE_TABS.map((tab) => ({
+          title: tab.label,
+          url: tab.url,
+          match: tab.match,
+        })),
+        // Candidates approved without an NRIC. A record, not a queue, so it lives here.
+        { title: "Special cases", url: "/dashboard/identity/special" },
+      ],
     },
     {
       title: "Shifts",
