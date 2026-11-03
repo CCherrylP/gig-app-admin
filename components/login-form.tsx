@@ -112,7 +112,7 @@ export function LoginForm({
 
     // Supabase says who this is; the API says whether they are staff.
     const { data, error } = await supabase.auth.signInWithPassword({
-      email,
+      email: email.replace(/\s/g, ""),
       password,
     });
 

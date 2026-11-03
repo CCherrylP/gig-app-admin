@@ -180,7 +180,7 @@ function AddAdminDialog({
   };
 
   const add = useMutation({
-    mutationFn: () => createAdmin({ name: name.trim(), email: email.trim(), password }),
+    mutationFn: () => createAdmin({ name: name.trim(), email: email.replace(/\s/g, ""), password }),
     onSuccess: (admin) => {
       onAdded();
       setDone({ email: admin.email ?? email.trim() });
