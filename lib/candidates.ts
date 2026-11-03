@@ -23,6 +23,14 @@ export interface CandidateSummary {
   phone: string | null;
   verified: boolean;
   area: string | null;
+  /** The finer area, e.g. "Hougang Central". Missing on an older API. */
+  subzone?: string | null;
+  /** yyyy-mm-dd, as on their profile. Missing on an older API. */
+  dateOfBirth?: string | null;
+  /** S••••567D from their NRIC scan. Never the full number. */
+  nricMasked?: string | null;
+  /** Approved without an NRIC (a special case). */
+  approvedWithoutNric?: boolean;
   /** A code from workPassData.json in the app. Null means not answered, which
    *  is not the same as not allowed. */
   workStatus: string | null;

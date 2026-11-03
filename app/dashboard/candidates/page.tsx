@@ -102,6 +102,7 @@ export default function CandidatesPage() {
   const [capping, setCapping] = useState<CandidateSummary | null>(null);
   const [deleting, setDeleting] = useState<CandidateSummary | null>(null);
   const [renaming, setRenaming] = useState<CandidateSummary | null>(null);
+  const [viewing, setViewing] = useState<CandidateSummary | null>(null);
 
   // The search goes to the API rather than filtering a page in the browser —
   // this list is capped at fifty rows, so a client-side filter would only ever
@@ -268,6 +269,7 @@ export default function CandidatesPage() {
                 <CandidateRow
                   key={candidate.userId}
                   candidate={candidate}
+                  onView={() => setViewing(candidate)}
                   onToggle={() => setTarget(candidate)}
                   onEditHours={() => setCapping(candidate)}
                   onEditName={() => setRenaming(candidate)}
@@ -330,6 +332,8 @@ export default function CandidatesPage() {
         onSave={(name) => renaming && nameMutation.mutate({ candidate: renaming, name })}
         isPending={nameMutation.isPending}
       />
+
+      <DetailsDialog candidate={viewing} onClose={() => setViewing(null)} />
 
       <DeleteDialog
         candidate={deleting}
@@ -507,14 +511,84 @@ function DeleteDialog({
   );
 }
 
+/** Age in whole years from a yyyy-mm-dd birthday. */
+function ageOf(dob: string): number {
+  const [y, m, d] = dob.split("-").map(Number);
+  const now = new Date();
+  const had = now.getMonth() + 1 > m || (now.getMonth() + 1 === m && now.getDate() >= d);
+  return now.getFullYear() - y - (had ? 0 : 1);
+}
+
+/** Read-only profile details, opened by clicking a candidate's name. */
+function DetailsDialog({ candidate, onClose }: { candidate: CandidateSummary | null; onClose: () => void }) {
+  const c = candidate;
+  const rows: [string, React.ReactNode][] = c
+    ? [
+        ["Date of birth", c.dateOfBirth ? `${date(c.dateOfBirth)} (age ${ageOf(c.dateOfBirth)})` : "Not given"],
+        ["Phone", c.phone ?? "No phone"],
+        ["Email", c.email ?? "No email"],
+        ["Area", [c.subzone, c.area].filter(Boolean).join(", ") || "Not given"],
+        ["Work status", workStatusLabel(c.workStatus) ?? "Not answered"],
+        [
+          "ID",
+          c.approvedWithoutNric
+            ? "Approved without NRIC (special case)"
+            : c.verified
+              ? "Approved"
+              : "Not approved",
+        ],
+        ["NRIC", c.nricMasked ?? "Not read"],
+        ["Rating", ratingLabel(c.rating)],
+        ["Shifts done", String(c.shiftsDone)],
+        ["Joined", date(c.createdAt)],
+      ]
+    : [];
+
+  return (
+    <Dialog open={!!c} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{c?.name ?? "Unnamed candidate"}</DialogTitle>
+          <DialogDescription>Their profile details. Change the name with the Name button.</DialogDescription>
+        </DialogHeader>
+        <DialogBody>
+          <dl className="grid grid-cols-[8rem_1fr] gap-x-3 gap-y-2 text-sm">
+            {rows.map(([label, value]) => (
+              <div key={label} className="contents">
+                <dt className="text-muted-foreground">{label}</dt>
+                <dd className={cn("min-w-0 break-words", label === "NRIC" && "font-mono")}>{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </DialogBody>
+        <DialogFooter>
+          {c && (
+            <Link
+              href={`/dashboard/identity?candidate=${c.userId}`}
+              className="mr-auto self-center text-xs font-medium text-primary hover:underline"
+            >
+              Open ID record
+            </Link>
+          )}
+          <Button size="sm" onClick={onClose}>
+            Close
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function CandidateRow({
   candidate,
+  onView,
   onToggle,
   onEditHours,
   onEditName,
   onDelete,
 }: {
   candidate: CandidateSummary;
+  onView: () => void;
   onToggle: () => void;
   onEditHours: () => void;
   onEditName: () => void;
@@ -539,7 +613,19 @@ function CandidateRow({
             className="size-8"
           />
           <div className="flex min-w-0 flex-col">
-            <span className="truncate font-medium">{name}</span>
+            <button
+              type="button"
+              onClick={onView}
+              className="truncate text-left font-medium hover:underline"
+              title="See their details"
+            >
+              {name}
+            </button>
+            {candidate.dateOfBirth && (
+              <span className="truncate text-xs text-muted-foreground">
+                Born {date(candidate.dateOfBirth)} · age {ageOf(candidate.dateOfBirth)}
+              </span>
+            )}
             {/* Contact, moved here from a column of its own. Two short facts
                 about this person, read beside their name. */}
             <span className="truncate text-xs text-muted-foreground">
