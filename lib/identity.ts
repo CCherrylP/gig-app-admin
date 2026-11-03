@@ -2,7 +2,7 @@ import { fetchWithAuth } from "./api";
 
 // Shapes copied from gig-app-api's admin identity controller. Keep them in step.
 
-export type IdentityFilter = "pending" | "verified" | "rejected" | "all";
+export type IdentityFilter = "pending" | "verified" | "rejected" | "all" | "special";
 
 export interface IdentityRecord {
   candidateId: string;
@@ -31,6 +31,8 @@ export interface IdentityRecord {
   back?: { issued: string | null; hasAddress: boolean; missing: string[] } | null;
   /** The full NRIC number, only until the ID is decided. */
   nric?: string | null;
+  /** Set when approved without an NRIC (a special case): who, when and their remark. */
+  waived?: { at: string; byName: string | null; note: string | null } | null;
 }
 
 export interface IdentityResponse {
@@ -71,6 +73,14 @@ export interface IdentityCard {
 
 export function identityCard(candidateId: string) {
   return fetchWithAuth<IdentityCard>(`/admin/identity/${candidateId}/card`);
+}
+
+/** Special case: approve a candidate who has not sent an NRIC. The remark is required and kept. */
+export function waiveIdentity(candidateId: string, note: string) {
+  return fetchWithAuth<{ ok: true }>(`/admin/identity/${candidateId}/waive`, {
+    method: "POST",
+    body: JSON.stringify({ note }),
+  });
 }
 
 export function decideIdentity(candidateId: string, decision: "verified" | "rejected", note?: string) {

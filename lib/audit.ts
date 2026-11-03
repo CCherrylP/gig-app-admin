@@ -36,6 +36,7 @@ const ACTION_LABELS: Record<string, string> = {
   "identity.card": "Read NRIC details",
   "identity.approve": "Approved ID",
   "identity.reject": "Rejected ID",
+  "identity.waive": "Approved without NRIC",
   "payouts.list": "Viewed payout accounts",
   "payouts.proof": "Opened payout proof",
   "payroll.report": "Viewed payroll",

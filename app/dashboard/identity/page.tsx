@@ -45,10 +45,12 @@ import {
   identityCard,
   identityDocument,
   listIdentity,
+  waiveIdentity,
   type IdentityFilter,
   type IdentityRecord,
   type IdentitySide,
 } from "@/lib/identity";
+import { listCandidates, type CandidateSummary } from "@/lib/candidates";
 import { openFreshDocument } from "@/lib/documents";
 import { COUNTS_KEY } from "@/hooks/use-admin-counts";
 import { date, relative } from "@/lib/format";
@@ -68,6 +70,7 @@ const FILTERS: { value: IdentityFilter; label: string }[] = [
   { value: "verified", label: "Approved" },
   { value: "rejected", label: "Rejected" },
   { value: "all", label: "All" },
+  { value: "special", label: "Special cases" },
 ];
 
 const STYLES: Record<string, string> = {
@@ -125,6 +128,7 @@ function IdentityQueue({ candidate }: { candidate: string }) {
   const [search, setSearch] = useState("");
   const [rejecting, setRejecting] = useState<{ record: IdentityRecord; note: string } | null>(null);
   const [reviewing, setReviewing] = useState<IdentityRecord | null>(null);
+  const [waiving, setWaiving] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["identity", filter],
@@ -171,12 +175,17 @@ function IdentityQueue({ candidate }: { candidate: string }) {
         description="Candidates send the front and back of their NRIC and a selfie. Check the face matches. They can apply for shifts once approved."
       >
         {!candidate && (
-          <SearchInput
-            value={search}
-            onChange={setSearch}
-            placeholder="Search name or phone…"
-            className="w-full sm:w-72"
-          />
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+            <SearchInput
+              value={search}
+              onChange={setSearch}
+              placeholder="Search name or phone…"
+              className="w-full sm:w-72"
+            />
+            <Button variant="outline" size="sm" onClick={() => setWaiving(true)}>
+              Approve without NRIC
+            </Button>
+          </div>
         )}
       </PageHeader>
 
@@ -209,7 +218,9 @@ function IdentityQueue({ candidate }: { candidate: string }) {
                     ? "Nothing matches that search."
                     : filter === "pending"
                       ? "No IDs waiting for review."
-                      : "No records."
+                      : filter === "special"
+                        ? "No one has been approved without an NRIC."
+                        : "No records."
               }
             />
           ) : (
@@ -240,6 +251,17 @@ function IdentityQueue({ candidate }: { candidate: string }) {
         onClose={() => setReviewing(null)}
         onApprove={() => reviewing && approve(reviewing)}
         onReject={(note) => reviewing && reject(reviewing, note)}
+      />
+
+      <WaiveDialog
+        open={waiving}
+        onClose={() => setWaiving(false)}
+        onDone={() => {
+          setWaiving(false);
+          setFilter("special");
+          queryClient.invalidateQueries({ queryKey: ["identity"] });
+          queryClient.invalidateQueries({ queryKey: COUNTS_KEY });
+        }}
       />
 
       <RejectDialog
@@ -311,11 +333,17 @@ function IdentityRow({
       </td>
 
       <td className="px-4 py-3">
-        <CardSummary record={record} enabled={pending} />
+        {record.waived && !record.card ? (
+          <span className="text-xs font-medium text-amber-600 dark:text-amber-400">No NRIC sent</span>
+        ) : (
+          <CardSummary record={record} enabled={pending} />
+        )}
       </td>
 
       <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-        {photosGone ? (
+        {record.waived && !record.submittedAt ? (
+          <span className="text-xs text-muted-foreground">None sent</span>
+        ) : photosGone ? (
           <span className="text-xs text-muted-foreground">Photos deleted after review</span>
         ) : (
           <div className="flex flex-col gap-1.5">
@@ -353,9 +381,23 @@ function IdentityRow({
       </td>
 
       <td className="px-4 py-3">
-        <StatusPill status={record.status} styles={STYLES} />
-        {record.status === "rejected" && record.reviewNote && (
-          <span className="mt-1 block text-xs text-muted-foreground">{record.reviewNote}</span>
+        {record.waived ? (
+          <div className="flex flex-col gap-1">
+            <span className="w-fit rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+              Approved without NRIC
+            </span>
+            {record.waived.note && <span className="text-xs">&ldquo;{record.waived.note}&rdquo;</span>}
+            <span className="text-xs text-muted-foreground">
+              {record.waived.byName ?? "An admin"} · {date(record.waived.at)}
+            </span>
+          </div>
+        ) : (
+          <>
+            <StatusPill status={record.status} styles={STYLES} />
+            {record.status === "rejected" && record.reviewNote && (
+              <span className="mt-1 block text-xs text-muted-foreground">{record.reviewNote}</span>
+            )}
+          </>
         )}
       </td>
 
@@ -653,6 +695,130 @@ function ReviewBody({
         </Button>
       </DialogFooter>
     </>
+  );
+}
+
+// ─── Approve without NRIC ─────────────────────────────────────────────────────
+
+/** Special case: pick a candidate who is not approved, write a remark, approve. */
+function WaiveDialog({ open, onClose, onDone }: { open: boolean; onClose: () => void; onDone: () => void }) {
+  const [term, setTerm] = useState("");
+  const [picked, setPicked] = useState<CandidateSummary | null>(null);
+  const [note, setNote] = useState("");
+
+  const q = term.trim();
+  const found = useQuery({
+    queryKey: ["identity", "waive-search", q],
+    queryFn: () => listCandidates({ q, verified: "unverified" }),
+    enabled: open && q.length >= 2 && !picked,
+  });
+
+  const waive = useMutation({
+    mutationFn: () => waiveIdentity(picked!.userId, note.trim()),
+    onSuccess: () => {
+      toast.success(`${picked?.name ?? "The candidate"} is approved. This is recorded as a special case.`);
+      reset();
+      onDone();
+    },
+    onError: (error: Error) => toast.error(error.message || "Could not approve"),
+  });
+
+  const reset = () => {
+    setTerm("");
+    setPicked(null);
+    setNote("");
+  };
+
+  const close = () => {
+    reset();
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(next) => !next && close()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Approve without NRIC</DialogTitle>
+          <DialogDescription>
+            For special cases only. They can apply for shifts straight away. This is recorded with your remark.
+          </DialogDescription>
+        </DialogHeader>
+
+        <DialogBody>
+          {picked ? (
+            <div className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm">
+              <div className="flex min-w-0 flex-col">
+                <span className="truncate font-medium">{picked.name ?? "Unnamed"}</span>
+                <span className="truncate text-xs text-muted-foreground">
+                  {[picked.phone, picked.email].filter(Boolean).join(" · ")}
+                </span>
+              </div>
+              <Button variant="ghost" size="xs" onClick={() => setPicked(null)} disabled={waive.isPending}>
+                Change
+              </Button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <Input
+                value={term}
+                onChange={(e) => setTerm(e.target.value)}
+                placeholder="Search name or phone…"
+                autoFocus
+              />
+              {q.length >= 2 && (
+                <div className="max-h-56 overflow-y-auto rounded-lg border">
+                  {found.isLoading ? (
+                    <p className="px-3 py-2 text-xs text-muted-foreground">Searching…</p>
+                  ) : (found.data?.candidates ?? []).length === 0 ? (
+                    <p className="px-3 py-2 text-xs text-muted-foreground">No candidates without an approved ID match.</p>
+                  ) : (
+                    found.data!.candidates.map((c) => (
+                      <button
+                        key={c.userId}
+                        type="button"
+                        onClick={() => setPicked(c)}
+                        className="flex w-full flex-col items-start px-3 py-2 text-left text-sm hover:bg-muted"
+                      >
+                        <span className="font-medium">{c.name ?? "Unnamed"}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {[c.phone, c.email].filter(Boolean).join(" · ")}
+                        </span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          <label className="mt-3 flex flex-col gap-1.5 text-sm">
+            <span className="font-medium">Remark</span>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              maxLength={300}
+              rows={3}
+              placeholder="Why, and how you checked them instead. For example: Known worker, ID checked in person on 3 Nov."
+              className="rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            />
+            <span className="text-xs text-muted-foreground">At least 10 characters. Shown in the audit log.</span>
+          </label>
+        </DialogBody>
+
+        <DialogFooter>
+          <Button variant="outline" size="sm" onClick={close} disabled={waive.isPending}>
+            Back
+          </Button>
+          <Button
+            size="sm"
+            disabled={!picked || note.trim().length < 10 || waive.isPending}
+            onClick={() => waive.mutate()}
+          >
+            {waive.isPending ? "Saving…" : "Approve"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
