@@ -34,8 +34,21 @@ export interface PayoutAccount {
   verifiedAt: string | null;
   /** Why it was turned down. The candidate sees this. */
   reviewNote: string | null;
+  /** The automatic check of the screenshot against the details. Null when nothing was read. */
+  proofCheck?: ProofCheck | null;
   updatedAt: string;
 }
+
+/** Matched means everything lined up and the account was approved without a person. */
+export interface ProofCheck {
+  result: "matched" | "review" | "mismatch";
+  notes: string[];
+  auto: boolean;
+  at: string;
+}
+
+/** The queue's tabs: a state, every account, or the ones the proof check approved. */
+export type PayoutFilter = PayoutVerification | "all" | "auto";
 
 export interface PayoutsResponse {
   payouts: PayoutAccount[];
@@ -43,7 +56,7 @@ export interface PayoutsResponse {
 }
 
 export function listPayouts(
-  status: PayoutVerification | "all" = "pending",
+  status: PayoutFilter = "pending",
 ) {
   return fetchWithAuth<PayoutsResponse>(`/admin/payouts?status=${status}`);
 }

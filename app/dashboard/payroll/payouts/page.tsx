@@ -40,8 +40,10 @@ import {
   payoutProof,
   reviewPayout,
   type PayoutAccount,
+  type PayoutFilter,
+  type ProofCheck,
 } from "@/lib/payouts";
-import { VERIFICATION_LABEL, type PayoutVerification } from "@/lib/reports";
+import { VERIFICATION_LABEL } from "@/lib/reports";
 import { relative } from "@/lib/format";
 import { RevealNumber } from "@/components/dashboard/reveal-number";
 import { bankCode } from "@/lib/bank-file";
@@ -66,13 +68,21 @@ import { bankCode } from "@/lib/bank-file";
 // payable. A gate would mean somebody who worked a shift goes unpaid because
 // this queue is behind, which puts the cost of our check on them.
 
-const FILTERS: { value: PayoutVerification | "all"; label: string }[] = [
+const FILTERS: { value: PayoutFilter; label: string }[] = [
   { value: "pending", label: "To check" },
   { value: "verified", label: "Checked" },
+  { value: "auto", label: "Auto-approved" },
   { value: "rejected", label: "Did not match" },
   { value: "unverified", label: "No proof" },
   { value: "all", label: "All" },
 ];
+
+/** The proof check's result, in a few words for the State column. */
+const CHECK_LABEL: Record<ProofCheck["result"], string> = {
+  matched: "Proof check: everything matches",
+  review: "Proof check: needs a look",
+  mismatch: "Proof check: does not match",
+};
 
 const METHODS: { value: PayoutAccount["kind"]; label: string }[] = [
   { value: "paynow", label: "PayNow" },
@@ -97,7 +107,7 @@ export default function PayoutChecksPage() {
   // OPENS ON THE WORK, unlike the certificate queue which opens on All. This
   // one is short — most people never change their number — so an empty "to
   // check" tab is a good sign rather than a wasted screen.
-  const [filter, setFilter] = useState<PayoutVerification | "all">("pending");
+  const [filter, setFilter] = useState<PayoutFilter>("pending");
   const [method, setMethod] = useState<PayoutAccount["kind"]>("paynow");
   const [search, setSearch] = useState("");
   const [decision, setDecision] = useState<Decision | null>(null);
@@ -316,6 +326,28 @@ export default function PayoutChecksPage() {
                           styles={PILL_STYLES}
                         />
                       </div>
+                      {account.proofCheck && (
+                        <div className="flex flex-col gap-0.5 text-xs">
+                          <span
+                            className={
+                              account.proofCheck.auto
+                                ? "font-medium text-emerald-700"
+                                : account.proofCheck.result === "mismatch"
+                                  ? "font-medium text-red-700"
+                                  : "font-medium text-amber-700"
+                            }
+                          >
+                            {account.proofCheck.auto
+                              ? "Approved automatically"
+                              : CHECK_LABEL[account.proofCheck.result]}
+                          </span>
+                          {account.proofCheck.notes.map((line) => (
+                            <span key={line} className="text-muted-foreground">
+                              {line}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                       {account.verification === "rejected" && account.reviewNote && (
                         <span className="text-xs text-muted-foreground">
                           {account.reviewNote}
