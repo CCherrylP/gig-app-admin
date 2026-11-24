@@ -21,6 +21,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { ReferredByField, suggestedReferralCode } from "@/components/dashboard/referred-by-field";
+import { ReferredBy } from "@/components/dashboard/referred-by";
 import { DeleteEmployerDialog } from "@/components/dashboard/delete-employer-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -394,6 +395,13 @@ function Detail({
                 />
               )}
             </div>
+
+            {/* Before approval, the referrer is asked on the approval call below. */}
+            {employer.status === "approved" && (
+              <ReferredBy
+                target={{ type: "company", id: employer.companyId, uen: employer.companyUen }}
+              />
+            )}
 
             <TextField
               id="jobTitle"
@@ -870,13 +878,6 @@ function DecisionBand({
         <div className="max-w-sm">
           <ReferredByField employer={employer} value={referralCode} onChange={setReferralCode} />
         </div>
-      )}
-
-      {approved && employer.referredBy && (
-        <p className="text-xs text-muted-foreground">
-          Referred by {employer.referredBy.name ?? "someone"}
-          {employer.referredBy.companyName ? ` (${employer.referredBy.companyName})` : ""}.
-        </p>
       )}
     </div>
   );

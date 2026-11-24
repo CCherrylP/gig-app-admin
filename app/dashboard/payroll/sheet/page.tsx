@@ -53,6 +53,7 @@ import {
   markPayrollPaid,
   monthLabel,
   monthRange,
+  paydayRange,
   rangeLabel,
   rangeText,
   recentMonths,
@@ -83,9 +84,11 @@ import { date, money } from "@/lib/format";
 // hours no employer has confirmed — it is on the sheet so somebody can chase
 // the employer, not so it can be transferred. See byCandidate in lib/reports.
 
-type Mode = "day" | "week" | "month";
+type Mode = "payday" | "day" | "week" | "month";
 
+// Pay run is what gets paid on a Monday: shifts approved by the Sunday before.
 const MODES: { value: Mode; label: string }[] = [
+  { value: "payday", label: "Pay run" },
   { value: "day", label: "Day" },
   { value: "week", label: "Week" },
   { value: "month", label: "Month" },
@@ -94,8 +97,8 @@ const MODES: { value: Mode; label: string }[] = [
 export default function PayoutSheetPage() {
   const queryClient = useQueryClient();
 
-  // A month by default, so one pay run covers everything owed.
-  const [mode, setMode] = useState<Mode>("month");
+  // This week's pay run by default, so a shift approved after Sunday waits for next Monday.
+  const [mode, setMode] = useState<Mode>("payday");
   // ONE anchor for all three modes rather than a date per mode. Switching from
   // Day to Week then means "the week around the day I was looking at", which is
   // the move somebody actually makes — a second date that silently reset would
@@ -107,13 +110,14 @@ export default function PayoutSheetPage() {
   const [open, setOpen] = useState<Set<string>>(new Set());
 
   const range: DateRange = useMemo(() => {
+    if (mode === "payday") return paydayRange(anchor);
     if (mode === "day") return dayRange(anchor);
     if (mode === "week") return weekRange(anchor);
     return monthRange(month);
   }, [mode, anchor, month]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["payroll", "sheet", range.from, range.to, company],
+    queryKey: ["payroll", "sheet", range.payday ?? "", range.from, range.to, company],
     queryFn: () => listPayroll(range, company || undefined),
   });
 

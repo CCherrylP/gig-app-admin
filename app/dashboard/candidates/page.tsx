@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { PeopleTabs } from "@/components/dashboard/section-tabs";
+import { ReferredBy } from "@/components/dashboard/referred-by";
 import {
   keepPreviousData,
   useMutation,
@@ -560,6 +561,11 @@ function DetailsDialog({ candidate, onClose }: { candidate: CandidateSummary | n
               </div>
             ))}
           </dl>
+          {c && (
+            <div className="mt-4 border-t pt-4">
+              <ReferredBy target={{ type: "candidate", id: c.userId, email: c.email ?? null }} />
+            </div>
+          )}
         </DialogBody>
         <DialogFooter>
           {c && (

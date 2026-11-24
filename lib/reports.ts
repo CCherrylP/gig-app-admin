@@ -127,10 +127,16 @@ export interface MarkPaidResponse {
 export interface DateRange {
   from: string;
   to: string;
+  /** A Monday. When set, the API reads that pay run instead of from/to. */
+  payday?: string;
 }
 
+/** The query a range means: a pay run, or the days in it. */
+const rangeQuery = (range: DateRange) =>
+  new URLSearchParams(range.payday ? { payday: range.payday } : { from: range.from, to: range.to });
+
 export function listPayroll(range: DateRange, company?: string) {
-  const query = new URLSearchParams({ from: range.from, to: range.to });
+  const query = rangeQuery(range);
   if (company) query.set("company", company);
 
   return fetchWithAuth<PayrollResponse>(`/admin/reports/payroll?${query}`);
@@ -272,6 +278,12 @@ export function addDays(day: string, delta: number) {
   return at.toISOString().slice(0, 10);
 }
 
+/** The Monday pay run for the week `day` is in. `from`/`to` is the week before. */
+export function paydayRange(day: string): DateRange {
+  const { from: monday } = weekRange(day);
+  return { from: addDays(monday, -7), to: addDays(monday, -1), payday: monday };
+}
+
 /** The one day, as a range. */
 export const dayRange = (day: string): DateRange => ({ from: day, to: day });
 
@@ -302,6 +314,7 @@ export function monthRange(month: string): DateRange {
  *  exactly a month, the two days otherwise. A file called 'september' holding
  *  one week is how the wrong week gets paid. */
 export function rangeLabel(range: DateRange) {
+  if (range.payday) return `payday_${range.payday}`;
   const asMonth = monthRange(range.from.slice(0, 7));
   const whole = range.from === asMonth.from && range.to === asMonth.to;
   return whole ? range.from.slice(0, 7) : `${range.from}_${range.to}`;
@@ -309,6 +322,9 @@ export function rangeLabel(range: DateRange) {
 
 /** The same range in a sentence. */
 export function rangeText(range: DateRange) {
+  if (range.payday) {
+    return `Pays ${dateOf(range.payday)}: shifts approved by ${dateOf(range.to)}, 11:59pm`;
+  }
   const asMonth = monthRange(range.from.slice(0, 7));
   if (range.from === asMonth.from && range.to === asMonth.to) {
     return monthLabel(range.from.slice(0, 7));
@@ -599,7 +615,7 @@ export async function downloadPayrollXlsx(range: DateRange, company?: string) {
 
   if (!token) throw new Error("Session ended");
 
-  const query = new URLSearchParams({ from: range.from, to: range.to });
+  const query = rangeQuery(range);
   if (company) query.set("company", company);
 
   const res = await fetch(
