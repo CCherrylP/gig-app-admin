@@ -44,6 +44,7 @@ import {
   isReferralRow,
   listPayroll,
   markPayrollPaid,
+  markedPaidMessage,
   monthLabel,
   monthRange,
   payoutOf,
@@ -139,7 +140,7 @@ export default function PayrollPage() {
       setConfirming(false);
       setSelected(new Set());
       queryClient.invalidateQueries({ queryKey: ["payroll"] });
-      toast.success(`Marked ${result.marked} as paid`);
+      (result.unverified ? toast.warning : toast.success)(markedPaidMessage(result));
     },
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "Could not save the change."),

@@ -51,6 +51,7 @@ import {
   hours,
   listPayroll,
   markPayrollPaid,
+  markedPaidMessage,
   monthLabel,
   monthRange,
   paydayRange,
@@ -166,7 +167,7 @@ export default function PayoutSheetPage() {
       // crosses the 1st is not either month, so the numbers on screen have to
       // come from a refetch rather than from `result.totals`.
       queryClient.invalidateQueries({ queryKey: ["payroll"] });
-      toast.success(`Marked ${result.marked} as paid`);
+      (result.unverified ? toast.warning : toast.success)(markedPaidMessage(result));
     },
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "Could not save the change."),

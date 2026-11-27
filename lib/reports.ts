@@ -118,8 +118,19 @@ export interface PayrollResponse {
 
 export interface MarkPaidResponse {
   marked: number;
+  /** Skipped because the bank details are not verified yet. */
+  unverified?: number;
   month: string;
   totals: PayrollTotals;
+}
+
+/** The toast after Mark paid, naming any shifts skipped for unverified bank details. */
+export function markedPaidMessage(result: MarkPaidResponse) {
+  const skipped = result.unverified ?? 0;
+  const done = `Marked ${result.marked} as paid.`;
+  return skipped > 0
+    ? `${done} ${skipped} skipped: bank details not verified yet. Verify them, then mark paid.`
+    : done;
 }
 
 /** A period somebody picked, 'YYYY-MM-DD', INCLUSIVE at both ends — which is
